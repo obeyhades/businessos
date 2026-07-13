@@ -1,0 +1,5 @@
+/*
+ * Intentionally minimal: theming tokens live in the consuming app
+ * (apps/web/src/app/globals.css) so each app controls its own theme.
+ * This file exists so `@businessos/ui/styles.css` resolves if imported.
+ */

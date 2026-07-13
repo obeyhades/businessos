@@ -4,7 +4,11 @@ export function toSkipTake(query: PaginationQuery): { skip: number; take: number
   return { skip: (query.page - 1) * query.pageSize, take: query.pageSize };
 }
 
-export function toPaginated<T>(items: T[], totalItems: number, query: PaginationQuery): Paginated<T> {
+export function toPaginated<T>(
+  items: T[],
+  totalItems: number,
+  query: PaginationQuery,
+): Paginated<T> {
   return {
     items,
     page: query.page,

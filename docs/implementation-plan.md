@@ -11,12 +11,12 @@ This repository (`businessos/`) was therefore created fresh with `git init`.
 
 Local environment verified:
 
-| Tool   | Version               | Notes                                    |
-|--------|-----------------------|------------------------------------------|
-| Node   | 24.15.0               | ✓                                        |
-| pnpm   | 10.33.0               | workspace package manager                |
-| git    | 2.46 (Windows)        | ✓                                        |
-| Docker | 27.3.1 (Desktop)      | daemon must be running for infra + tests |
+| Tool   | Version          | Notes                                    |
+| ------ | ---------------- | ---------------------------------------- |
+| Node   | 24.15.0          | ✓                                        |
+| pnpm   | 10.33.0          | workspace package manager                |
+| git    | 2.46 (Windows)   | ✓                                        |
+| Docker | 27.3.1 (Desktop) | daemon must be running for infra + tests |
 
 Known local constraint: port 3000 is often occupied by other dev servers on this machine.
 All ports are configurable via environment variables; defaults documented in `.env.example`.
@@ -45,7 +45,7 @@ apps/
 packages/
   types          shared domain types, role/permission matrix, event names
   config         zod-validated environment loading (fail fast at startup)
-  api-client     typed client generated from the OpenAPI spec (openapi-typescript + openapi-fetch)
+  api-client     typed fetch client built on the shared zod contracts (see §3)
   ui             shared React components (shadcn-style, Tailwind)
   tsconfig       shared TS configs (strict)
   eslint-config  shared flat ESLint config
@@ -65,18 +65,18 @@ Hard rules enforced by structure:
 
 Full reasoning in `docs/decisions/`. Summary:
 
-| Decision | Choice | Tradeoff |
-|---|---|---|
-| API framework | **Fastify 5** (over NestJS) | Less structure out of the box, but first-class Zod validation + OpenAPI generation from one source of truth, far less boilerplate/decorator magic, faster cold starts. Module discipline is enforced by convention + lint rules instead of DI framework. (ADR-0001) |
-| Auth | **Opaque server-side sessions** in Postgres, HttpOnly/SameSite=Lax cookie, token stored hashed | Simpler to revoke and audit than JWTs; one DB read per request is acceptable for SMB scale. (ADR-0002) |
-| Password hashing | **Argon2id** via `argon2` | Modern default; memory cost tuned conservatively. |
-| RBAC | **Fixed role enum + code-defined permission matrix** in `packages/types` | Custom roles deferred; matrix is granular per resource+action and trivially testable. DB-driven roles can be added later without schema breakage. (ADR-0003) |
-| Tenancy | Shared schema, `organizationId` column + service-layer scoping helper + integration tests | Row-level security in Postgres considered; deferred to keep Prisma ergonomics, revisit before production. (ADR-0004) |
-| Events | **Transactional outbox** table polled by worker → RabbitMQ; consumers idempotent via `processed_messages` | Polling adds small latency vs LISTEN/NOTIFY; simpler and portable. (ADR-0005) |
-| API client | Generate OpenAPI JSON from Fastify (zod schemas) → `openapi-typescript` → `openapi-fetch` | Types can drift if generation isn't run; CI regenerates and fails on diff. |
-| i18n | `next-intl`, `en` + `sv` message files from day one | English is the development default. No hardcoded UI strings. |
-| Money (future modules) | Integer minor units (öre/cents), currency code per document | Locked in now in `docs/data-model.md` so invoicing/bookkeeping phases don't drift. |
-| Tests | Vitest (unit + integration against real Postgres), Playwright (e2e) | Integration tests use a dedicated test database via Docker Compose; Testcontainers used in CI-agnostic form where practical. |
+| Decision               | Choice                                                                                                                                                                             | Tradeoff                                                                                                                                                                                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API framework          | **Fastify 5** (over NestJS)                                                                                                                                                        | Less structure out of the box, but first-class Zod validation + OpenAPI generation from one source of truth, far less boilerplate/decorator magic, faster cold starts. Module discipline is enforced by convention + lint rules instead of DI framework. (ADR-0001) |
+| Auth                   | **Opaque server-side sessions** in Postgres, HttpOnly/SameSite=Lax cookie, token stored hashed                                                                                     | Simpler to revoke and audit than JWTs; one DB read per request is acceptable for SMB scale. (ADR-0002)                                                                                                                                                              |
+| Password hashing       | **Argon2id** via `argon2`                                                                                                                                                          | Modern default; memory cost tuned conservatively.                                                                                                                                                                                                                   |
+| RBAC                   | **Fixed role enum + code-defined permission matrix** in `packages/types`                                                                                                           | Custom roles deferred; matrix is granular per resource+action and trivially testable. DB-driven roles can be added later without schema breakage. (ADR-0003)                                                                                                        |
+| Tenancy                | Shared schema, `organizationId` column + service-layer scoping helper + integration tests                                                                                          | Row-level security in Postgres considered; deferred to keep Prisma ergonomics, revisit before production. (ADR-0004)                                                                                                                                                |
+| Events                 | **Transactional outbox** table polled by worker → RabbitMQ; consumers idempotent via `processed_messages`                                                                          | Polling adds small latency vs LISTEN/NOTIFY; simpler and portable. (ADR-0005)                                                                                                                                                                                       |
+| API client             | Hand-maintained thin client in `packages/api-client`, typed by the SAME zod contracts the server validates with (`packages/types`); OpenAPI JSON still generated for documentation | Types stay synchronized by construction (single schema source) instead of by codegen; responses are runtime-validated in the client. The generated `apps/api/openapi.json` remains available for external consumers/codegen.                                        |
+| i18n                   | `next-intl`, `en` + `sv` message files from day one                                                                                                                                | English is the development default. No hardcoded UI strings.                                                                                                                                                                                                        |
+| Money (future modules) | Integer minor units (öre/cents), currency code per document                                                                                                                        | Locked in now in `docs/data-model.md` so invoicing/bookkeeping phases don't drift.                                                                                                                                                                                  |
+| Tests                  | Vitest (unit + integration against real Postgres), Playwright (e2e)                                                                                                                | Integration tests use a dedicated test database via Docker Compose; Testcontainers used in CI-agnostic form where practical.                                                                                                                                        |
 
 ## 4. Phase 1 data model (summary)
 
@@ -149,8 +149,8 @@ pnpm test:integration               # requires docker compose db
 pnpm test:e2e                       # playwright, requires full stack
 pnpm build
 
-# api client regeneration after API changes
-pnpm generate:api-client
+# regenerate the OpenAPI document after API changes (docs artifact)
+pnpm generate:openapi
 ```
 
 ## 8. Definition of done for this iteration
@@ -168,3 +168,13 @@ pass; docs and seed data exist. Anything failing is reported honestly in the fin
 - Postgres row-level security evaluation before production (ADR-0004).
 - Custom role editor (matrix is code-defined for now).
 - Legal/accounting/GDPR review — see `docs/legal-review-required.md`.
+
+## 10. Status (2026-07-13, end of Phase 0+1 iteration)
+
+Phase 0 and Phase 1 are implemented and verified: api + worker + db + seed + full web app
+(auth pages, onboarding, dashboard, members, audit log, settings, admin failed-jobs, en/sv
+i18n) plus documentation, CI and Dependabot. Test suites: unit (types + api lib),
+integration (auth flows, tenant isolation, RBAC, invitations, members, CSRF/security,
+health) and one Playwright e2e covering the main workflow. The api-client decision in §3
+reflects the implemented approach (shared zod contracts, hand-maintained client, generated
+OpenAPI document via `pnpm generate:openapi`).

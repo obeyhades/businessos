@@ -1,5 +1,10 @@
 import type { PrismaClient, User } from '@businessos/db';
-import type { ForgotPasswordBody, LoginBody, RegisterBody, ResetPasswordBody } from '@businessos/types';
+import type {
+  ForgotPasswordBody,
+  LoginBody,
+  RegisterBody,
+  ResetPasswordBody,
+} from '@businessos/types';
 import type { ApiConfig } from '../../config.js';
 import { errors } from '../../lib/errors.js';
 import { hashPassword, verifyPassword } from '../../lib/passwords.js';

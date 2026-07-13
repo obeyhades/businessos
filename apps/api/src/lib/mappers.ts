@@ -1,10 +1,4 @@
-import type {
-  AuditLog,
-  Invitation,
-  Organization,
-  OrganizationMember,
-  User,
-} from '@businessos/db';
+import type { AuditLog, Invitation, Organization, OrganizationMember, User } from '@businessos/db';
 import type {
   AuditAction,
   AssignableRole,

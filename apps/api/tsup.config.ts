@@ -2,7 +2,9 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: ['src/main.ts'],
-  format: ['esm'],
+  // CJS output: bundled CJS transitive deps (e.g. dotenv) break under an ESM
+  // bundle ("Dynamic require of fs is not supported"). Node runs the .cjs fine.
+  format: ['cjs'],
   target: 'node22',
   sourcemap: true,
   clean: true,

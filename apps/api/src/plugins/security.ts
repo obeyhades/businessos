@@ -47,7 +47,9 @@ export async function registerSecurity(app: FastifyInstance): Promise<void> {
     }
     const referer = request.headers.referer;
     if (referer) {
-      const ok = [...allowedOrigins].some((allowed) => referer.startsWith(`${allowed}/`) || referer === allowed);
+      const ok = [...allowedOrigins].some(
+        (allowed) => referer.startsWith(`${allowed}/`) || referer === allowed,
+      );
       if (!ok) throw errors.csrfRejected();
       return;
     }

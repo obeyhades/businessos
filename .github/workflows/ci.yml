@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter @businessos/db exec prisma validate
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: businessos
+          POSTGRES_PASSWORD: businessos
+          POSTGRES_DB: businessos
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3.13-alpine
+        ports:
+          - 5672:5672
+    env:
+      # Points at the CI service container only — safety net so nothing in the
+      # integration run can reach a real database.
+      DATABASE_URL: postgresql://businessos:businessos@localhost:5432/businessos
+      DATABASE_URL_TEST: postgresql://businessos:businessos@localhost:5432/businessos_test
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: Create test database
+        run: PGPASSWORD=businessos psql -h localhost -U businessos -d businessos -c 'CREATE DATABASE businessos_test'
+      - name: Check for migration drift
+        run: >-
+          pnpm --filter @businessos/db exec prisma migrate diff
+          --from-migrations ./prisma/migrations
+          --to-schema-datamodel ./prisma/schema.prisma
+          --shadow-database-url postgresql://businessos:businessos@localhost:5432/businessos
+          --exit-code
+      - run: pnpm test:integration
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: businessos
+          POSTGRES_PASSWORD: businessos
+          POSTGRES_DB: businessos
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3.13-alpine
+        ports:
+          - 5672:5672
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: warn
+      DATABASE_URL: postgresql://businessos:businessos@localhost:5432/businessos
+      SESSION_SECRET: ci-only-secret-not-for-production-0123456789abcdef
+      API_PORT: 3101
+      API_HOST: 127.0.0.1
+      WEB_ORIGIN: http://localhost:3100
+      APP_BASE_URL: http://localhost:3100
+      NEXT_PUBLIC_API_URL: http://localhost:3101
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+      WORKER_HEALTH_PORT: 3009
+      # The worker is not started in e2e; Mailpit is not needed.
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_FROM: BusinessOS <no-reply@businessos.local>
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm db:deploy
+      - run: pnpm db:seed
+      - name: Install Playwright browsers
+        run: pnpm --filter @businessos/web exec playwright install chromium --with-deps
+      # The Playwright config boots the API and web app itself.
+      - run: pnpm test:e2e

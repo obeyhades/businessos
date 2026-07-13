@@ -77,7 +77,10 @@ export function registerInvitationRoutes(app: FastifyInstance): void {
         },
       });
       if (pendingInvitation) {
-        throw errors.conflict('invitation_pending', 'An invitation for this email is already pending');
+        throw errors.conflict(
+          'invitation_pending',
+          'An invitation for this email is already pending',
+        );
       }
 
       const org = await app.prisma.organization.findUniqueOrThrow({
@@ -219,7 +222,20 @@ export function registerInvitationRoutes(app: FastifyInstance): void {
       const invitation = await app.prisma.invitation.findUnique({
         where: { tokenHash: hashToken(request.params.token) },
       });
-      if (!invitation || !isPending(invitation)) throw errors.notFound('Invitation');
+      if (!invitation) throw errors.notFound('Invitation');
+      // The rightful acceptor re-using an accepted token gets an honest 409;
+      // everyone else still sees 404 so token state is never leaked.
+      if (invitation.acceptedAt && invitation.email === user.email) {
+        const alreadyMember = await app.prisma.organizationMember.findUnique({
+          where: {
+            organizationId_userId: { organizationId: invitation.organizationId, userId: user.id },
+          },
+        });
+        if (alreadyMember) {
+          throw errors.conflict('already_member', 'You are already a member of this organization');
+        }
+      }
+      if (!isPending(invitation)) throw errors.notFound('Invitation');
       if (invitation.email !== user.email) {
         throw errors.forbidden('This invitation was sent to a different email address');
       }

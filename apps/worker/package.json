@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/main.ts",
     "build": "tsup",
-    "start": "node dist/main.js",
+    "start": "node dist/main.cjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

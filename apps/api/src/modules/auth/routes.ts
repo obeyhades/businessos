@@ -11,12 +11,7 @@ import { clearSessionCookie, setSessionCookie } from '../../lib/cookies.js';
 import { errors } from '../../lib/errors.js';
 import { auditContext, recordAudit } from '../audit/service.js';
 import { requireAuth } from '../../plugins/auth.js';
-import {
-  registerUser,
-  requestPasswordReset,
-  resetPassword,
-  verifyLogin,
-} from './service.js';
+import { registerUser, requestPasswordReset, resetPassword, verifyLogin } from './service.js';
 import { buildSessionDto, createSession, defaultOrganizationId } from './session.js';
 
 const AUTH_RATE_LIMIT = { max: 10, timeWindow: '1 minute' } as const;

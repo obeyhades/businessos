@@ -37,12 +37,11 @@ export function startOutboxRelay(
           occurredAt: message.occurredAt.toISOString(),
         };
         try {
-          channel.publish(
-            EXCHANGE_NAME,
-            message.type,
-            Buffer.from(JSON.stringify(envelope)),
-            { persistent: true, messageId: message.id, contentType: 'application/json' },
-          );
+          channel.publish(EXCHANGE_NAME, message.type, Buffer.from(JSON.stringify(envelope)), {
+            persistent: true,
+            messageId: message.id,
+            contentType: 'application/json',
+          });
           await channel.waitForConfirms();
           await prisma.outboxMessage.update({
             where: { id: message.id },

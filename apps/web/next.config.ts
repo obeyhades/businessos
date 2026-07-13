@@ -5,6 +5,12 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The transpiled workspace packages are source-only ESM with `.js`-suffixed
+  // relative imports (NodeNext style); webpack needs this alias to map them
+  // back to their .ts sources.
+  experimental: {
+    extensionAlias: { '.js': ['.js', '.ts', '.tsx'] },
+  },
   transpilePackages: [
     '@businessos/ui',
     '@businessos/types',

@@ -21,7 +21,12 @@ export function buildLoggerOptions(config: ApiConfig): FastifyServerOptions['log
       censor: '[redacted]',
     },
     ...(config.NODE_ENV === 'development'
-      ? { transport: { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } } }
+      ? {
+          transport: {
+            target: 'pino-pretty',
+            options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
+          },
+        }
       : {}),
   };
 }

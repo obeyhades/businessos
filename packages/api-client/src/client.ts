@@ -113,7 +113,8 @@ export function createApiClient(options: ApiClientOptions) {
       getSession: () => request('GET', '/v1/auth/session', sessionDtoSchema),
     },
     me: {
-      updateProfile: (body: UpdateProfileBody) => request('PATCH', '/v1/me', userDtoSchema, { body }),
+      updateProfile: (body: UpdateProfileBody) =>
+        request('PATCH', '/v1/me', userDtoSchema, { body }),
       changePassword: (body: ChangePasswordBody) =>
         request('PATCH', '/v1/me/password', emptySchema, { body }),
     },

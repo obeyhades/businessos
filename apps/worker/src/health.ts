@@ -1,7 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import type { PrismaClient } from '@businessos/db';
 import type { Logger } from 'pino';
-import type { AmqpConnection } from './amqp.js';
 
 /**
  * Minimal health server for the worker: /healthz (liveness) and /readyz
