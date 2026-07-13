@@ -59,7 +59,7 @@ docker compose up -d        # Postgres :5432, RabbitMQ :5672, MinIO :9000, Mailp
 pnpm install
 pnpm db:migrate             # apply Prisma migrations
 pnpm db:seed                # demo organization + users (idempotent)
-pnpm dev                    # web (:3000), api (:3001), worker — via turbo
+pnpm dev                    # web (:3100), api (:3001), worker — via turbo
 ```
 
 More detail (including Windows notes and troubleshooting) in
@@ -122,6 +122,8 @@ pnpm test:e2e             # needs the full stack (db migrated + seeded)
   more than one can double-publish. Upgrade path documented in
   [ADR-0005](docs/decisions/adr-0005-transactional-outbox.md).
 - **Email is local-only.** All email goes to Mailpit; no production SMTP provider is wired up.
-- **Port 3000 conflicts.** If something else occupies port 3000, run the web app on another
-  port: `PORT=3100 pnpm --filter @businessos/web dev` (and adjust `WEB_ORIGIN` /
-  `APP_BASE_URL` in `.env` to match).
+- **Web runs on port 3100.** The dev server is pinned to `3100` (via the `apps/web` `dev`
+  script) to avoid the common port-3000 conflict. If you change the web port, keep
+  `WEB_ORIGIN` and `APP_BASE_URL` in `.env` on the same port — the API's CORS/origin
+  allow-list rejects mismatched origins, which surfaces in the UI as a generic
+  "Something went wrong" error.
