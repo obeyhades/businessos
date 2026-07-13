@@ -1,0 +1,170 @@
+# BusinessOS — Implementation Plan
+
+Status: living document. Created before Phase 0/1 implementation, updated as phases complete.
+
+## 0. Repository inspection (pre-work)
+
+The parent directory `C:\Users\abdun\Desktop\AI` was inspected before creating this repository.
+It contains unrelated projects (`roda-bilen/`, `roda-bilen-app/`) and loose scripts
+(`film-pipeline.ts`, `make-issue.js`, `serve-issue.js`). **Nothing is reusable for BusinessOS.**
+This repository (`businessos/`) was therefore created fresh with `git init`.
+
+Local environment verified:
+
+| Tool   | Version               | Notes                                    |
+|--------|-----------------------|------------------------------------------|
+| Node   | 24.15.0               | ✓                                        |
+| pnpm   | 10.33.0               | workspace package manager                |
+| git    | 2.46 (Windows)        | ✓                                        |
+| Docker | 27.3.1 (Desktop)      | daemon must be running for infra + tests |
+
+Known local constraint: port 3000 is often occupied by other dev servers on this machine.
+All ports are configurable via environment variables; defaults documented in `.env.example`.
+
+## 1. Goals for Phase 0 + Phase 1
+
+- Phase 0: monorepo foundation, tooling, Docker Compose infra (PostgreSQL, RabbitMQ, MinIO,
+  Mailpit), CI, documentation skeleton, health checks.
+- Phase 1: authentication, organizations, memberships, roles/permissions, audit logs,
+  organization switcher, basic dashboard, tenant-isolation tests.
+
+Everything later (customers, personnel, invoicing, bookkeeping, calendar, email, voice) is
+out of scope for this iteration but the data-model and event foundations are designed so
+those modules attach without rework.
+
+## 2. Architecture overview
+
+Modular monolith + separate background worker, one PostgreSQL database, RabbitMQ for async
+jobs, MinIO for files (used from Phase 2+), Mailpit for local email.
+
+```
+apps/
+  web      Next.js 15 (App Router) — UI only, talks to API via typed client
+  api      Fastify 5 + Zod + Prisma — REST API, OpenAPI spec, session auth, RBAC
+  worker   Node service — outbox relay, RabbitMQ consumers (email), DLQ handling
+packages/
+  types          shared domain types, role/permission matrix, event names
+  config         zod-validated environment loading (fail fast at startup)
+  api-client     typed client generated from the OpenAPI spec (openapi-typescript + openapi-fetch)
+  ui             shared React components (shadcn-style, Tailwind)
+  tsconfig       shared TS configs (strict)
+  eslint-config  shared flat ESLint config
+infrastructure/  docker-compose + init scripts
+docs/            architecture, security, data model, ADRs, this plan
+```
+
+Hard rules enforced by structure:
+
+- `apps/web` has **no** database or Prisma dependency; all data access goes through `apps/api`.
+- Every tenant-owned table carries `organizationId`; the API resolves the active organization
+  from the **server-side session**, never from client-supplied IDs.
+- Business logic lives in service modules (`apps/api/src/modules/*/service.ts`), not in route
+  handlers and not in React components.
+
+## 3. Major technology decisions and tradeoffs
+
+Full reasoning in `docs/decisions/`. Summary:
+
+| Decision | Choice | Tradeoff |
+|---|---|---|
+| API framework | **Fastify 5** (over NestJS) | Less structure out of the box, but first-class Zod validation + OpenAPI generation from one source of truth, far less boilerplate/decorator magic, faster cold starts. Module discipline is enforced by convention + lint rules instead of DI framework. (ADR-0001) |
+| Auth | **Opaque server-side sessions** in Postgres, HttpOnly/SameSite=Lax cookie, token stored hashed | Simpler to revoke and audit than JWTs; one DB read per request is acceptable for SMB scale. (ADR-0002) |
+| Password hashing | **Argon2id** via `argon2` | Modern default; memory cost tuned conservatively. |
+| RBAC | **Fixed role enum + code-defined permission matrix** in `packages/types` | Custom roles deferred; matrix is granular per resource+action and trivially testable. DB-driven roles can be added later without schema breakage. (ADR-0003) |
+| Tenancy | Shared schema, `organizationId` column + service-layer scoping helper + integration tests | Row-level security in Postgres considered; deferred to keep Prisma ergonomics, revisit before production. (ADR-0004) |
+| Events | **Transactional outbox** table polled by worker → RabbitMQ; consumers idempotent via `processed_messages` | Polling adds small latency vs LISTEN/NOTIFY; simpler and portable. (ADR-0005) |
+| API client | Generate OpenAPI JSON from Fastify (zod schemas) → `openapi-typescript` → `openapi-fetch` | Types can drift if generation isn't run; CI regenerates and fails on diff. |
+| i18n | `next-intl`, `en` + `sv` message files from day one | English is the development default. No hardcoded UI strings. |
+| Money (future modules) | Integer minor units (öre/cents), currency code per document | Locked in now in `docs/data-model.md` so invoicing/bookkeeping phases don't drift. |
+| Tests | Vitest (unit + integration against real Postgres), Playwright (e2e) | Integration tests use a dedicated test database via Docker Compose; Testcontainers used in CI-agnostic form where practical. |
+
+## 4. Phase 1 data model (summary)
+
+See `docs/data-model.md` for details.
+
+- `User` — global identity (email unique, argon2id hash, locale).
+- `Organization` — tenant root (name, slug, locale, currency).
+- `OrganizationMember` — user↔org with `role` enum (OWNER, ADMIN, ACCOUNTANT, MANAGER, EMPLOYEE, READONLY), unique(userId, organizationId).
+- `Session` — opaque token (sha256 hash stored), userId, `activeOrganizationId`, expiry, IP/user-agent metadata.
+- `Invitation` — org, email, role, hashed token, expiry, acceptedAt, invitedById.
+- `PasswordResetToken` — userId, hashed token, expiry, usedAt.
+- `AuditLog` — organizationId (nullable for pre-org events like registration), actorUserId, action, entityType/entityId, metadata JSONB, ip, userAgent.
+- `OutboxMessage` — event envelope written in the same transaction as the domain change.
+- `ProcessedMessage` — consumer idempotency ledger.
+- `FailedJob` — dead-lettered jobs surfaced in the admin UI.
+
+All IDs are UUIDs. All timestamps `timestamptz` in UTC. Soft delete is **not** used in Phase 1
+(sessions/invitations/reset tokens expire; audit logs are append-only).
+
+## 5. Security baseline (Phase 1)
+
+- Argon2id password hashing; constant-time token comparison; all long-lived tokens stored hashed.
+- HttpOnly, SameSite=Lax, Secure (in production) session cookie.
+- CSRF: state-changing requests require an `Origin`/`Referer` allow-list match (plus SameSite=Lax). Documented in `docs/security.md`.
+- Rate limiting on auth endpoints (per-IP) via `@fastify/rate-limit`.
+- Security headers via `@fastify/helmet`; restricted CORS (credentials only for the configured web origin).
+- Zod validation on every route (body, params, query) — no mass assignment (schemas are allow-lists).
+- Pino structured JSON logs with redaction of authorization headers, cookies, passwords, tokens.
+- Audit log entries for register, login, failed login, logout, password reset, org create, invite create/accept/revoke, role change, member removal, org switch.
+- Environment validated with Zod at startup in every app — missing/weak secrets abort boot.
+
+## 6. Delivery plan for this iteration
+
+1. **Phase 0 scaffold** — root workspace, shared packages, Docker Compose, CI, docs.
+2. **Verify foundation** — `pnpm install`, compose up, health checks green.
+3. **Prisma schema + first migration** (Phase 1 models above) + seed.
+4. **API modules** — `auth`, `organizations`, `memberships`, `invitations`, `audit`, `admin (failed jobs)`, `health`, `me`.
+5. **Worker** — outbox relay, `email.send` consumer (SMTP → Mailpit), retry/backoff, DLQ → `FailedJob`.
+6. **OpenAPI → typed client** generation.
+7. **Web** — auth pages, onboarding, dashboard, org switcher, settings (organization, members, profile, audit log), i18n (en/sv), loading/empty/error states.
+8. **Tests** — unit (permission matrix, token handling, schemas), integration (tenant isolation, auth flows, outbox), one Playwright e2e (register → create org → dashboard → invite → accept).
+9. **Quality gates** — format, lint, typecheck, tests, production build; fix everything caused by this implementation; adversarial review pass on tenant isolation and auth.
+10. **Report** — files, migrations, endpoints, pages, known limitations, Phase 2 task list.
+
+## 7. Exact commands (local development)
+
+```bash
+# one-time
+corepack enable && corepack prepare pnpm@10 --activate   # or: npm i -g pnpm
+cp .env.example .env
+
+# infrastructure
+docker compose up -d                # Postgres, RabbitMQ, MinIO, Mailpit
+
+# install + database
+pnpm install
+pnpm db:migrate                     # prisma migrate dev (packages/db)
+pnpm db:seed                        # demo organization + users
+
+# development
+pnpm dev                            # web (:3000), api (:3001), worker — via turbo
+pnpm --filter @businessos/api dev   # individual app
+
+# quality gates (same as CI)
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test                           # unit
+pnpm test:integration               # requires docker compose db
+pnpm test:e2e                       # playwright, requires full stack
+pnpm build
+
+# api client regeneration after API changes
+pnpm generate:api-client
+```
+
+## 8. Definition of done for this iteration
+
+Phase 0+1 are complete only when: the stack starts locally via Docker Compose + `pnpm dev`;
+register/login/logout/reset, org creation, invitations, org switching and the dashboard work
+through the UI; tenant isolation is proven by integration tests; lint/typecheck/tests/build
+pass; docs and seed data exist. Anything failing is reported honestly in the final summary.
+
+## 9. Explicitly deferred (tracked for later phases)
+
+- Customers/projects/tasks (Phase 2), personnel (3), quotes/invoicing (4), bookkeeping (5),
+  calendar (6), email module (7), voice notes (8), external integrations (9).
+- MinIO is provisioned in compose now but first used by file attachments in Phase 2.
+- Postgres row-level security evaluation before production (ADR-0004).
+- Custom role editor (matrix is code-defined for now).
+- Legal/accounting/GDPR review — see `docs/legal-review-required.md`.

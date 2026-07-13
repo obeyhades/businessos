@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+node_modules
+dist
+.next
+.turbo
+coverage
+playwright-report
+test-results
+packages/db/src/generated
+packages/db/prisma/migrations
+apps/api/openapi.json
+CHANGELOG.md

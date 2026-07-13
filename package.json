@@ -1,0 +1,45 @@
+{
+  "name": "businessos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BusinessOS — operational platform for small and medium-sized businesses",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @businessos/db generate",
+    "db:migrate": "pnpm --filter @businessos/db migrate:dev",
+    "db:deploy": "pnpm --filter @businessos/db migrate:deploy",
+    "db:seed": "pnpm --filter @businessos/db seed",
+    "db:studio": "pnpm --filter @businessos/db studio",
+    "generate:openapi": "pnpm --filter @businessos/api generate:openapi"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2",
+      "esbuild",
+      "prisma",
+      "@prisma/client",
+      "@prisma/engines",
+      "@tailwindcss/oxide",
+      "sharp"
+    ]
+  }
+}

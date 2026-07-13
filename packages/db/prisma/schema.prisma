@@ -1,0 +1,190 @@
+// BusinessOS database schema — Phase 1 (auth, organizations, memberships,
+// sessions, invitations, audit, outbox). Later phases append models; existing
+// columns are only changed through new migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  ACCOUNTANT
+  MANAGER
+  EMPLOYEE
+  READONLY
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  name            String
+  locale          String   @default("en")
+  isPlatformAdmin Boolean  @default(false) @map("is_platform_admin")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships         OrganizationMember[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  sentInvitations     Invitation[]         @relation("InvitationInvitedBy")
+  auditLogs           AuditLog[]           @relation("AuditLogActor")
+
+  @@map("users")
+}
+
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  locale      String   @default("en")
+  currency    String   @default("SEK")
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  members     OrganizationMember[]
+  invitations Invitation[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  role           OrganizationRole
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+// Opaque server-side sessions (ADR-0002). Only the SHA-256 hash of the token
+// is stored; the raw token exists solely in the HttpOnly cookie.
+model Session {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tokenHash            String    @unique @map("token_hash")
+  userId               String    @map("user_id") @db.Uuid
+  activeOrganizationId String?   @map("active_organization_id") @db.Uuid
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt           DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  ip                   String?
+  userAgent            String?   @map("user_agent")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Invitation {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  email          String
+  role           OrganizationRole
+  tokenHash      String           @unique @map("token_hash")
+  expiresAt      DateTime         @map("expires_at") @db.Timestamptz(6)
+  acceptedAt     DateTime?        @map("accepted_at") @db.Timestamptz(6)
+  revokedAt      DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  invitedById    String?          @map("invited_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitations")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// Append-only. organizationId is null for events that happen before any
+// organization exists (registration, login, password reset).
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  action         String
+  entityType     String?  @map("entity_type")
+  entityId       String?  @map("entity_id")
+  metadata       Json?
+  ip             String?
+  userAgent      String?  @map("user_agent")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([actorUserId])
+  @@map("audit_logs")
+}
+
+// Transactional outbox (ADR-0005): written in the same transaction as the
+// domain change, relayed to RabbitMQ by the worker, then marked published.
+model OutboxMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        String
+  payload     Json
+  occurredAt  DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+
+  @@index([publishedAt, occurredAt])
+  @@map("outbox_messages")
+}
+
+// Consumer idempotency ledger: a (message, consumer) pair is processed once.
+model ProcessedMessage {
+  messageId   String   @map("message_id") @db.Uuid
+  consumer    String
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@id([messageId, consumer])
+  @@map("processed_messages")
+}
+
+// Jobs that exhausted retries; surfaced in the platform-admin UI.
+model FailedJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  queue       String
+  messageType String    @map("message_type")
+  payload     Json
+  error       String
+  attempts    Int
+  failedAt    DateTime  @default(now()) @map("failed_at") @db.Timestamptz(6)
+  retriedAt   DateTime? @map("retried_at") @db.Timestamptz(6)
+
+  @@index([failedAt(sort: Desc)])
+  @@map("failed_jobs")
+}
