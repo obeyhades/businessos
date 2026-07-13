@@ -21,6 +21,11 @@ export const testConfig: ApiConfig = {
   SESSION_SECRET: 'integration-test-only-secret-0123456789-abcdefghij',
   WEB_ORIGIN,
   APP_BASE_URL: WEB_ORIGIN,
+  S3_ENDPOINT: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
+  S3_ACCESS_KEY: process.env.S3_ACCESS_KEY ?? 'businessos',
+  S3_SECRET_KEY: process.env.S3_SECRET_KEY ?? 'businessos-dev-secret',
+  S3_BUCKET: process.env.S3_BUCKET ?? 'businessos',
+  S3_REGION: process.env.S3_REGION ?? 'us-east-1',
 };
 
 export interface TestContext {

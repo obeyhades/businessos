@@ -12,7 +12,16 @@ export type {
   OutboxMessage,
   ProcessedMessage,
   FailedJob,
+  // Phase 2
+  Customer,
+  CustomerContact,
+  Project,
+  Task,
+  Comment,
+  FileAttachment,
+  Activity,
 } from '@prisma/client';
+export { CustomerStatus, ProjectStatus, TaskStatus, TaskPriority } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {
   databaseUrl: string;

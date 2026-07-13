@@ -36,6 +36,15 @@ model User {
   sentInvitations     Invitation[]         @relation("InvitationInvitedBy")
   auditLogs           AuditLog[]           @relation("AuditLogActor")
 
+  // Phase 2 back-relations
+  createdCustomers    Customer[]       @relation("CustomerCreatedBy")
+  createdProjects     Project[]        @relation("ProjectCreatedBy")
+  createdTasks        Task[]           @relation("TaskCreatedBy")
+  assignedTasks       Task[]           @relation("TaskAssignee")
+  comments            Comment[]        @relation("CommentAuthor")
+  uploadedAttachments FileAttachment[] @relation("FileAttachmentUploadedBy")
+  activities          Activity[]       @relation("ActivityActor")
+
   @@map("users")
 }
 
@@ -52,6 +61,15 @@ model Organization {
   members     OrganizationMember[]
   invitations Invitation[]
   auditLogs   AuditLog[]
+
+  // Phase 2 back-relations
+  customers        Customer[]
+  customerContacts CustomerContact[]
+  projects         Project[]
+  tasks            Task[]
+  comments         Comment[]
+  fileAttachments  FileAttachment[]
+  activities       Activity[]
 
   @@map("organizations")
 }
@@ -75,15 +93,15 @@ model OrganizationMember {
 // Opaque server-side sessions (ADR-0002). Only the SHA-256 hash of the token
 // is stored; the raw token exists solely in the HttpOnly cookie.
 model Session {
-  id                   String    @id @default(uuid()) @db.Uuid
-  tokenHash            String    @unique @map("token_hash")
-  userId               String    @map("user_id") @db.Uuid
-  activeOrganizationId String?   @map("active_organization_id") @db.Uuid
-  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(6)
-  lastUsedAt           DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  id                   String   @id @default(uuid()) @db.Uuid
+  tokenHash            String   @unique @map("token_hash")
+  userId               String   @map("user_id") @db.Uuid
+  activeOrganizationId String?  @map("active_organization_id") @db.Uuid
+  expiresAt            DateTime @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt           DateTime @default(now()) @map("last_used_at") @db.Timestamptz(6)
   ip                   String?
-  userAgent            String?   @map("user_agent")
-  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  userAgent            String?  @map("user_agent")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -187,4 +205,223 @@ model FailedJob {
 
   @@index([failedAt(sort: Desc)])
   @@map("failed_jobs")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Customers, contacts, projects, tasks, comments, attachments,
+// activity timelines. Every table carries organization_id for tenant isolation.
+// ---------------------------------------------------------------------------
+
+enum CustomerStatus {
+  LEAD
+  ACTIVE
+  ARCHIVED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Customer {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  name           String
+  orgNumber      String?        @map("org_number")
+  email          String?
+  phone          String?
+  addressLine1   String?        @map("address_line1")
+  addressLine2   String?        @map("address_line2")
+  postalCode     String?        @map("postal_code")
+  city           String?
+  country        String?
+  notes          String?
+  status         CustomerStatus @default(ACTIVE)
+  createdById    String?        @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?             @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  contacts     CustomerContact[]
+  projects     Project[]
+  tasks        Task[]
+  comments     Comment[]
+  attachments  FileAttachment[]
+  activities   Activity[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, name])
+  @@map("customers")
+}
+
+model CustomerContact {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  name           String
+  email          String?
+  phone          String?
+  title          String?
+  isPrimary      Boolean  @default(false) @map("is_primary")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@map("customer_contacts")
+}
+
+model Project {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  customerId     String?       @map("customer_id") @db.Uuid
+  name           String
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  createdById    String?       @map("created_by_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdBy    User?            @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  tasks        Task[]
+  comments     Comment[]
+  attachments  FileAttachment[]
+  activities   Activity[]
+
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@map("projects")
+}
+
+model Task {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String
+  description    String?
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  dueDate        DateTime?    @map("due_date") @db.Timestamptz(6)
+  customerId     String?      @map("customer_id") @db.Uuid
+  projectId      String?      @map("project_id") @db.Uuid
+  assigneeId     String?      @map("assignee_id") @db.Uuid
+  createdById    String?      @map("created_by_id") @db.Uuid
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  project      Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee     User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy    User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  comments     Comment[]
+  attachments  FileAttachment[]
+  activities   Activity[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, assigneeId])
+  @@index([projectId])
+  @@index([customerId])
+  @@map("tasks")
+}
+
+// Polymorphic: attached to exactly one of customer/project/task
+// (enforced in the service layer). Cascades away with its parent.
+model Comment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  authorId       String?  @map("author_id") @db.Uuid
+  body           String
+  customerId     String?  @map("customer_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  taskId         String?  @map("task_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User?        @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, customerId])
+  @@index([organizationId, projectId])
+  @@index([organizationId, taskId])
+  @@map("comments")
+}
+
+// Metadata for a file stored in object storage (MinIO/S3). The bytes live under
+// storage_key; only signed, short-lived URLs are ever handed to clients.
+model FileAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  uploadedById   String?  @map("uploaded_by_id") @db.Uuid
+  fileName       String   @map("file_name")
+  contentType    String   @map("content_type")
+  size           Int
+  storageKey     String   @unique @map("storage_key")
+  customerId     String?  @map("customer_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  taskId         String?  @map("task_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation("FileAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, customerId])
+  @@index([organizationId, projectId])
+  @@index([organizationId, taskId])
+  @@map("file_attachments")
+}
+
+// Append-only user-facing timeline (distinct from the security audit log).
+// customer_id is denormalized on every row that resolves to a customer so a
+// customer timeline is a single indexed query.
+model Activity {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  type           String
+  customerId     String?  @map("customer_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  taskId         String?  @map("task_id") @db.Uuid
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, customerId, createdAt(sort: Desc)])
+  @@index([organizationId, projectId, createdAt(sort: Desc)])
+  @@index([organizationId, taskId, createdAt(sort: Desc)])
+  @@map("activities")
 }

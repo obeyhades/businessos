@@ -19,6 +19,24 @@ export const AUDIT_ACTIONS = [
   'member.invitation_revoked',
   'member.role_changed',
   'member.removed',
+  // Phase 2
+  'customer.created',
+  'customer.updated',
+  'customer.archived',
+  'contact.created',
+  'contact.updated',
+  'contact.deleted',
+  'project.created',
+  'project.updated',
+  'project.archived',
+  'task.created',
+  'task.updated',
+  'task.completed',
+  'task.deleted',
+  'comment.created',
+  'comment.deleted',
+  'attachment.uploaded',
+  'attachment.deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

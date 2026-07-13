@@ -6,3 +6,12 @@ export * from './members.js';
 export * from './invitations.js';
 export * from './audit-logs.js';
 export * from './admin.js';
+// Phase 2
+export * from './customers.js';
+export * from './contacts.js';
+export * from './projects.js';
+export * from './tasks.js';
+export * from './comments.js';
+export * from './attachments.js';
+export * from './activity.js';
+export * from './search.js';

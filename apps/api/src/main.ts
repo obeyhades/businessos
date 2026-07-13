@@ -1,10 +1,13 @@
 import { createPrismaClient } from '@businessos/db';
 import { buildApp } from './app.js';
 import { env } from './env.js';
+import { ObjectStorage } from './lib/storage.js';
 
 async function main(): Promise<void> {
   const prisma = createPrismaClient({ databaseUrl: env.DATABASE_URL });
-  const app = await buildApp({ config: env, prisma });
+  const storage = new ObjectStorage(env);
+  await storage.ensureBucket();
+  const app = await buildApp({ config: env, prisma, storage });
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'shutting down');

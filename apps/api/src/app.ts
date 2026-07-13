@@ -1,5 +1,7 @@
+import multipart from '@fastify/multipart';
 import swagger from '@fastify/swagger';
 import type { PrismaClient } from '@businessos/db';
+import { MAX_ATTACHMENT_BYTES } from '@businessos/types';
 import fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import {
   jsonSchemaTransform,
@@ -10,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import type { ApiConfig } from './config.js';
 import { AppError } from './lib/errors.js';
 import { buildLoggerOptions } from './lib/logger.js';
+import { ObjectStorage } from './lib/storage.js';
 import { registerAuthContext } from './plugins/auth.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerAdminRoutes } from './modules/admin/routes.js';
@@ -20,10 +23,20 @@ import { registerInvitationRoutes } from './modules/invitations/routes.js';
 import { registerMeRoutes } from './modules/me/routes.js';
 import { registerMemberRoutes } from './modules/members/routes.js';
 import { registerOrganizationRoutes } from './modules/organizations/routes.js';
+import { registerCustomerRoutes } from './modules/customers/routes.js';
+import { registerContactRoutes } from './modules/contacts/routes.js';
+import { registerProjectRoutes } from './modules/projects/routes.js';
+import { registerTaskRoutes } from './modules/tasks/routes.js';
+import { registerCommentRoutes } from './modules/comments/routes.js';
+import { registerAttachmentRoutes } from './modules/attachments/routes.js';
+import { registerActivityRoutes } from './modules/activity/routes.js';
+import { registerSearchRoutes } from './modules/search/routes.js';
 
 export interface BuildAppOptions {
   config: ApiConfig;
   prisma: PrismaClient;
+  /** Injected in tests; defaults to a real ObjectStorage from config. */
+  storage?: ObjectStorage;
   /** Override logging in tests (`false` to silence). */
   logger?: FastifyServerOptions['logger'];
 }
@@ -41,6 +54,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   app.decorate('prisma', options.prisma);
   app.decorate('config', options.config);
+  app.decorate('storage', options.storage ?? new ObjectStorage(options.config));
 
   app.setErrorHandler((error: unknown, request, reply) => {
     if (error instanceof AppError) {
@@ -90,6 +104,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     app.get('/docs/json', async (_request, reply) => reply.send(app.swagger()));
   }
 
+  await app.register(multipart, {
+    limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1 },
+  });
+
   await registerSecurity(app);
   registerAuthContext(app);
 
@@ -101,6 +119,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerInvitationRoutes(app);
   registerAuditLogRoutes(app);
   registerAdminRoutes(app);
+  // Phase 2
+  registerCustomerRoutes(app);
+  registerContactRoutes(app);
+  registerProjectRoutes(app);
+  registerTaskRoutes(app);
+  registerCommentRoutes(app);
+  registerAttachmentRoutes(app);
+  registerActivityRoutes(app);
+  registerSearchRoutes(app);
 
   app.addHook('onClose', async () => {
     await options.prisma.$disconnect();

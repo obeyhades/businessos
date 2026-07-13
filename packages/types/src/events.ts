@@ -33,6 +33,9 @@ export const domainEventTypes = [
   'member.invited',
   'member.invitation_accepted',
   'email.send',
+  // Phase 2
+  'customer.created',
+  'task.completed',
 ] as const;
 export type DomainEventType = (typeof domainEventTypes)[number];
 

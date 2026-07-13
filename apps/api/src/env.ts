@@ -11,6 +11,11 @@ export const env = parseEnv({
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   WEB_ORIGIN: z.string().url(),
   APP_BASE_URL: z.string().url(),
+  S3_ENDPOINT: z.string().url(),
+  S3_ACCESS_KEY: z.string().min(1),
+  S3_SECRET_KEY: z.string().min(1),
+  S3_BUCKET: z.string().min(1),
+  S3_REGION: z.string().min(1).default('us-east-1'),
 });
 
 export type ApiEnv = typeof env;
