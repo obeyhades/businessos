@@ -28,6 +28,16 @@ export type {
   EmployeeDocument,
   OnboardingTemplate,
   OnboardingTemplateItem,
+  // Phase 4
+  Product,
+  Quote,
+  QuoteLineItem,
+  Invoice,
+  InvoiceLineItem,
+  Payment,
+  CreditNote,
+  CreditNoteLineItem,
+  NumberSequence,
 } from '@prisma/client';
 export {
   CustomerStatus,
@@ -41,6 +51,12 @@ export {
   AbsenceStatus,
   EmployeeDocumentCategory,
   ChecklistType,
+  // Phase 4
+  QuoteStatus,
+  InvoiceStatus,
+  PaymentMethod,
+  CreditNoteStatus,
+  NumberSequenceKind,
 } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {

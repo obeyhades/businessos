@@ -1,11 +1,11 @@
 import { createPrismaClient } from '@businessos/db';
 import { buildApp } from './app.js';
 import { env } from './env.js';
-import { ObjectStorage } from './lib/storage.js';
+import { createObjectStorage } from './lib/storage.js';
 
 async function main(): Promise<void> {
   const prisma = createPrismaClient({ databaseUrl: env.DATABASE_URL });
-  const storage = new ObjectStorage(env);
+  const storage = createObjectStorage(env);
   await storage.ensureBucket();
   const app = await buildApp({ config: env, prisma, storage });
 

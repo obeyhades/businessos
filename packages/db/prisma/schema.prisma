@@ -51,6 +51,12 @@ model User {
   uploadedEmployeeDocuments EmployeeDocument[] @relation("EmployeeDocumentUploadedBy")
   reviewedAbsences          AbsenceRequest[]   @relation("AbsenceReviewedBy")
 
+  // Phase 4 back-relations
+  createdQuotes      Quote[]      @relation("QuoteCreatedBy")
+  createdInvoices    Invoice[]    @relation("InvoiceCreatedBy")
+  recordedPayments   Payment[]    @relation("PaymentCreatedBy")
+  createdCreditNotes CreditNote[] @relation("CreditNoteCreatedBy")
+
   @@map("users")
 }
 
@@ -84,6 +90,14 @@ model Organization {
   absenceRequests     AbsenceRequest[]
   employeeDocuments   EmployeeDocument[]
   onboardingTemplates OnboardingTemplate[]
+
+  // Phase 4 back-relations
+  products        Product[]
+  quotes          Quote[]
+  invoices        Invoice[]
+  payments        Payment[]
+  creditNotes     CreditNote[]
+  numberSequences NumberSequence[]
 
   @@map("organizations")
 }
@@ -280,6 +294,8 @@ model Customer {
   comments     Comment[]
   attachments  FileAttachment[]
   activities   Activity[]
+  quotes       Quote[]
+  invoices     Invoice[]
 
   @@index([organizationId, status])
   @@index([organizationId, name])
@@ -670,4 +686,276 @@ model OnboardingTemplateItem {
 
   @@index([templateId, sortOrder])
   @@map("onboarding_template_items")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 — Quotes & invoicing. Money is stored as INTEGER MINOR UNITS
+// (BigInt, e.g. ore/cents) — never floating point. Quantities and percentages
+// are Decimal. Finalized invoices are immutable; corrections use credit notes.
+// ---------------------------------------------------------------------------
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  CREDITED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  SWISH
+  OTHER
+}
+
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+}
+
+enum NumberSequenceKind {
+  QUOTE
+  INVOICE
+  CREDIT_NOTE
+}
+
+// Per-organization, per-document-type monotonic counter. The `next` value is
+// incremented atomically inside the finalize transaction (row lock), which is
+// what makes document numbering concurrency-safe.
+model NumberSequence {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  kind           NumberSequenceKind
+  prefix         String
+  padding        Int                @default(4)
+  next           Int                @default(1)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, kind])
+  @@map("number_sequences")
+}
+
+model Product {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+  sku            String?
+  unit           String   @default("piece")
+  unitPriceMinor BigInt   @default(0) @map("unit_price_minor")
+  currency       String   @default("SEK")
+  taxRatePercent Decimal  @default(25) @map("tax_rate_percent") @db.Decimal(5, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, name])
+  @@map("products")
+}
+
+model Quote {
+  id                 String      @id @default(uuid()) @db.Uuid
+  organizationId     String      @map("organization_id") @db.Uuid
+  customerId         String      @map("customer_id") @db.Uuid
+  number             String?
+  status             QuoteStatus @default(DRAFT)
+  currency           String      @default("SEK")
+  issueDate          DateTime    @map("issue_date") @db.Date
+  validUntil         DateTime?   @map("valid_until") @db.Date
+  customerNotes      String?     @map("customer_notes")
+  internalNotes      String?     @map("internal_notes")
+  subtotalMinor      BigInt      @default(0) @map("subtotal_minor")
+  discountMinor      BigInt      @default(0) @map("discount_minor")
+  taxMinor           BigInt      @default(0) @map("tax_minor")
+  totalMinor         BigInt      @default(0) @map("total_minor")
+  taxLines           Json?       @map("tax_lines")
+  acceptedAt         DateTime?   @map("accepted_at") @db.Timestamptz(6)
+  declinedAt         DateTime?   @map("declined_at") @db.Timestamptz(6)
+  convertedInvoiceId String?     @unique @map("converted_invoice_id") @db.Uuid
+  createdById        String?     @map("created_by_id") @db.Uuid
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer         Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy        User?           @relation("QuoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  convertedInvoice Invoice?        @relation("QuoteConvertedInvoice", fields: [convertedInvoiceId], references: [id], onDelete: SetNull)
+  lineItems        QuoteLineItem[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@map("quotes")
+}
+
+model QuoteLineItem {
+  id              String  @id @default(uuid()) @db.Uuid
+  organizationId  String  @map("organization_id") @db.Uuid
+  quoteId         String  @map("quote_id") @db.Uuid
+  productId       String? @map("product_id") @db.Uuid
+  description     String
+  quantity        Decimal @default(1) @db.Decimal(14, 3)
+  unitPriceMinor  BigInt  @default(0) @map("unit_price_minor")
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  taxRatePercent  Decimal @default(0) @map("tax_rate_percent") @db.Decimal(5, 2)
+  lineNetMinor    BigInt  @default(0) @map("line_net_minor")
+  lineTaxMinor    BigInt  @default(0) @map("line_tax_minor")
+  lineTotalMinor  BigInt  @default(0) @map("line_total_minor")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, sortOrder])
+  @@map("quote_line_items")
+}
+
+model Invoice {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  customerId      String        @map("customer_id") @db.Uuid
+  number          String?
+  status          InvoiceStatus @default(DRAFT)
+  currency        String        @default("SEK")
+  issueDate       DateTime      @map("issue_date") @db.Date
+  dueDate         DateTime      @map("due_date") @db.Date
+  customerNotes   String?       @map("customer_notes")
+  internalNotes   String?       @map("internal_notes")
+  subtotalMinor   BigInt        @default(0) @map("subtotal_minor")
+  discountMinor   BigInt        @default(0) @map("discount_minor")
+  taxMinor        BigInt        @default(0) @map("tax_minor")
+  totalMinor      BigInt        @default(0) @map("total_minor")
+  amountPaidMinor BigInt        @default(0) @map("amount_paid_minor")
+  creditedMinor   BigInt        @default(0) @map("credited_minor")
+  taxLines        Json?         @map("tax_lines")
+  pdfStorageKey   String?       @map("pdf_storage_key")
+  finalizedAt     DateTime?     @map("finalized_at") @db.Timestamptz(6)
+  sentAt          DateTime?     @map("sent_at") @db.Timestamptz(6)
+  paidAt          DateTime?     @map("paid_at") @db.Timestamptz(6)
+  cancelledAt     DateTime?     @map("cancelled_at") @db.Timestamptz(6)
+  lastReminderAt  DateTime?     @map("last_reminder_at") @db.Timestamptz(6)
+  createdById     String?       @map("created_by_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy    User?             @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  fromQuote    Quote?            @relation("QuoteConvertedInvoice")
+  lineItems    InvoiceLineItem[]
+  payments     Payment[]
+  creditNotes  CreditNote[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, dueDate])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id              String  @id @default(uuid()) @db.Uuid
+  organizationId  String  @map("organization_id") @db.Uuid
+  invoiceId       String  @map("invoice_id") @db.Uuid
+  productId       String? @map("product_id") @db.Uuid
+  description     String
+  quantity        Decimal @default(1) @db.Decimal(14, 3)
+  unitPriceMinor  BigInt  @default(0) @map("unit_price_minor")
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  taxRatePercent  Decimal @default(0) @map("tax_rate_percent") @db.Decimal(5, 2)
+  lineNetMinor    BigInt  @default(0) @map("line_net_minor")
+  lineTaxMinor    BigInt  @default(0) @map("line_tax_minor")
+  lineTotalMinor  BigInt  @default(0) @map("line_total_minor")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, sortOrder])
+  @@map("invoice_line_items")
+}
+
+model Payment {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  invoiceId      String        @map("invoice_id") @db.Uuid
+  amountMinor    BigInt        @map("amount_minor")
+  method         PaymentMethod @default(BANK_TRANSFER)
+  reference      String?
+  paidOn         DateTime      @map("paid_on") @db.Date
+  note           String?
+  createdById    String?       @map("created_by_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, invoiceId])
+  @@map("payments")
+}
+
+model CreditNote {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  invoiceId      String           @map("invoice_id") @db.Uuid
+  number         String?
+  status         CreditNoteStatus @default(DRAFT)
+  currency       String           @default("SEK")
+  issueDate      DateTime         @map("issue_date") @db.Date
+  reason         String?
+  subtotalMinor  BigInt           @default(0) @map("subtotal_minor")
+  taxMinor       BigInt           @default(0) @map("tax_minor")
+  totalMinor     BigInt           @default(0) @map("total_minor")
+  taxLines       Json?            @map("tax_lines")
+  issuedAt       DateTime?        @map("issued_at") @db.Timestamptz(6)
+  createdById    String?          @map("created_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice      Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy    User?                @relation("CreditNoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  lineItems    CreditNoteLineItem[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, invoiceId])
+  @@map("credit_notes")
+}
+
+model CreditNoteLineItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  creditNoteId   String  @map("credit_note_id") @db.Uuid
+  description    String
+  quantity       Decimal @default(1) @db.Decimal(14, 3)
+  unitPriceMinor BigInt  @default(0) @map("unit_price_minor")
+  taxRatePercent Decimal @default(0) @map("tax_rate_percent") @db.Decimal(5, 2)
+  lineNetMinor   BigInt  @default(0) @map("line_net_minor")
+  lineTaxMinor   BigInt  @default(0) @map("line_tax_minor")
+  lineTotalMinor BigInt  @default(0) @map("line_total_minor")
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  @@index([creditNoteId, sortOrder])
+  @@map("credit_note_line_items")
 }

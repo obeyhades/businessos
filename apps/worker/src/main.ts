@@ -1,4 +1,5 @@
 import { createPrismaClient } from '@businessos/db';
+import { ObjectStorage } from '@businessos/storage';
 import { assertTopology, connectWithRetry } from './amqp.js';
 import { startEmailConsumer } from './consumers/email.js';
 import { createMailTransport } from './email/transport.js';
@@ -6,6 +7,7 @@ import { env } from './env.js';
 import { startHealthServer } from './health.js';
 import { buildLogger } from './lib/logger.js';
 import { startOutboxRelay } from './outbox-relay.js';
+import { startOverdueSweep } from './overdue-sweep.js';
 
 async function main(): Promise<void> {
   const logger = buildLogger(env);
@@ -25,8 +27,16 @@ async function main(): Promise<void> {
   await assertTopology(channel);
 
   const transport = createMailTransport(env);
+  const storage = new ObjectStorage({
+    endpoint: env.S3_ENDPOINT,
+    region: env.S3_REGION,
+    accessKeyId: env.S3_ACCESS_KEY,
+    secretAccessKey: env.S3_SECRET_KEY,
+    bucket: env.S3_BUCKET,
+  });
   const relay = startOutboxRelay(prisma, channel, logger);
-  await startEmailConsumer({ prisma, channel, transport, from: env.SMTP_FROM, logger });
+  await startEmailConsumer({ prisma, channel, transport, storage, from: env.SMTP_FROM, logger });
+  const overdueSweep = startOverdueSweep(prisma, env.OVERDUE_SWEEP_SECONDS, logger);
   const healthServer = startHealthServer(
     env.WORKER_HEALTH_PORT,
     prisma,
@@ -39,6 +49,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'shutting down');
     relay.stop();
+    overdueSweep.stop();
     healthServer.close();
     try {
       await channel.close();

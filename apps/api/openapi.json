@@ -2039,7 +2039,27 @@
                               "onboarding_template.created",
                               "onboarding_template.updated",
                               "onboarding_template.deleted",
-                              "onboarding_template.applied"
+                              "onboarding_template.applied",
+                              "product.created",
+                              "product.updated",
+                              "product.deleted",
+                              "quote.created",
+                              "quote.updated",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "quote.deleted",
+                              "invoice.created",
+                              "invoice.updated",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.cancelled",
+                              "invoice.overdue",
+                              "payment.registered",
+                              "payment.deleted",
+                              "credit_note.created",
+                              "credit_note.issued"
                             ]
                           },
                           "entityType": {
@@ -2977,7 +2997,19 @@
                               "absence.approved",
                               "absence.rejected",
                               "document.added",
-                              "note.added"
+                              "note.added",
+                              "quote.created",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "invoice.created",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.overdue",
+                              "invoice.cancelled",
+                              "payment.registered",
+                              "invoice.credited"
                             ]
                           },
                           "actor": {
@@ -4005,7 +4037,19 @@
                               "absence.approved",
                               "absence.rejected",
                               "document.added",
-                              "note.added"
+                              "note.added",
+                              "quote.created",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "invoice.created",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.overdue",
+                              "invoice.cancelled",
+                              "payment.registered",
+                              "invoice.credited"
                             ]
                           },
                           "actor": {
@@ -5105,7 +5149,19 @@
                               "absence.approved",
                               "absence.rejected",
                               "document.added",
-                              "note.added"
+                              "note.added",
+                              "quote.created",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "invoice.created",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.overdue",
+                              "invoice.cancelled",
+                              "payment.registered",
+                              "invoice.credited"
                             ]
                           },
                           "actor": {
@@ -6581,7 +6637,19 @@
                               "absence.approved",
                               "absence.rejected",
                               "document.added",
-                              "note.added"
+                              "note.added",
+                              "quote.created",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "invoice.created",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.overdue",
+                              "invoice.cancelled",
+                              "payment.registered",
+                              "invoice.credited"
                             ]
                           },
                           "actor": {
@@ -8147,7 +8215,19 @@
                               "absence.approved",
                               "absence.rejected",
                               "document.added",
-                              "note.added"
+                              "note.added",
+                              "quote.created",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "invoice.created",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.overdue",
+                              "invoice.cancelled",
+                              "payment.registered",
+                              "invoice.credited"
                             ]
                           },
                           "actor": {
@@ -10429,6 +10509,5552 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/products": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "active",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "sku": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "unit": {
+                            "type": "string"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 3,
+                            "pattern": "^[A-Z]{3}$"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "description",
+                          "sku",
+                          "unit",
+                          "unitPriceMinor",
+                          "currency",
+                          "taxRatePercent",
+                          "isActive",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  },
+                  "sku": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32,
+                    "default": "piece"
+                  },
+                  "unitPriceMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000,
+                    "default": 0
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "pattern": "^[A-Z]{3}$",
+                    "default": "SEK"
+                  },
+                  "taxRatePercent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 25
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sku": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "unitPriceMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "taxRatePercent": {
+                      "type": "number"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "sku",
+                    "unit",
+                    "unitPriceMinor",
+                    "currency",
+                    "taxRatePercent",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/products/{productId}": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "productId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sku": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "unitPriceMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "taxRatePercent": {
+                      "type": "number"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "sku",
+                    "unit",
+                    "unitPriceMinor",
+                    "currency",
+                    "taxRatePercent",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "products"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  },
+                  "sku": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  "unitPriceMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "taxRatePercent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "productId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "sku": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "unitPriceMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "taxRatePercent": {
+                      "type": "number"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "sku",
+                    "unit",
+                    "unitPriceMinor",
+                    "currency",
+                    "taxRatePercent",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "products"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "productId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/quotes": {
+      "get": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "SENT",
+                "ACCEPTED",
+                "DECLINED",
+                "EXPIRED"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "customerId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "number": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "SENT",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "EXPIRED"
+                            ]
+                          },
+                          "currency": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 3,
+                            "pattern": "^[A-Z]{3}$"
+                          },
+                          "issueDate": {
+                            "type": "string"
+                          },
+                          "validUntil": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "customer": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "customerNotes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "internalNotes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "subtotalMinor": {
+                            "type": "integer"
+                          },
+                          "discountMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          },
+                          "totalMinor": {
+                            "type": "integer"
+                          },
+                          "taxLines": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "ratePercent": {
+                                  "type": "string"
+                                },
+                                "baseMinor": {
+                                  "type": "integer"
+                                },
+                                "taxMinor": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "ratePercent",
+                                "baseMinor",
+                                "taxMinor"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "lineItems": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "productId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "quantity": {
+                                  "type": "number"
+                                },
+                                "unitPriceMinor": {
+                                  "type": "integer"
+                                },
+                                "discountPercent": {
+                                  "type": "number"
+                                },
+                                "taxRatePercent": {
+                                  "type": "number"
+                                },
+                                "lineNetMinor": {
+                                  "type": "integer"
+                                },
+                                "lineTaxMinor": {
+                                  "type": "integer"
+                                },
+                                "lineTotalMinor": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "productId",
+                                "description",
+                                "quantity",
+                                "unitPriceMinor",
+                                "discountPercent",
+                                "taxRatePercent",
+                                "lineNetMinor",
+                                "lineTaxMinor",
+                                "lineTotalMinor"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "acceptedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "convertedInvoiceId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "number",
+                          "status",
+                          "currency",
+                          "issueDate",
+                          "validUntil",
+                          "customer",
+                          "customerNotes",
+                          "internalNotes",
+                          "subtotalMinor",
+                          "discountMinor",
+                          "taxMinor",
+                          "totalMinor",
+                          "taxLines",
+                          "lineItems",
+                          "acceptedAt",
+                          "convertedInvoiceId",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "quotes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "pattern": "^[A-Z]{3}$",
+                    "default": "SEK"
+                  },
+                  "issueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "validUntil": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "customerNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "internalNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "lineItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "default": 1
+                        },
+                        "unitPriceMinor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000,
+                          "default": 0
+                        },
+                        "discountPercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        },
+                        "taxRatePercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "customerId",
+                  "issueDate",
+                  "lineItems"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "SENT",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "validUntil": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "convertedInvoiceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "validUntil",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "acceptedAt",
+                    "convertedInvoiceId",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quotes/{quoteId}": {
+      "get": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "SENT",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "validUntil": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "convertedInvoiceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "validUntil",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "acceptedAt",
+                    "convertedInvoiceId",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "quotes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "issueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "validUntil": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "customerNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "internalNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "lineItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "default": 1
+                        },
+                        "unitPriceMinor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000,
+                          "default": 0
+                        },
+                        "discountPercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        },
+                        "taxRatePercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "SENT",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "validUntil": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "convertedInvoiceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "validUntil",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "acceptedAt",
+                    "convertedInvoiceId",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/quotes/{quoteId}/send": {
+      "post": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "SENT",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "validUntil": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "convertedInvoiceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "validUntil",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "acceptedAt",
+                    "convertedInvoiceId",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quotes/{quoteId}/accept": {
+      "post": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "SENT",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "validUntil": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "convertedInvoiceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "validUntil",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "acceptedAt",
+                    "convertedInvoiceId",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quotes/{quoteId}/decline": {
+      "post": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "SENT",
+                        "ACCEPTED",
+                        "DECLINED",
+                        "EXPIRED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "validUntil": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "convertedInvoiceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "validUntil",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "acceptedAt",
+                    "convertedInvoiceId",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quotes/{quoteId}/convert": {
+      "post": {
+        "tags": [
+          "quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "quoteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "OPEN",
+                "SENT",
+                "PARTIALLY_PAID",
+                "PAID",
+                "OVERDUE",
+                "CANCELLED",
+                "CREDITED"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "customerId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "number": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "OPEN",
+                              "SENT",
+                              "PARTIALLY_PAID",
+                              "PAID",
+                              "OVERDUE",
+                              "CANCELLED",
+                              "CREDITED"
+                            ]
+                          },
+                          "currency": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 3,
+                            "pattern": "^[A-Z]{3}$"
+                          },
+                          "issueDate": {
+                            "type": "string"
+                          },
+                          "dueDate": {
+                            "type": "string"
+                          },
+                          "customer": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "customerNotes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "internalNotes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "subtotalMinor": {
+                            "type": "integer"
+                          },
+                          "discountMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          },
+                          "totalMinor": {
+                            "type": "integer"
+                          },
+                          "amountPaidMinor": {
+                            "type": "integer"
+                          },
+                          "creditedMinor": {
+                            "type": "integer"
+                          },
+                          "amountDueMinor": {
+                            "type": "integer"
+                          },
+                          "taxLines": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "ratePercent": {
+                                  "type": "string"
+                                },
+                                "baseMinor": {
+                                  "type": "integer"
+                                },
+                                "taxMinor": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "ratePercent",
+                                "baseMinor",
+                                "taxMinor"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "lineItems": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "productId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "quantity": {
+                                  "type": "number"
+                                },
+                                "unitPriceMinor": {
+                                  "type": "integer"
+                                },
+                                "discountPercent": {
+                                  "type": "number"
+                                },
+                                "taxRatePercent": {
+                                  "type": "number"
+                                },
+                                "lineNetMinor": {
+                                  "type": "integer"
+                                },
+                                "lineTaxMinor": {
+                                  "type": "integer"
+                                },
+                                "lineTotalMinor": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "productId",
+                                "description",
+                                "quantity",
+                                "unitPriceMinor",
+                                "discountPercent",
+                                "taxRatePercent",
+                                "lineNetMinor",
+                                "lineTaxMinor",
+                                "lineTotalMinor"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "isOverdue": {
+                            "type": "boolean"
+                          },
+                          "hasPdf": {
+                            "type": "boolean"
+                          },
+                          "fromQuoteId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "finalizedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "sentAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "paidAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "cancelledAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "number",
+                          "status",
+                          "currency",
+                          "issueDate",
+                          "dueDate",
+                          "customer",
+                          "customerNotes",
+                          "internalNotes",
+                          "subtotalMinor",
+                          "discountMinor",
+                          "taxMinor",
+                          "totalMinor",
+                          "amountPaidMinor",
+                          "creditedMinor",
+                          "amountDueMinor",
+                          "taxLines",
+                          "lineItems",
+                          "isOverdue",
+                          "hasPdf",
+                          "fromQuoteId",
+                          "finalizedAt",
+                          "sentAt",
+                          "paidAt",
+                          "cancelledAt",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "pattern": "^[A-Z]{3}$",
+                    "default": "SEK"
+                  },
+                  "issueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "dueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "customerNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "internalNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "lineItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "default": 1
+                        },
+                        "unitPriceMinor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000,
+                          "default": 0
+                        },
+                        "discountPercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        },
+                        "taxRatePercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "customerId",
+                  "issueDate",
+                  "dueDate",
+                  "lineItems"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "invoices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "issueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "dueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "customerNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "internalNotes": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "lineItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "default": 1
+                        },
+                        "unitPriceMinor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000,
+                          "default": 0
+                        },
+                        "discountPercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        },
+                        "taxRatePercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/finalize": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/send": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/cancel": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "OPEN",
+                        "SENT",
+                        "PARTIALLY_PAID",
+                        "PAID",
+                        "OVERDUE",
+                        "CANCELLED",
+                        "CREDITED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "dueDate": {
+                      "type": "string"
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "customerNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "internalNotes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "amountPaidMinor": {
+                      "type": "integer"
+                    },
+                    "creditedMinor": {
+                      "type": "integer"
+                    },
+                    "amountDueMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "discountPercent": {
+                            "type": "number"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "productId",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "discountPercent",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "isOverdue": {
+                      "type": "boolean"
+                    },
+                    "hasPdf": {
+                      "type": "boolean"
+                    },
+                    "fromQuoteId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "finalizedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "paidAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "cancelledAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "dueDate",
+                    "customer",
+                    "customerNotes",
+                    "internalNotes",
+                    "subtotalMinor",
+                    "discountMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "amountPaidMinor",
+                    "creditedMinor",
+                    "amountDueMinor",
+                    "taxLines",
+                    "lineItems",
+                    "isOverdue",
+                    "hasPdf",
+                    "fromQuoteId",
+                    "finalizedAt",
+                    "sentAt",
+                    "paidAt",
+                    "cancelledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/pdf-url": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expiresInSeconds": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "expiresInSeconds"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/activity": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "customer.created",
+                              "customer.updated",
+                              "customer.archived",
+                              "contact.added",
+                              "project.created",
+                              "project.updated",
+                              "project.status_changed",
+                              "task.created",
+                              "task.status_changed",
+                              "task.completed",
+                              "task.assigned",
+                              "comment.added",
+                              "attachment.added",
+                              "employee.created",
+                              "employee.status_changed",
+                              "employee.onboarding_started",
+                              "certification.added",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "document.added",
+                              "note.added",
+                              "quote.created",
+                              "quote.sent",
+                              "quote.accepted",
+                              "quote.declined",
+                              "quote.converted",
+                              "invoice.created",
+                              "invoice.finalized",
+                              "invoice.sent",
+                              "invoice.overdue",
+                              "invoice.cancelled",
+                              "payment.registered",
+                              "invoice.credited"
+                            ]
+                          },
+                          "actor": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "customerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "taskId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "employeeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "metadata": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "actor",
+                          "customerId",
+                          "projectId",
+                          "taskId",
+                          "employeeId",
+                          "metadata",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/payments": {
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "amountMinor": {
+                        "type": "integer"
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "CASH",
+                          "BANK_TRANSFER",
+                          "CARD",
+                          "SWISH",
+                          "OTHER"
+                        ]
+                      },
+                      "reference": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "paidOn": {
+                        "type": "string"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "createdBy": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false,
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "amountMinor",
+                      "method",
+                      "reference",
+                      "paidOn",
+                      "note",
+                      "createdBy",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amountMinor": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000000
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "CARD",
+                      "SWISH",
+                      "OTHER"
+                    ],
+                    "default": "BANK_TRANSFER"
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "paidOn": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "amountMinor",
+                  "paidOn"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "amountMinor": {
+                      "type": "integer"
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "CASH",
+                        "BANK_TRANSFER",
+                        "CARD",
+                        "SWISH",
+                        "OTHER"
+                      ]
+                    },
+                    "reference": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "paidOn": {
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdBy": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "amountMinor",
+                    "method",
+                    "reference",
+                    "paidOn",
+                    "note",
+                    "createdBy",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/payments/{paymentId}": {
+      "delete": {
+        "tags": [
+          "payments"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "paymentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/invoices/{invoiceId}/credit-notes": {
+      "get": {
+        "tags": [
+          "credit-notes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "invoiceId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "number": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "DRAFT",
+                          "ISSUED"
+                        ]
+                      },
+                      "currency": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3,
+                        "pattern": "^[A-Z]{3}$"
+                      },
+                      "issueDate": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "subtotalMinor": {
+                        "type": "integer"
+                      },
+                      "taxMinor": {
+                        "type": "integer"
+                      },
+                      "totalMinor": {
+                        "type": "integer"
+                      },
+                      "taxLines": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "ratePercent": {
+                              "type": "string"
+                            },
+                            "baseMinor": {
+                              "type": "integer"
+                            },
+                            "taxMinor": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "ratePercent",
+                            "baseMinor",
+                            "taxMinor"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "lineItems": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "number"
+                            },
+                            "unitPriceMinor": {
+                              "type": "integer"
+                            },
+                            "taxRatePercent": {
+                              "type": "number"
+                            },
+                            "lineNetMinor": {
+                              "type": "integer"
+                            },
+                            "lineTaxMinor": {
+                              "type": "integer"
+                            },
+                            "lineTotalMinor": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "description",
+                            "quantity",
+                            "unitPriceMinor",
+                            "taxRatePercent",
+                            "lineNetMinor",
+                            "lineTaxMinor",
+                            "lineTotalMinor"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "issuedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "invoiceId",
+                      "number",
+                      "status",
+                      "currency",
+                      "issueDate",
+                      "reason",
+                      "subtotalMinor",
+                      "taxMinor",
+                      "totalMinor",
+                      "taxLines",
+                      "lineItems",
+                      "issuedAt",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "credit-notes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "issueDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  },
+                  "lineItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "default": 1
+                        },
+                        "unitPriceMinor": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000000000,
+                          "default": 0
+                        },
+                        "taxRatePercent": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "invoiceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "invoiceId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "ISSUED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "issueDate": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "subtotalMinor": {
+                      "type": "integer"
+                    },
+                    "taxMinor": {
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "type": "integer"
+                    },
+                    "taxLines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ratePercent": {
+                            "type": "string"
+                          },
+                          "baseMinor": {
+                            "type": "integer"
+                          },
+                          "taxMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "ratePercent",
+                          "baseMinor",
+                          "taxMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "lineItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "unitPriceMinor": {
+                            "type": "integer"
+                          },
+                          "taxRatePercent": {
+                            "type": "number"
+                          },
+                          "lineNetMinor": {
+                            "type": "integer"
+                          },
+                          "lineTaxMinor": {
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "description",
+                          "quantity",
+                          "unitPriceMinor",
+                          "taxRatePercent",
+                          "lineNetMinor",
+                          "lineTaxMinor",
+                          "lineTotalMinor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "invoiceId",
+                    "number",
+                    "status",
+                    "currency",
+                    "issueDate",
+                    "reason",
+                    "subtotalMinor",
+                    "taxMinor",
+                    "totalMinor",
+                    "taxLines",
+                    "lineItems",
+                    "issuedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }

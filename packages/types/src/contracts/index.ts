@@ -19,3 +19,10 @@ export * from './search.js';
 export * from './employees.js';
 export * from './personnel.js';
 export * from './onboarding.js';
+// Phase 4
+export * from './billing-common.js';
+export * from './products.js';
+export * from './quotes.js';
+export * from './invoices.js';
+export * from './payments.js';
+export * from './credit-notes.js';

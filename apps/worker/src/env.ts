@@ -11,6 +11,13 @@ export const env = parseEnv({
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535),
   SMTP_FROM: z.string().min(3),
+  S3_ENDPOINT: z.string().url(),
+  S3_ACCESS_KEY: z.string().min(1),
+  S3_SECRET_KEY: z.string().min(1),
+  S3_BUCKET: z.string().min(1),
+  S3_REGION: z.string().min(1).default('us-east-1'),
+  /** How often to sweep for overdue invoices, in seconds. */
+  OVERDUE_SWEEP_SECONDS: z.coerce.number().int().min(30).default(300),
 });
 
 export type WorkerEnv = typeof env;

@@ -17,11 +17,16 @@ import {
   invitationDtoSchema,
   invitationPreviewDtoSchema,
   memberDtoSchema,
+  creditNoteDtoSchema,
+  invoiceDtoSchema,
   membershipDtoSchema,
   onboardingTemplateDtoSchema,
   organizationDtoSchema,
   paginatedSchema,
+  paymentDtoSchema,
+  productDtoSchema,
   projectDtoSchema,
+  quoteDtoSchema,
   searchResponseSchema,
   sessionDtoSchema,
   taskDtoSchema,
@@ -32,12 +37,17 @@ import {
   type CreateAbsenceRequestBody,
   type CreateCertificationBody,
   type CreateContactBody,
+  type CreateCreditNoteBody,
   type CreateCustomerBody,
   type CreateEmployeeBody,
   type CreateEmployeeNoteBody,
   type CreateInvitationBody,
+  type CreateInvoiceBody,
   type CreateOrganizationBody,
+  type CreatePaymentBody,
+  type CreateProductBody,
   type CreateProjectBody,
+  type CreateQuoteBody,
   type CreateTaskBody,
   type CreateTemplateBody,
   type CustomerListQuery,
@@ -45,22 +55,29 @@ import {
   type EmployeeListQuery,
   type EntityKind,
   type ForgotPasswordBody,
+  type InvoiceListQuery,
   type LoginBody,
   type PaginationQuery,
+  type ProductListQuery,
   type ProjectListQuery,
+  type QuoteListQuery,
   type RegisterBody,
   type ResetPasswordBody,
   type ReviewAbsenceBody,
+  type SendInvoiceBody,
   type SwitchOrganizationBody,
   type TaskListQuery,
   type UpdateCertificationBody,
   type UpdateContactBody,
   type UpdateCustomerBody,
   type UpdateEmployeeBody,
+  type UpdateInvoiceBody,
   type UpdateMemberRoleBody,
   type UpdateOrganizationBody,
+  type UpdateProductBody,
   type UpdateProfileBody,
   type UpdateProjectBody,
+  type UpdateQuoteBody,
   type UpdateTaskBody,
   type UpdateTemplateBody,
 } from '@businessos/types';
@@ -449,6 +466,67 @@ export function createApiClient(options: ApiClientOptions) {
         }),
       remove: (templateId: string) =>
         request('DELETE', `/v1/onboarding-templates/${templateId}`, emptySchema),
+    },
+    products: {
+      list: (query?: Partial<ProductListQuery>) =>
+        request('GET', '/v1/products', paginatedSchema(productDtoSchema), { query }),
+      get: (productId: string) => request('GET', `/v1/products/${productId}`, productDtoSchema),
+      create: (body: CreateProductBody) =>
+        request('POST', '/v1/products', productDtoSchema, { body }),
+      update: (productId: string, body: UpdateProductBody) =>
+        request('PATCH', `/v1/products/${productId}`, productDtoSchema, { body }),
+      remove: (productId: string) => request('DELETE', `/v1/products/${productId}`, emptySchema),
+    },
+    quotes: {
+      list: (query?: Partial<QuoteListQuery>) =>
+        request('GET', '/v1/quotes', paginatedSchema(quoteDtoSchema), { query }),
+      get: (quoteId: string) => request('GET', `/v1/quotes/${quoteId}`, quoteDtoSchema),
+      create: (body: CreateQuoteBody) => request('POST', '/v1/quotes', quoteDtoSchema, { body }),
+      update: (quoteId: string, body: UpdateQuoteBody) =>
+        request('PATCH', `/v1/quotes/${quoteId}`, quoteDtoSchema, { body }),
+      remove: (quoteId: string) => request('DELETE', `/v1/quotes/${quoteId}`, emptySchema),
+      send: (quoteId: string) => request('POST', `/v1/quotes/${quoteId}/send`, quoteDtoSchema),
+      accept: (quoteId: string) => request('POST', `/v1/quotes/${quoteId}/accept`, quoteDtoSchema),
+      decline: (quoteId: string) =>
+        request('POST', `/v1/quotes/${quoteId}/decline`, quoteDtoSchema),
+      convert: (quoteId: string) =>
+        request('POST', `/v1/quotes/${quoteId}/convert`, invoiceDtoSchema),
+    },
+    invoices: {
+      list: (query?: Partial<InvoiceListQuery>) =>
+        request('GET', '/v1/invoices', paginatedSchema(invoiceDtoSchema), { query }),
+      get: (invoiceId: string) => request('GET', `/v1/invoices/${invoiceId}`, invoiceDtoSchema),
+      create: (body: CreateInvoiceBody) =>
+        request('POST', '/v1/invoices', invoiceDtoSchema, { body }),
+      update: (invoiceId: string, body: UpdateInvoiceBody) =>
+        request('PATCH', `/v1/invoices/${invoiceId}`, invoiceDtoSchema, { body }),
+      remove: (invoiceId: string) => request('DELETE', `/v1/invoices/${invoiceId}`, emptySchema),
+      finalize: (invoiceId: string) =>
+        request('POST', `/v1/invoices/${invoiceId}/finalize`, invoiceDtoSchema),
+      send: (invoiceId: string, body: SendInvoiceBody = {}) =>
+        request('POST', `/v1/invoices/${invoiceId}/send`, invoiceDtoSchema, { body }),
+      cancel: (invoiceId: string) =>
+        request('POST', `/v1/invoices/${invoiceId}/cancel`, invoiceDtoSchema),
+      pdfUrl: (invoiceId: string) =>
+        request(
+          'GET',
+          `/v1/invoices/${invoiceId}/pdf-url`,
+          z.object({ url: z.string().url(), expiresInSeconds: z.number().int() }),
+        ),
+      activity: (invoiceId: string, query?: Partial<PaginationQuery>) =>
+        request('GET', `/v1/invoices/${invoiceId}/activity`, paginatedSchema(activityDtoSchema), {
+          query,
+        }),
+      listPayments: (invoiceId: string) =>
+        request('GET', `/v1/invoices/${invoiceId}/payments`, z.array(paymentDtoSchema)),
+      registerPayment: (invoiceId: string, body: CreatePaymentBody) =>
+        request('POST', `/v1/invoices/${invoiceId}/payments`, paymentDtoSchema, { body }),
+      removePayment: (invoiceId: string, paymentId: string) =>
+        request('DELETE', `/v1/invoices/${invoiceId}/payments/${paymentId}`, emptySchema),
+      listCreditNotes: (invoiceId: string) =>
+        request('GET', `/v1/invoices/${invoiceId}/credit-notes`, z.array(creditNoteDtoSchema)),
+      createCreditNote: (invoiceId: string, body: CreateCreditNoteBody) =>
+        request('POST', `/v1/invoices/${invoiceId}/credit-notes`, creditNoteDtoSchema, { body }),
     },
   };
 }

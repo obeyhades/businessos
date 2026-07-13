@@ -26,6 +26,19 @@ export const ACTIVITY_TYPES = [
   'absence.rejected',
   'document.added',
   'note.added',
+  // Phase 4
+  'quote.created',
+  'quote.sent',
+  'quote.accepted',
+  'quote.declined',
+  'quote.converted',
+  'invoice.created',
+  'invoice.finalized',
+  'invoice.sent',
+  'invoice.overdue',
+  'invoice.cancelled',
+  'payment.registered',
+  'invoice.credited',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

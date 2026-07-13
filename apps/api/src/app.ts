@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 import type { ApiConfig } from './config.js';
 import { AppError } from './lib/errors.js';
 import { buildLoggerOptions } from './lib/logger.js';
-import { ObjectStorage } from './lib/storage.js';
+import { createObjectStorage, type ObjectStorage } from './lib/storage.js';
 import { registerAuthContext } from './plugins/auth.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerAdminRoutes } from './modules/admin/routes.js';
@@ -37,6 +37,11 @@ import { registerCertificationRoutes } from './modules/certifications/routes.js'
 import { registerAbsenceRoutes } from './modules/absences/routes.js';
 import { registerEmployeeDocumentRoutes } from './modules/employee-documents/routes.js';
 import { registerOnboardingTemplateRoutes } from './modules/onboarding-templates/routes.js';
+import { registerProductRoutes } from './modules/products/routes.js';
+import { registerQuoteRoutes } from './modules/quotes/routes.js';
+import { registerInvoiceRoutes } from './modules/invoices/routes.js';
+import { registerPaymentRoutes } from './modules/payments/routes.js';
+import { registerCreditNoteRoutes } from './modules/credit-notes/routes.js';
 
 export interface BuildAppOptions {
   config: ApiConfig;
@@ -58,9 +63,27 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  // Tolerate an empty body on JSON requests (e.g. action POSTs like /finalize
+  // that a client may send with content-type: application/json and no body).
+  // The default parser throws on '' → an opaque 500; this yields undefined so
+  // the route's schema (or lack of one) decides the outcome.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_request, body, done) => {
+    const text = typeof body === 'string' ? body.trim() : '';
+    if (text.length === 0) {
+      done(null, undefined);
+      return;
+    }
+    try {
+      done(null, JSON.parse(text));
+    } catch (error) {
+      (error as { statusCode?: number }).statusCode = 400;
+      done(error as Error, undefined);
+    }
+  });
+
   app.decorate('prisma', options.prisma);
   app.decorate('config', options.config);
-  app.decorate('storage', options.storage ?? new ObjectStorage(options.config));
+  app.decorate('storage', options.storage ?? createObjectStorage(options.config));
 
   app.setErrorHandler((error: unknown, request, reply) => {
     if (error instanceof AppError) {
@@ -145,6 +168,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAbsenceRoutes(app);
   registerEmployeeDocumentRoutes(app);
   registerOnboardingTemplateRoutes(app);
+  // Phase 4
+  registerProductRoutes(app);
+  registerQuoteRoutes(app);
+  registerInvoiceRoutes(app);
+  registerPaymentRoutes(app);
+  registerCreditNoteRoutes(app);
 
   app.addHook('onClose', async () => {
     await options.prisma.$disconnect();

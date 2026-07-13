@@ -58,6 +58,27 @@ export const AUDIT_ACTIONS = [
   'onboarding_template.updated',
   'onboarding_template.deleted',
   'onboarding_template.applied',
+  // Phase 4
+  'product.created',
+  'product.updated',
+  'product.deleted',
+  'quote.created',
+  'quote.updated',
+  'quote.sent',
+  'quote.accepted',
+  'quote.declined',
+  'quote.converted',
+  'quote.deleted',
+  'invoice.created',
+  'invoice.updated',
+  'invoice.finalized',
+  'invoice.sent',
+  'invoice.cancelled',
+  'invoice.overdue',
+  'payment.registered',
+  'payment.deleted',
+  'credit_note.created',
+  'credit_note.issued',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

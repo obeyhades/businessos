@@ -122,6 +122,7 @@ async function main(): Promise<void> {
 
   await seedPhase2(org.id, owner.id);
   await seedPhase3(org.id, owner.id);
+  await seedPhase4(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
 }
@@ -463,6 +464,287 @@ async function seedPhase2(organizationId: string, ownerId: string): Promise<void
 
   await prisma.activity.createMany({ data: activities });
   console.warn(`Seeded ${customers.length} customers with projects, tasks and activity.`);
+}
+
+/**
+ * Products, a quote and invoices across the status range (draft/open/sent/
+ * partially-paid/paid/overdue/cancelled/credited) with a payment and a credit
+ * note. All money is integer minor units (öre). Amounts are chosen so tax is
+ * exact, mirroring the API's line-level computation.
+ */
+async function seedPhase4(organizationId: string, ownerId: string): Promise<void> {
+  const alreadySeeded = await prisma.product.count({ where: { organizationId } });
+  if (alreadySeeded > 0) return;
+
+  const customer = await prisma.customer.findFirst({
+    where: { organizationId, status: 'ACTIVE' },
+    orderBy: { name: 'asc' },
+    select: { id: true },
+  });
+  if (!customer) return;
+  const customerId = customer.id;
+
+  await prisma.product.createMany({
+    data: [
+      {
+        organizationId,
+        name: 'Consulting hour',
+        unit: 'hour',
+        unitPriceMinor: 120000n,
+        taxRatePercent: '25',
+        createdById: ownerId,
+      },
+      {
+        organizationId,
+        name: 'Site visit',
+        unit: 'visit',
+        unitPriceMinor: 250000n,
+        taxRatePercent: '25',
+        createdById: ownerId,
+      },
+      {
+        organizationId,
+        name: 'Materials',
+        unit: 'piece',
+        unitPriceMinor: 40000n,
+        taxRatePercent: '25',
+        createdById: ownerId,
+      },
+    ],
+  });
+
+  // One draft quote (10 consulting hours @ 1200, 25% VAT).
+  await prisma.quote.create({
+    data: {
+      organizationId,
+      customerId,
+      status: 'DRAFT',
+      currency: 'SEK',
+      issueDate: daysFromNow(0),
+      validUntil: daysFromNow(30),
+      subtotalMinor: 1_200_000n,
+      taxMinor: 300_000n,
+      totalMinor: 1_500_000n,
+      taxLines: [{ ratePercent: '25.00', baseMinor: 1_200_000, taxMinor: 300_000 }],
+      createdById: ownerId,
+      lineItems: {
+        create: [
+          {
+            organizationId,
+            description: 'Consulting hour',
+            quantity: '10',
+            unitPriceMinor: 120000n,
+            taxRatePercent: '25',
+            lineNetMinor: 1_200_000n,
+            lineTaxMinor: 300_000n,
+            lineTotalMinor: 1_500_000n,
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // A single-line invoice factory: net = unitPrice * qty, 25% VAT.
+  async function makeInvoice(opts: {
+    status: string;
+    number: string | null;
+    netMinor: bigint;
+    issueOffset: number;
+    dueOffset: number;
+    finalized?: boolean;
+    sent?: boolean;
+    amountPaidMinor?: bigint;
+    creditedMinor?: bigint;
+    paidAt?: boolean;
+    cancelled?: boolean;
+  }) {
+    const taxMinor = (opts.netMinor * 25n) / 100n;
+    const totalMinor = opts.netMinor + taxMinor;
+    return prisma.invoice.create({
+      data: {
+        organizationId,
+        customerId,
+        status: opts.status as never,
+        number: opts.number,
+        currency: 'SEK',
+        issueDate: daysFromNow(opts.issueOffset),
+        dueDate: daysFromNow(opts.dueOffset),
+        subtotalMinor: opts.netMinor,
+        taxMinor,
+        totalMinor,
+        amountPaidMinor: opts.amountPaidMinor ?? 0n,
+        creditedMinor: opts.creditedMinor ?? 0n,
+        taxLines: [
+          { ratePercent: '25.00', baseMinor: Number(opts.netMinor), taxMinor: Number(taxMinor) },
+        ],
+        finalizedAt: opts.finalized ? daysFromNow(opts.issueOffset) : null,
+        sentAt: opts.sent ? daysFromNow(opts.issueOffset) : null,
+        paidAt: opts.paidAt ? daysFromNow(0) : null,
+        cancelledAt: opts.cancelled ? daysFromNow(0) : null,
+        createdById: ownerId,
+        lineItems: {
+          create: [
+            {
+              organizationId,
+              description: 'Consulting hour',
+              quantity: String(Number(opts.netMinor) / 120000),
+              unitPriceMinor: 120000n,
+              taxRatePercent: '25',
+              lineNetMinor: opts.netMinor,
+              lineTaxMinor: taxMinor,
+              lineTotalMinor: totalMinor,
+              sortOrder: 0,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  await makeInvoice({
+    status: 'DRAFT',
+    number: null,
+    netMinor: 240000n,
+    issueOffset: 0,
+    dueOffset: 30,
+  });
+  await makeInvoice({
+    status: 'OPEN',
+    number: 'INV-0001',
+    netMinor: 600000n,
+    issueOffset: -5,
+    dueOffset: 25,
+    finalized: true,
+  });
+  await makeInvoice({
+    status: 'SENT',
+    number: 'INV-0002',
+    netMinor: 360000n,
+    issueOffset: -10,
+    dueOffset: 20,
+    finalized: true,
+    sent: true,
+  });
+
+  const partiallyPaid = await makeInvoice({
+    status: 'PARTIALLY_PAID',
+    number: 'INV-0003',
+    netMinor: 1_200_000n,
+    issueOffset: -12,
+    dueOffset: 18,
+    finalized: true,
+    sent: true,
+    amountPaidMinor: 500000n,
+  });
+  await prisma.payment.create({
+    data: {
+      organizationId,
+      invoiceId: partiallyPaid.id,
+      amountMinor: 500000n,
+      method: 'BANK_TRANSFER',
+      paidOn: daysFromNow(-2),
+      createdById: ownerId,
+    },
+  });
+
+  const paid = await makeInvoice({
+    status: 'PAID',
+    number: 'INV-0004',
+    netMinor: 480000n,
+    issueOffset: -20,
+    dueOffset: 10,
+    finalized: true,
+    sent: true,
+    amountPaidMinor: 600000n,
+    paidAt: true,
+  });
+  await prisma.payment.create({
+    data: {
+      organizationId,
+      invoiceId: paid.id,
+      amountMinor: 600000n,
+      method: 'SWISH',
+      paidOn: daysFromNow(-1),
+      createdById: ownerId,
+    },
+  });
+
+  await makeInvoice({
+    status: 'OVERDUE',
+    number: 'INV-0005',
+    netMinor: 800000n,
+    issueOffset: -40,
+    dueOffset: -10,
+    finalized: true,
+    sent: true,
+  });
+  await makeInvoice({
+    status: 'CANCELLED',
+    number: 'INV-0006',
+    netMinor: 200000n,
+    issueOffset: -8,
+    dueOffset: 22,
+    finalized: true,
+    cancelled: true,
+  });
+
+  // A fully-credited invoice with a matching credit note.
+  const credited = await makeInvoice({
+    status: 'CREDITED',
+    number: 'INV-0007',
+    netMinor: 400000n,
+    issueOffset: -15,
+    dueOffset: 15,
+    finalized: true,
+    sent: true,
+    creditedMinor: 500000n,
+  });
+  await prisma.creditNote.create({
+    data: {
+      organizationId,
+      invoiceId: credited.id,
+      number: 'CN-0001',
+      status: 'ISSUED',
+      currency: 'SEK',
+      issueDate: daysFromNow(0),
+      reason: 'Order cancelled by customer',
+      subtotalMinor: 400000n,
+      taxMinor: 100000n,
+      totalMinor: 500000n,
+      taxLines: [{ ratePercent: '25.00', baseMinor: 400000, taxMinor: 100000 }],
+      issuedAt: daysFromNow(0),
+      createdById: ownerId,
+      lineItems: {
+        create: [
+          {
+            organizationId,
+            description: 'Consulting hour',
+            quantity: '1',
+            unitPriceMinor: 400000n,
+            taxRatePercent: '25',
+            lineNetMinor: 400000n,
+            lineTaxMinor: 100000n,
+            lineTotalMinor: 500000n,
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // Advance the invoice/credit-note sequences past the seeded numbers so the
+  // first API-finalized document does not collide.
+  await prisma.numberSequence.createMany({
+    data: [
+      { organizationId, kind: 'INVOICE', prefix: 'INV-', padding: 4, next: 8 },
+      { organizationId, kind: 'CREDIT_NOTE', prefix: 'CN-', padding: 4, next: 2 },
+    ],
+  });
+
+  console.warn(
+    'Seeded 3 products, 1 quote, 8 invoices (all statuses), payments and a credit note.',
+  );
 }
 
 main()

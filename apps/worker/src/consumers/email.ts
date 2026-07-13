@@ -8,6 +8,7 @@ import {
   outboxEnvelopeSchema,
 } from '@businessos/types';
 import { Prisma, type PrismaClient } from '@businessos/db';
+import type { ObjectStorage } from '@businessos/storage';
 import type { Transporter } from 'nodemailer';
 import type { Logger } from 'pino';
 import type { AmqpConfirmChannel } from '../amqp.js';
@@ -19,6 +20,7 @@ interface EmailConsumerDeps {
   prisma: PrismaClient;
   channel: AmqpConfirmChannel;
   transport: Transporter;
+  storage: ObjectStorage;
   from: string;
   logger: Logger;
 }
@@ -35,7 +37,7 @@ function isUniqueViolation(error: unknown): boolean {
  * visible in the admin UI.
  */
 export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void> {
-  const { prisma, channel, transport, from, logger } = deps;
+  const { prisma, channel, transport, storage, from, logger } = deps;
 
   await channel.prefetch(5);
   await channel.consume(EMAIL_QUEUE, (message) => {
@@ -58,7 +60,7 @@ export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void>
           return;
         }
 
-        await sendEmail(transport, from, payload);
+        await sendEmail(transport, from, payload, storage);
 
         try {
           await prisma.processedMessage.create({
