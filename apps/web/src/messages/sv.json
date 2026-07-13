@@ -80,7 +80,8 @@
     "accountingJournal": "Verifikationer",
     "accountingAccounts": "Kontoplan",
     "accountingPeriods": "Räkenskapsår",
-    "accountingReports": "Rapporter"
+    "accountingReports": "Rapporter",
+    "calendar": "Kalender"
   },
   "auth": {
     "login": {
@@ -1172,5 +1173,154 @@
     "closingBalance": "Utgående",
     "noEntries": "Inga poster",
     "runningBalance": "Löpande saldo"
+  },
+  "calendar": {
+    "title": "Kalender",
+    "restricted": "Du har inte behörighet till kalendern.",
+    "agenda": "Min agenda",
+    "backToCalendar": "Tillbaka till kalendern",
+    "newEvent": "Ny händelse",
+    "editEvent": "Redigera händelse",
+    "previous": "Föregående",
+    "next": "Nästa",
+    "today": "Idag",
+    "viewMonth": "Månad",
+    "viewWeek": "Vecka",
+    "myEventsOnly": "Endast mina händelser",
+    "addOnDay": "Lägg till händelse",
+    "moreCount": "+{count} till",
+    "allDayShort": "Heldag",
+    "noEventsDay": "Inga händelser",
+    "emptyWeek": "Inga händelser den här veckan.",
+    "selectCalendar": "Välj en kalender",
+    "created": "Händelsen skapades",
+    "updated": "Händelsen uppdaterades",
+    "occurrenceUpdated": "Tillfället uppdaterades",
+    "occurrenceCancelled": "Tillfället avbokades",
+    "eventCancelled": "Händelsen avbokades",
+    "eventDeleted": "Händelsen togs bort",
+    "rsvpSaved": "Svar sparat",
+    "yourResponse": "Ditt svar",
+    "thisOccurrence": "Detta tillfälle",
+    "wholeSeries": "Hela serien",
+    "event": "Händelse",
+    "editThisOccurrence": "Redigera detta tillfälle",
+    "cancelThisOccurrence": "Avboka detta tillfälle",
+    "editSeries": "Redigera serien",
+    "cancelSeries": "Avboka serien",
+    "cancelEvent": "Avboka händelsen",
+    "deleteSeries": "Ta bort serien",
+    "deleteEvent": "Ta bort händelsen",
+    "cancelOccurrenceConfirm": "Detta tillfälle avbokas. Övriga tillfällen i serien påverkas inte.",
+    "cancelSeriesConfirm": "Händelsen markeras som avbokad. Detta påverkar alla tillfällen.",
+    "deleteConfirm": "Detta tar bort händelsen och alla dess tillfällen permanent. Det går inte att ångra.",
+    "isRecurring": "Del av en återkommande serie",
+    "isException": "Redigerat tillfälle i en återkommande serie",
+    "editOccurrence": "Redigera detta tillfälle",
+    "editOccurrenceHint": "Ändringarna gäller endast detta tillfälle, inte hela serien.",
+    "attendeesRestricted": "Du har inte behörighet att se medlemmar.",
+    "loadingMembers": "Laddar medlemmar…",
+    "noMembers": "Inga medlemmar hittades.",
+    "from": "Från",
+    "to": "Till",
+    "agendaEmpty": "Inget inplanerat",
+    "agendaEmptyDescription": "Inga händelser eller uppgifter under perioden.",
+    "taskBadge": "Uppgift",
+    "eventStatus": {
+      "CONFIRMED": "Bekräftad",
+      "TENTATIVE": "Preliminär",
+      "CANCELLED": "Avbokad"
+    },
+    "visibility": {
+      "DEFAULT": "Standard",
+      "PRIVATE": "Privat"
+    },
+    "rsvp": {
+      "NEEDS_ACTION": "Inget svar",
+      "ACCEPTED": "Tackat ja",
+      "DECLINED": "Tackat nej",
+      "TENTATIVE": "Preliminärt"
+    },
+    "indicators": {
+      "cancelled": "Avbokad",
+      "private": "Privat",
+      "exception": "Redigerat tillfälle",
+      "recurring": "Återkommande"
+    },
+    "fields": {
+      "title": "Titel",
+      "calendar": "Kalender",
+      "allDay": "Heldag",
+      "start": "Börjar",
+      "end": "Slutar",
+      "location": "Plats",
+      "description": "Beskrivning",
+      "status": "Status",
+      "visibility": "Synlighet",
+      "attendees": "Deltagare"
+    },
+    "recurrence": {
+      "label": "Upprepa",
+      "none": "Upprepas inte",
+      "DAILY": "Dagligen",
+      "WEEKLY": "Veckovis",
+      "MONTHLY": "Månadsvis",
+      "YEARLY": "Årligen",
+      "interval": "Upprepa var",
+      "onDays": "På dagar",
+      "ends": "Slutar",
+      "endsNever": "Aldrig",
+      "endsCount": "Efter ett antal tillfällen",
+      "endsUntil": "På ett datum",
+      "countLabel": "Antal tillfällen",
+      "untilLabel": "Slutdatum"
+    },
+    "reminders": {
+      "label": "Påminnelser",
+      "none": "Inga påminnelser",
+      "amount": "Antal",
+      "unit": "Enhet",
+      "minutes": "minuter",
+      "hours": "timmar",
+      "days": "dagar",
+      "before": "innan",
+      "remove": "Ta bort påminnelse",
+      "add": "Lägg till påminnelse"
+    },
+    "links": {
+      "customer": "Kund",
+      "noCustomer": "Ingen kund",
+      "project": "Projekt",
+      "noProject": "Inget projekt",
+      "task": "Uppgift",
+      "noTask": "Ingen uppgift"
+    },
+    "calendars": {
+      "heading": "Kalendrar",
+      "new": "Ny kalender",
+      "empty": "Inga kalendrar än.",
+      "edit": "Redigera kalender",
+      "delete": "Ta bort kalender",
+      "deleteTitle": "Ta bort kalender",
+      "deleteConfirm": "Ta bort kalendern \"{name}\"? Dess händelser tas bort.",
+      "deleted": "Kalendern togs bort",
+      "updated": "Kalendern uppdaterades",
+      "created": "Kalendern skapades",
+      "editTitle": "Redigera kalender",
+      "createTitle": "Ny kalender",
+      "name": "Namn",
+      "color": "Färg",
+      "type": "Typ",
+      "makeDefault": "Ange som standard",
+      "nameRequired": "Ange ett namn."
+    },
+    "calendarType": {
+      "TEAM": "Team",
+      "PERSONAL": "Personlig"
+    },
+    "errors": {
+      "calendarRequired": "Välj en kalender.",
+      "titleRequired": "Ange en titel."
+    }
   }
 }

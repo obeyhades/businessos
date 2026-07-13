@@ -2,9 +2,9 @@
 
 Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
 (customers, projects, tasks, comments, attachments, activity, search), Phase 3
-(personnel), Phase 4 (quotes & invoicing) and Phase 5 (bookkeeping support) are **done** — see
-[implementation-plan.md](implementation-plan.md).
-**Phase 6 (Calendar) is next.** Everything from Phase 6 on is planned, not built.
+(personnel), Phase 4 (quotes & invoicing), Phase 5 (bookkeeping support) and Phase 6
+(calendar & tasks) are **done** — see [implementation-plan.md](implementation-plan.md).
+**Phase 7 (Email module) is next.** Everything from Phase 7 on is planned, not built.
 Permissions for all of these modules already exist in the reviewed matrix
 (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
@@ -93,12 +93,35 @@ Delivered:
   passes** — not certified for bokföringslagen / BFN, VAT reporting, SIE export, archiving or
   tax filing ([legal-review-required.md](legal-review-required.md))
 
-## Phase 6 — Calendar
+## Phase 6 — Calendar & tasks — **Done**
 
-Definition of done:
+Delivered:
 
-- Org-shared and personal calendars; events linkable to projects/customers
-- Task due dates surfaced; permissions `calendar.*` enforced
+- **Team (shared) and personal (owner-only) calendars**, one default per org; events with
+  title/time/location, all-day, timezone, status (`CONFIRMED`/`TENTATIVE`/`CANCELLED`) and
+  **`DEFAULT` vs `PRIVATE` visibility** (a private event is visible only to its organizer and
+  attendees — enforced on the range list, single GET and agenda)
+- **Attendees + RSVP** (`NEEDS_ACTION`/`ACCEPTED`/`DECLINED`/`TENTATIVE`); the organizer is
+  auto-added as an accepted attendee and cannot be removed. **Business-context links** to
+  customer/project/task that post to that entity's activity timeline
+- **Recurrence** (freq/interval/byWeekday/count/until) stored as a rule on the event and
+  **expanded server-side per query** by a pure, deterministic, bounded expander over UTC calendar
+  units; **per-occurrence exceptions** cancel or override (retitle/move) a single occurrence
+- **Reminders** with a **worker reminder-sweep** that emails non-declined attendees through the
+  existing outbox → email pipeline, **idempotent** via the `sent_reminders` unique
+  `(reminderId, occurrenceStart)`
+- **Agenda** (a user's events merged with their due tasks) and **free/busy** (busy blocks, times
+  only, never details) for any org member
+- **Integration seam**: `calendar.event.created/updated/cancelled` domain events emitted to the
+  outbox for future external calendar-sync (no internal consumer binds them yet)
+- Permissions `calendar.read` / `calendar.manage` enforced end-to-end (OWNER/ADMIN/MANAGER
+  manage, EMPLOYEE/READONLY read, ACCOUNTANT none)
+
+**Future work:** **DST-correct local recurrence** (today recurrence is UTC-exact, so an event
+does not keep a fixed _local_ wall-clock time across a daylight-saving transition — see
+[architecture.md](architecture.md#server-side-recurrence-expansion-phase-6)) and **external
+calendar sync** (Google Calendar / Microsoft 365), which the `calendar.event.*` seam is designed
+to feed.
 
 ## Phase 7 — Email module
 

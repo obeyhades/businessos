@@ -2,8 +2,10 @@ import { createPrismaClient, type PrismaClient } from '@businessos/db';
 import type {
   AccountDto,
   AssignableRole,
+  CalendarDto,
   ContactDto,
   CreateAccountBody,
+  CreateCalendarBody,
   CreateContactBody,
   CreateCustomerBody,
   CreateEmployeeBody,
@@ -17,6 +19,9 @@ import type {
   CustomerDto,
   EmployeeDto,
   EntityKind,
+  EventDto,
+  EventStatus,
+  EventVisibility,
   FiscalYearDto,
   InvitationDto,
   InvoiceDto,
@@ -26,6 +31,7 @@ import type {
   ProductDto,
   ProjectDto,
   QuoteDto,
+  RecurrenceFreq,
   SessionDto,
   TaskDto,
   VoucherDto,
@@ -622,4 +628,89 @@ export async function createFiscalYearViaApi(
   });
   expectStatus(response, 201, 'create fiscal year');
   return response.json<FiscalYearDto>();
+}
+
+// --- Phase 6 (calendar) factories ------------------------------------------
+
+/**
+ * 2026-01-05 is a Monday (UTC), 2026-01-07 a Wednesday. Anchoring event times to
+ * these fixed dates keeps weekday-based recurrence assertions stable regardless
+ * of when the suite runs. UTC weekday numbers: Sun=0 … Sat=6.
+ */
+export const MONDAY = '2026-01-05';
+export const WEEKDAY = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 } as const;
+
+/** Builds an ISO-8601 UTC instant with a Z offset, e.g. isoAt('2026-01-05', 9) → 09:00:00Z. */
+export function isoAt(date: string, hour: number, minute = 0): string {
+  const hh = String(hour).padStart(2, '0');
+  const mm = String(minute).padStart(2, '0');
+  return `${date}T${hh}:${mm}:00.000Z`;
+}
+
+/** Loose input shape for POST /v1/events (server applies zod defaults). */
+export interface CreateEventInput {
+  calendarId: string;
+  title?: string;
+  description?: string | null;
+  location?: string | null;
+  startsAt: string;
+  endsAt: string;
+  allDay?: boolean;
+  timezone?: string;
+  status?: EventStatus;
+  visibility?: EventVisibility;
+  customerId?: string | null;
+  projectId?: string | null;
+  taskId?: string | null;
+  recurrence?: {
+    freq: RecurrenceFreq;
+    interval?: number;
+    byWeekday?: number[];
+    count?: number | null;
+    until?: string | null;
+  } | null;
+  reminders?: Array<{ minutesBefore: number; method?: 'EMAIL' }>;
+  attendeeUserIds?: string[];
+}
+
+/** Creates a calendar through the API using the actor's active organization. */
+export async function createCalendarViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateCalendarBody> = {},
+): Promise<CalendarDto> {
+  const response = await api(ctx.app, 'POST', '/v1/calendars', {
+    session,
+    body: { name: `Calendar ${nextSeq()}`, ...overrides },
+  });
+  expectStatus(response, 201, 'create calendar');
+  return response.json<CalendarDto>();
+}
+
+/** Marks a calendar as the org default (there is no default until one is set). */
+export async function makeCalendarDefault(
+  ctx: TestContext,
+  session: Actor,
+  calendarId: string,
+): Promise<CalendarDto> {
+  const response = await api(ctx.app, 'PATCH', `/v1/calendars/${calendarId}`, {
+    session,
+    body: { isDefault: true },
+  });
+  expectStatus(response, 200, 'set calendar default');
+  return response.json<CalendarDto>();
+}
+
+/** Creates a calendar event through the API; title defaults if omitted. */
+export async function createEventViaApi(
+  ctx: TestContext,
+  session: Actor,
+  body: CreateEventInput,
+): Promise<EventDto> {
+  const response = await api(ctx.app, 'POST', '/v1/events', {
+    session,
+    body: { title: `Event ${nextSeq()}`, ...body },
+  });
+  expectStatus(response, 201, 'create event');
+  return response.json<EventDto>();
 }

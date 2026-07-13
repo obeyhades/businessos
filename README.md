@@ -4,10 +4,23 @@ Operational platform for small and medium-sized businesses: personnel, bookkeepi
 quotes/invoicing, calendar/tasks, email and voice notes — built as a modular monolith that
 grows module by module.
 
-**Current state (Phase 5):** on top of the Phase 1 foundation (authentication,
+**Current state (Phase 6):** on top of the Phase 1 foundation (authentication,
 organizations, memberships, roles/permissions, invitations, audit log, dashboard shell), the
-Phase 2 customer/project/task modules, the Phase 3 personnel module and the Phase 4
-quotes & invoicing module, Phase 5 ships **bookkeeping support** — a **double-entry ledger**.
+Phase 2 customer/project/task modules, the Phase 3 personnel module, the Phase 4
+quotes & invoicing module and the Phase 5 bookkeeping ledger, Phase 6 ships **calendar & tasks**.
+It adds **team (shared) and personal (owner-only) calendars** and **events** with attendees and
+RSVP, reminders, business-context links (customer/project/task), and `DEFAULT`/`PRIVATE`
+visibility (a private event is visible only to its organizer and attendees). **Recurrence** is
+stored as a rule on the event and **expanded server-side per query** by a pure, bounded expander
+over UTC calendar units, with **per-occurrence exceptions** to cancel or move a single
+occurrence. A **worker reminder-sweep** emails attendees before an occurrence — idempotently, via
+a `sent_reminders` ledger — and an **agenda** view merges a user's events with their due tasks
+while **free/busy** exposes busy blocks (times only) for any member. `calendar.event.*` events
+are emitted as a seam for future external calendar-sync. Everything is gated by `calendar.read` /
+`calendar.manage`. (Recurrence is UTC-exact; **DST-correct local recurrence** and external
+calendar sync are noted future work.)
+
+The earlier **Phase 5 bookkeeping support** — a **double-entry ledger** — remains.
 It adds a typed **chart of accounts**, **fiscal years and periods** (`OPEN`/`LOCKED`/`CLOSED`),
 and **vouchers** (verifikationer): journal entries with ≥2 debit/credit lines. A voucher starts
 as an editable `DRAFT` (may be unbalanced); **posting** it requires balance (Σ debit = Σ credit),
@@ -20,20 +33,20 @@ ledger with **CSV exports**, and `voucher.posted` / `voucher.reversed` events ar
 seam for future accounting-system integrations. Money stays integer minor units (öre), like
 invoicing. Everything is gated by `accounting.read` / `accounting.manage` / `accounting.post`.
 **Bookkeeping is _support_, not a certified accounting product** — not reviewed against
-bokföringslagen, VAT reporting, SIE export or tax law. Everything from Phase 6 on is planned, not
+bokföringslagen, VAT reporting, SIE export or tax law. Everything from Phase 7 on is planned, not
 built — see [docs/product-roadmap.md](docs/product-roadmap.md).
 
-| Phase | Scope                                                                         | Status  |
-| ----- | ----------------------------------------------------------------------------- | ------- |
-| 0–1   | Foundation, auth, orgs, RBAC, audit, dashboard                                | Done    |
-| 2     | Customers, contacts, projects, tasks, comments, attachments, activity, search | Done    |
-| 3     | Personnel (employees, sensitive tier, certs, absences, docs, onboarding)      | Done    |
-| 4     | Quotes & invoicing (products, quotes, invoices, payments, credit notes, PDF)  | Done    |
-| 5     | Bookkeeping support (accounts, fiscal periods, vouchers, reports, CSV export) | Done    |
-| 6     | Calendar                                                                      | Next    |
-| 7     | Email module                                                                  | Planned |
-| 8     | Voice notes                                                                   | Planned |
-| 9     | External integrations, data retention, org export                             | Planned |
+| Phase | Scope                                                                             | Status  |
+| ----- | --------------------------------------------------------------------------------- | ------- |
+| 0–1   | Foundation, auth, orgs, RBAC, audit, dashboard                                    | Done    |
+| 2     | Customers, contacts, projects, tasks, comments, attachments, activity, search     | Done    |
+| 3     | Personnel (employees, sensitive tier, certs, absences, docs, onboarding)          | Done    |
+| 4     | Quotes & invoicing (products, quotes, invoices, payments, credit notes, PDF)      | Done    |
+| 5     | Bookkeeping support (accounts, fiscal periods, vouchers, reports, CSV export)     | Done    |
+| 6     | Calendar & tasks (team/personal calendars, events, recurrence, reminders, agenda) | Done    |
+| 7     | Email module                                                                      | Next    |
+| 8     | Voice notes                                                                       | Planned |
+| 9     | External integrations, data retention, org export                                 | Planned |
 
 ## Architecture
 
@@ -137,6 +150,16 @@ balanced `DRAFT` (bank fees) for the accountant to review and post. The `VOUCHER
 `accounting.read` / `accounting.manage` / `accounting.post`: `owner@`, `admin@` and `accountant@`
 can post, `READONLY` reads only, and the `EMPLOYEE` accounts have no access. All figures are
 fictional and **not reviewed for compliance**.
+
+Phase 6 demo data seeds a default **team calendar** ("Team") with three events that exercise the
+calendar surface: **Customer kickoff** (a single event tomorrow, linked to a customer, with two
+attendees and a 30-minute reminder), **Daily standup** (a **weekly Mon/Wed recurring** event with
+a 10-minute reminder whose occurrence two Mondays out is **cancelled** via a per-occurrence
+exception), and **Focus time** (a **`PRIVATE`** block visible only to its owner). Sign in as
+`owner@` to see all three including the private block and the recurring series; other roles see
+the private event only as an anonymous busy block in free/busy. Calendar is gated by
+`calendar.read` / `calendar.manage` — `owner@`/`admin@` manage, the `EMPLOYEE` accounts read and
+RSVP, and `accountant@` has no calendar access.
 
 | Email                              | Password             | Role       | Notes               |
 | ---------------------------------- | -------------------- | ---------- | ------------------- |

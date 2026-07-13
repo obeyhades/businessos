@@ -4,8 +4,18 @@ import { errors } from '../../lib/errors.js';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 
+type RecurrenceFields = Pick<
+  CalendarEvent,
+  | 'startsAt'
+  | 'recurrenceFreq'
+  | 'recurrenceInterval'
+  | 'recurrenceByWeekday'
+  | 'recurrenceCount'
+  | 'recurrenceUntil'
+>;
+
 /** Builds the pure-function recurrence spec from a stored event row. */
-export function buildRecurrenceSpec(event: CalendarEvent): RecurrenceSpec {
+export function buildRecurrenceSpec(event: RecurrenceFields): RecurrenceSpec {
   return {
     startsAt: event.startsAt,
     freq: event.recurrenceFreq,

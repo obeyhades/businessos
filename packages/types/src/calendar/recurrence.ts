@@ -32,8 +32,26 @@ export interface Occurrence {
   end: Date;
 }
 
-/** Safety bound: at most this many series occurrences are ever enumerated. */
+/** Safety bound: at most this many occurrences are ever RETURNED for a query. */
 export const MAX_OCCURRENCES = 3660;
+/** Raw iteration guard for enumerate-from-start paths (well above any bounded
+ *  series so heavy impossible-day skipping can't truncate below COUNT/UNTIL). */
+const RAW_ITERATION_CAP = MAX_OCCURRENCES * 8;
+
+function timeOfDayMatches(a: Date, b: Date): boolean {
+  return (
+    a.getUTCHours() === b.getUTCHours() &&
+    a.getUTCMinutes() === b.getUTCMinutes() &&
+    a.getUTCSeconds() === b.getUTCSeconds() &&
+    a.getUTCMilliseconds() === b.getUTCMilliseconds()
+  );
+}
+
+function sortedWeekdays(spec: RecurrenceSpec): number[] {
+  return (spec.byWeekday.length > 0 ? spec.byWeekday : [spec.startsAt.getUTCDay()])
+    .filter((w) => w >= 0 && w <= 6)
+    .sort((a, b) => a - b);
+}
 
 function addUtcDays(d: Date, days: number): Date {
   return new Date(
@@ -110,9 +128,7 @@ function forEachStart(spec: RecurrenceSpec, emit: (start: Date) => boolean): voi
   }
 
   if (spec.freq === 'WEEKLY') {
-    const weekdays = (spec.byWeekday.length > 0 ? spec.byWeekday : [spec.startsAt.getUTCDay()])
-      .filter((w) => w >= 0 && w <= 6)
-      .sort((a, b) => a - b);
+    const weekdays = sortedWeekdays(spec);
     if (weekdays.length === 0) return;
     // Anchor to the Sunday of the series-start week, then step interval weeks.
     const weekAnchor = addUtcDays(spec.startsAt, -spec.startsAt.getUTCDay());
@@ -121,16 +137,16 @@ function forEachStart(spec: RecurrenceSpec, emit: (start: Date) => boolean): voi
       for (const wd of weekdays) {
         const start = addUtcDays(base, wd);
         if (start.getTime() < spec.startsAt.getTime()) continue; // before series start
-        if (++iterations > MAX_OCCURRENCES) return;
+        if (++iterations > RAW_ITERATION_CAP) return;
         if (!tryEmit(start)) return;
       }
-      if (iterations > MAX_OCCURRENCES) return;
+      if (iterations > RAW_ITERATION_CAP) return;
     }
   }
 
   // DAILY / MONTHLY / YEARLY: one candidate per step.
   for (let n = 0; ; n += 1) {
-    if (++iterations > MAX_OCCURRENCES) return;
+    if (++iterations > RAW_ITERATION_CAP) return;
     let start: Date | null;
     if (spec.freq === 'DAILY') start = addUtcDays(spec.startsAt, n * interval);
     else if (spec.freq === 'MONTHLY') start = addUtcMonths(spec.startsAt, n * interval);
@@ -141,8 +157,70 @@ function forEachStart(spec: RecurrenceSpec, emit: (start: Date) => boolean): voi
 }
 
 /**
- * Returns every occurrence (start+end) that OVERLAPS [rangeStart, rangeEnd].
- * `durationMs` is applied to each start. Sorted ascending by start.
+ * Fast-forward generation for UNBOUNDED / until-only series: positions the first
+ * candidate near `skipTo` arithmetically so a far-future window is reached
+ * without enumerating from the (possibly years-old) series start. COUNT-bounded
+ * series never use this path — they are short and enumerate from the start.
+ */
+function forEachStartFrom(
+  spec: RecurrenceSpec,
+  skipTo: Date,
+  emit: (start: Date) => boolean,
+): void {
+  const interval = Math.max(1, Math.floor(spec.interval || 1));
+  const ss = spec.startsAt;
+  const untilMs = spec.until ? spec.until.getTime() : null;
+  const DAY = 86_400_000;
+  let raw = 0;
+  const consider = (start: Date): boolean => {
+    if (untilMs !== null && start.getTime() > untilMs) return false;
+    return emit(start);
+  };
+
+  if (spec.freq === 'WEEKLY') {
+    const weekdays = sortedWeekdays(spec);
+    if (weekdays.length === 0) return;
+    const weekAnchor = addUtcDays(ss, -ss.getUTCDay());
+    const blockMs = interval * 7 * DAY;
+    const b0 = Math.max(0, Math.floor((skipTo.getTime() - weekAnchor.getTime()) / blockMs) - 1);
+    for (let b = b0; ; b += 1) {
+      if (++raw > RAW_ITERATION_CAP) return;
+      const base = addUtcDays(weekAnchor, b * interval * 7);
+      for (const wd of weekdays) {
+        const start = addUtcDays(base, wd);
+        if (start.getTime() < ss.getTime()) continue;
+        if (!consider(start)) return;
+      }
+    }
+  }
+
+  let n0 = 0;
+  if (spec.freq === 'DAILY') {
+    n0 = Math.max(0, Math.floor((skipTo.getTime() - ss.getTime()) / (interval * DAY)) - 1);
+  } else if (spec.freq === 'MONTHLY') {
+    const months =
+      (skipTo.getUTCFullYear() - ss.getUTCFullYear()) * 12 +
+      (skipTo.getUTCMonth() - ss.getUTCMonth());
+    n0 = Math.max(0, Math.floor(months / interval) - 1);
+  } else {
+    // YEARLY
+    n0 = Math.max(0, Math.floor((skipTo.getUTCFullYear() - ss.getUTCFullYear()) / interval) - 1);
+  }
+  for (let n = n0; ; n += 1) {
+    if (++raw > RAW_ITERATION_CAP) return;
+    let start: Date | null;
+    if (spec.freq === 'DAILY') start = addUtcDays(ss, n * interval);
+    else if (spec.freq === 'MONTHLY') start = addUtcMonths(ss, n * interval);
+    else start = addUtcYears(ss, n * interval);
+    if (start === null || start.getTime() < ss.getTime()) continue;
+    if (!consider(start)) return;
+  }
+}
+
+/**
+ * Returns every occurrence (start+end) that OVERLAPS the half-open window
+ * [rangeStart, rangeEnd). `durationMs` is applied to each start. Sorted
+ * ascending by start; capped at MAX_OCCURRENCES returned rows.
  */
 export function expandOccurrences(
   spec: RecurrenceSpec,
@@ -153,14 +231,65 @@ export function expandOccurrences(
   const out: Occurrence[] = [];
   const rangeStartMs = rangeStart.getTime();
   const rangeEndMs = rangeEnd.getTime();
-  forEachStart(spec, (start) => {
+  const dur = Math.max(0, durationMs);
+  const emit = (start: Date): boolean => {
     const startMs = start.getTime();
-    if (startMs > rangeEndMs) return false; // chronological → nothing later fits
-    const endMs = startMs + Math.max(0, durationMs);
-    if (endMs > rangeStartMs) out.push({ start, end: new Date(endMs) });
-    return true;
-  });
+    if (startMs >= rangeEndMs) return false; // half-open: stop at/after `to`
+    if (startMs + dur > rangeStartMs) out.push({ start, end: new Date(startMs + dur) });
+    return out.length < MAX_OCCURRENCES;
+  };
+
+  if (!spec.freq) {
+    emit(spec.startsAt);
+  } else if (spec.count != null) {
+    // COUNT-bounded (≤ schema max 1000): enumerate from the start.
+    forEachStart(spec, emit);
+  } else {
+    // Unbounded / until-only: fast-forward. Position by (rangeStart − duration)
+    // so a long event overlapping from before the window is still captured.
+    forEachStartFrom(spec, new Date(rangeStartMs - dur), emit);
+  }
+  out.sort((a, b) => a.start.getTime() - b.start.getTime());
   return out;
+}
+
+/** True if `target` is a genuine occurrence start of the series — used to reject
+ *  per-occurrence exceptions/overrides on phantom (non-rule) slots. */
+export function isValidOccurrenceStart(spec: RecurrenceSpec, target: Date): boolean {
+  if (!spec.freq) return target.getTime() === spec.startsAt.getTime();
+  const ss = spec.startsAt;
+  if (target.getTime() < ss.getTime()) return false;
+  if (spec.until && target.getTime() > spec.until.getTime()) return false;
+  if (!timeOfDayMatches(target, ss)) return false;
+  const interval = Math.max(1, Math.floor(spec.interval || 1));
+  const DAY = 86_400_000;
+  let shapeOk = false;
+  if (spec.freq === 'DAILY') {
+    shapeOk = (target.getTime() - ss.getTime()) % (interval * DAY) === 0;
+  } else if (spec.freq === 'WEEKLY') {
+    if (!sortedWeekdays(spec).includes(target.getUTCDay())) return false;
+    const weekAnchor = addUtcDays(ss, -ss.getUTCDay());
+    const targetAnchor = addUtcDays(target, -target.getUTCDay());
+    const weeks = Math.round((targetAnchor.getTime() - weekAnchor.getTime()) / (7 * DAY));
+    shapeOk = weeks >= 0 && weeks % interval === 0;
+  } else if (spec.freq === 'MONTHLY') {
+    if (target.getUTCDate() !== ss.getUTCDate()) return false;
+    const months =
+      (target.getUTCFullYear() - ss.getUTCFullYear()) * 12 +
+      (target.getUTCMonth() - ss.getUTCMonth());
+    shapeOk = months >= 0 && months % interval === 0;
+  } else {
+    if (target.getUTCMonth() !== ss.getUTCMonth() || target.getUTCDate() !== ss.getUTCDate()) {
+      return false;
+    }
+    shapeOk = (target.getUTCFullYear() - ss.getUTCFullYear()) % interval === 0;
+  }
+  if (!shapeOk) return false;
+  // For COUNT-bounded series, confirm the target is within the first `count`.
+  if (spec.count != null) {
+    return seriesStarts(spec, spec.count).some((s) => s.getTime() === target.getTime());
+  }
+  return true;
 }
 
 /** Enumerates raw series starts (no range filter) up to the cap — used to place

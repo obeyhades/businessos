@@ -5,6 +5,12 @@ import type { Logger } from 'pino';
 // Look far enough ahead to cover the largest reminder lead time (4 weeks) with
 // headroom, while bounding recurrence expansion per event.
 const LOOKAHEAD_MS = 30 * 24 * 60 * 60 * 1000;
+/** Max events processed per sweep (a warning fires if this is hit). */
+const EVENT_BATCH = 500;
+/** A reminder whose occurrence started more than this long ago is skipped
+ *  (avoids blasting stale reminders after downtime), while still allowing
+ *  minutesBefore=0 "at start" reminders to fire when they become due. */
+const MISS_GRACE_MS = 5 * 60 * 1000;
 
 function isUniqueViolation(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -49,9 +55,13 @@ export function startReminderSweep(
             include: { user: { select: { email: true } } },
           },
         },
-        take: 500,
+        take: EVENT_BATCH,
       });
+      if (events.length === EVENT_BATCH) {
+        logger.warn({ batch: EVENT_BATCH }, 'reminder sweep hit its event batch cap');
+      }
 
+      const nowMs = now.getTime();
       let enqueued = 0;
       for (const event of events) {
         if (event.attendees.length === 0 || event.reminders.length === 0) continue;
@@ -69,15 +79,37 @@ export function startReminderSweep(
           event.exceptions.map((e) => [e.occurrenceStart.toISOString(), e]),
         );
 
+        // Build the concrete occurrences to consider. The SentReminder claim is
+        // keyed on the ORIGINAL occurrenceStart so it survives time-moving
+        // overrides; the fire time uses the EFFECTIVE (possibly overridden) start.
+        const targets: Array<{ occurrenceStart: Date; effectiveStart: Date }> = [];
+        const seen = new Set<string>();
         for (const occ of occs) {
-          const ex = exByStart.get(occ.start.toISOString());
+          const key = occ.start.toISOString();
+          seen.add(key);
+          const ex = exByStart.get(key);
           if (ex?.type === 'CANCELLED') continue;
+          if (ex?.type === 'OVERRIDE' && ex.status === 'CANCELLED') continue; // cancelled via override
           const effectiveStart = ex?.type === 'OVERRIDE' && ex.startsAt ? ex.startsAt : occ.start;
-          if (effectiveStart.getTime() <= now.getTime()) continue; // already started
+          targets.push({ occurrenceStart: occ.start, effectiveStart });
+        }
+        // Overrides that moved an occurrence into the window from outside the
+        // rule-expanded range (mirrors the read-path materialize logic).
+        for (const ex of event.exceptions) {
+          if (ex.type !== 'OVERRIDE' || !ex.startsAt || ex.status === 'CANCELLED') continue;
+          if (seen.has(ex.occurrenceStart.toISOString())) continue;
+          const t = ex.startsAt.getTime();
+          if (t < nowMs || t > horizon.getTime()) continue;
+          targets.push({ occurrenceStart: ex.occurrenceStart, effectiveStart: ex.startsAt });
+        }
 
+        for (const target of targets) {
           for (const reminder of event.reminders) {
-            const fireAt = effectiveStart.getTime() - reminder.minutesBefore * 60_000;
-            if (fireAt > now.getTime()) continue; // not time yet
+            const fireAt = target.effectiveStart.getTime() - reminder.minutesBefore * 60_000;
+            if (fireAt > nowMs) continue; // not time yet
+            // Deliver 'at start' (minutesBefore=0) reminders too, but never blast
+            // reminders whose occurrence already fully passed (e.g. after downtime).
+            if (target.effectiveStart.getTime() < nowMs - MISS_GRACE_MS) continue;
 
             try {
               await prisma.$transaction(async (tx) => {
@@ -87,7 +119,7 @@ export function startReminderSweep(
                     organizationId: event.organizationId,
                     eventId: event.id,
                     reminderId: reminder.id,
-                    occurrenceStart: occ.start,
+                    occurrenceStart: target.occurrenceStart,
                   },
                 });
                 for (const att of event.attendees) {
@@ -97,7 +129,7 @@ export function startReminderSweep(
                       payload: {
                         to: att.user.email,
                         subject: `Reminder: ${event.title}`,
-                        text: `Reminder for "${event.title}".\nStarts: ${effectiveStart.toISOString()}${
+                        text: `Reminder for "${event.title}".\nStarts: ${target.effectiveStart.toISOString()}${
                           event.location ? `\nLocation: ${event.location}` : ''
                         }`,
                         kind: 'event_reminder',

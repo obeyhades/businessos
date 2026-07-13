@@ -10,6 +10,7 @@ import {
   overrideOccurrenceBodySchema,
   rsvpBodySchema,
   updateEventBodySchema,
+  isValidOccurrenceStart,
   type RecurrenceInput,
 } from '@businessos/types';
 import type { Prisma } from '@businessos/db';
@@ -25,10 +26,40 @@ import { eventInclude, toEventDto } from './mappers.js';
 import {
   assertLinksInOrg,
   assertOrgMembers,
+  buildRecurrenceSpec,
   canSeeEvent,
   materializeOccurrences,
   visibilityWhere,
 } from './service.js';
+
+/** Fields needed to reconstruct a recurrence spec + occurrence duration, plus
+ *  the attendee ids to enforce PRIVATE-event visibility. */
+const recurrenceSelect = {
+  id: true,
+  startsAt: true,
+  endsAt: true,
+  visibility: true,
+  organizerId: true,
+  recurrenceFreq: true,
+  recurrenceInterval: true,
+  recurrenceByWeekday: true,
+  recurrenceCount: true,
+  recurrenceUntil: true,
+  attendees: { select: { userId: true } },
+} as const;
+
+/** Upper bound on range/agenda/free-busy windows, to cap recurrence expansion. */
+export const MAX_RANGE_MS = 732 * 24 * 60 * 60 * 1000; // ~2 years
+
+/** 404s a PRIVATE event for anyone who is neither its organizer nor an attendee. */
+function assertVisible(
+  event: { visibility: string; organizerId: string | null; attendees: { userId: string }[] },
+  userId: string | undefined,
+): void {
+  if (!canSeeEvent(event, new Set(event.attendees.map((a) => a.userId)), userId)) {
+    throw errors.notFound('Event');
+  }
+}
 
 function recurrenceFields(rec: RecurrenceInput | null | undefined) {
   if (!rec) {
@@ -86,6 +117,12 @@ export function registerEventRoutes(app: FastifyInstance): void {
       if (to.getTime() < from.getTime()) {
         throw errors.badRequest('bad_range', 'to must be on or after from');
       }
+      if (to.getTime() - from.getTime() > MAX_RANGE_MS) {
+        throw errors.badRequest(
+          'window_too_large',
+          'The requested range is too large (max ~2 years)',
+        );
+      }
 
       const and: Prisma.CalendarEventWhereInput[] = [
         visibilityWhere(userId),
@@ -98,6 +135,9 @@ export function registerEventRoutes(app: FastifyInstance): void {
               recurrenceFreq: { not: null },
               OR: [{ recurrenceUntil: null }, { recurrenceUntil: { gte: from } }],
             },
+            // A series whose rule occurrences fall outside the window but that
+            // has an override moving one INTO it.
+            { exceptions: { some: { type: 'OVERRIDE', startsAt: { gte: from, lte: to } } } },
           ],
         },
       ];
@@ -109,6 +149,7 @@ export function registerEventRoutes(app: FastifyInstance): void {
 
       const events = await app.prisma.calendarEvent.findMany({
         where: { organizationId, AND: and },
+        take: 2000,
       });
       const eventIds = events.map((e) => e.id);
       const exceptions = eventIds.length
@@ -260,6 +301,16 @@ export function registerEventRoutes(app: FastifyInstance): void {
         include: { attendees: true },
       });
       if (!existing) throw errors.notFound('Event');
+      // A PRIVATE event is invisible to non-organizer/non-attendee managers too.
+      if (
+        !canSeeEvent(
+          existing,
+          new Set(existing.attendees.map((a) => a.userId)),
+          request.currentUser?.id,
+        )
+      ) {
+        throw errors.notFound('Event');
+      }
 
       if (body.calendarId) {
         const cal = await app.prisma.calendar.findFirst({
@@ -305,6 +356,13 @@ export function registerEventRoutes(app: FastifyInstance): void {
         if (body.recurrence !== undefined) Object.assign(data, recurrenceFields(body.recurrence));
 
         await tx.calendarEvent.update({ where: { id: existing.id }, data });
+
+        // Shifting the series start or its recurrence invalidates every stored
+        // exception (their occurrenceStart no longer matches a rule occurrence),
+        // which would otherwise resurrect cancellations and duplicate overrides.
+        if (body.startsAt !== undefined || body.recurrence !== undefined) {
+          await tx.eventException.deleteMany({ where: { eventId: existing.id } });
+        }
 
         if (body.reminders !== undefined) {
           await tx.eventReminder.deleteMany({ where: { eventId: existing.id } });
@@ -376,9 +434,19 @@ export function registerEventRoutes(app: FastifyInstance): void {
       const { organizationId } = orgContext(request);
       const existing = await app.prisma.calendarEvent.findFirst({
         where: { id: request.params.eventId, organizationId },
-        select: { id: true, customerId: true, projectId: true, taskId: true, title: true },
+        select: {
+          id: true,
+          customerId: true,
+          projectId: true,
+          taskId: true,
+          title: true,
+          visibility: true,
+          organizerId: true,
+          attendees: { select: { userId: true } },
+        },
       });
       if (!existing) throw errors.notFound('Event');
+      assertVisible(existing, request.currentUser?.id);
       const event = await app.prisma.$transaction(async (tx) => {
         await tx.calendarEvent.update({
           where: { id: existing.id },
@@ -429,9 +497,15 @@ export function registerEventRoutes(app: FastifyInstance): void {
       const { organizationId } = orgContext(request);
       const existing = await app.prisma.calendarEvent.findFirst({
         where: { id: request.params.eventId, organizationId },
-        select: { id: true },
+        select: {
+          id: true,
+          visibility: true,
+          organizerId: true,
+          attendees: { select: { userId: true } },
+        },
       });
       if (!existing) throw errors.notFound('Event');
+      assertVisible(existing, request.currentUser?.id);
       await app.prisma.$transaction(async (tx) => {
         await tx.calendarEvent.delete({ where: { id: existing.id } });
         await recordAudit(tx, {
@@ -461,9 +535,10 @@ export function registerEventRoutes(app: FastifyInstance): void {
       const { organizationId } = orgContext(request);
       const event = await app.prisma.calendarEvent.findFirst({
         where: { id: request.params.eventId, organizationId },
-        select: { id: true, recurrenceFreq: true, startsAt: true },
+        select: recurrenceSelect,
       });
       if (!event) throw errors.notFound('Event');
+      assertVisible(event, request.currentUser?.id);
       if (!event.recurrenceFreq) {
         throw errors.badRequest(
           'not_recurring',
@@ -471,6 +546,12 @@ export function registerEventRoutes(app: FastifyInstance): void {
         );
       }
       const occurrenceStart = new Date(request.body.occurrenceStart);
+      if (!isValidOccurrenceStart(buildRecurrenceSpec(event), occurrenceStart)) {
+        throw errors.badRequest(
+          'bad_occurrence',
+          'occurrenceStart is not a real occurrence of this series',
+        );
+      }
       await app.prisma.$transaction(async (tx) => {
         await tx.eventException.upsert({
           where: { eventId_occurrenceStart: { eventId: event.id, occurrenceStart } },
@@ -513,23 +594,33 @@ export function registerEventRoutes(app: FastifyInstance): void {
       const body = request.body;
       const event = await app.prisma.calendarEvent.findFirst({
         where: { id: request.params.eventId, organizationId },
-        select: { id: true, recurrenceFreq: true },
+        select: recurrenceSelect,
       });
       if (!event) throw errors.notFound('Event');
+      assertVisible(event, request.currentUser?.id);
       if (!event.recurrenceFreq) {
         throw errors.badRequest(
           'not_recurring',
           'Only recurring events have occurrence-level operations',
         );
       }
-      if (
-        body.startsAt &&
-        body.endsAt &&
-        new Date(body.endsAt).getTime() < new Date(body.startsAt).getTime()
-      ) {
+      const occurrenceStart = new Date(body.occurrenceStart);
+      if (!isValidOccurrenceStart(buildRecurrenceSpec(event), occurrenceStart)) {
+        throw errors.badRequest(
+          'bad_occurrence',
+          'occurrenceStart is not a real occurrence of this series',
+        );
+      }
+      // Validate the EFFECTIVE range: a one-sided move is checked against the
+      // base occurrence (start = occurrenceStart, end = start + series duration).
+      const baseDurationMs = event.endsAt.getTime() - event.startsAt.getTime();
+      const effStart = body.startsAt ? new Date(body.startsAt) : occurrenceStart;
+      const effEnd = body.endsAt
+        ? new Date(body.endsAt)
+        : new Date(occurrenceStart.getTime() + baseDurationMs);
+      if (effEnd.getTime() < effStart.getTime()) {
         throw errors.badRequest('bad_range', 'endsAt must be on or after startsAt');
       }
-      const occurrenceStart = new Date(body.occurrenceStart);
       const fields = {
         type: 'OVERRIDE' as const,
         title: body.title ?? null,
@@ -573,9 +664,15 @@ export function registerEventRoutes(app: FastifyInstance): void {
       const { organizationId } = orgContext(request);
       const event = await app.prisma.calendarEvent.findFirst({
         where: { id: request.params.eventId, organizationId },
-        select: { id: true },
+        select: {
+          id: true,
+          visibility: true,
+          organizerId: true,
+          attendees: { select: { userId: true } },
+        },
       });
       if (!event) throw errors.notFound('Event');
+      assertVisible(event, request.currentUser?.id);
       await assertOrgMembers(app.prisma, organizationId, [request.body.userId]);
       const updated = await app.prisma.$transaction(async (tx) => {
         await tx.eventAttendee.upsert({
@@ -612,6 +709,12 @@ export function registerEventRoutes(app: FastifyInstance): void {
         select: { id: true, isOrganizer: true, eventId: true },
       });
       if (!attendee) throw errors.notFound('Attendee');
+      const ev = await app.prisma.calendarEvent.findFirst({
+        where: { id: attendee.eventId, organizationId },
+        select: { visibility: true, organizerId: true, attendees: { select: { userId: true } } },
+      });
+      if (!ev) throw errors.notFound('Event');
+      assertVisible(ev, request.currentUser?.id);
       if (attendee.isOrganizer) {
         throw errors.conflict('cannot_remove_organizer', 'The organizer cannot be removed');
       }

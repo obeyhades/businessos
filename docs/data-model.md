@@ -556,6 +556,107 @@ Per-organization default accounts driving auto-generated draft vouchers (configu
   (all nullable, raw columns) — the accounts the worker posts to when it drafts a voucher from
   an invoice or payment (see [architecture.md](architecture.md#event-driven-accounting-drafts-phase-5))
 
+## Phase 6 — calendar & tasks
+
+Added by migration `20260713183927_phase6_calendar`. Six new tables; every one carries
+`organization_id` for tenant isolation and cascade-deletes with its organization. Times are
+stored as `timestamptz` **UTC instants** (`starts_at`, `ends_at`, `occurrence_start`, …);
+recurrence is not materialized into rows — it is a rule on the master event, expanded
+server-side per query (see [architecture.md](architecture.md#server-side-recurrence-expansion-phase-6)
+and [ADR-0007](decisions/adr-0007-server-side-recurrence-expansion.md)).
+
+Enums:
+
+- `CalendarType` — `TEAM` (default, shared) or `PERSONAL` (owner-only)
+- `EventStatus` — `CONFIRMED` (default), `TENTATIVE`, `CANCELLED`
+- `EventVisibility` — `DEFAULT` (default) or `PRIVATE` (visible only to organizer + attendees)
+- `AttendeeResponse` — `NEEDS_ACTION` (default), `ACCEPTED`, `DECLINED`, `TENTATIVE`
+- `ReminderMethod` — `EMAIL` (only method today)
+- `RecurrenceFreq` — `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`
+- `ExceptionType` — `CANCELLED` or `OVERRIDE`
+
+### calendars
+
+A calendar container. One **default** calendar per organization; team calendars are shared,
+personal calendars belong to a single user.
+
+- `name`, `color` (hex, default `#3b82f6`), `type` (`CalendarType`), `is_default` (default
+  false), `created_by_id` (raw column)
+- `owner_id` (nullable) FK to `users` (`CalendarOwner` relation, **SetNull**) — set only for
+  `PERSONAL` calendars; null for `TEAM`. Deleting the owner detaches the calendar rather than
+  removing it
+- "At most one default per org" is enforced in the service (setting `is_default = true` clears
+  the flag on the org's other calendars in the same transaction), not by a DB constraint
+- Index `(organization_id, type)`
+
+### calendar_events
+
+The **master event** (series definition). A single event has `recurrence_freq = null`; a
+recurring event stores its rule here and is never expanded into per-occurrence rows.
+
+- `title`, `description`, `location`, `starts_at`, `ends_at` (both `timestamptz`), `all_day`
+  (default false), `timezone` (default `Europe/Stockholm` — carried for display/all-day intent;
+  instants are stored in UTC), `status` (`EventStatus`), `visibility` (`EventVisibility`)
+- `organizer_id` (nullable) FK to `users` (`EventOrganizer` relation, **SetNull**)
+- **Business context** `customer_id`, `project_id`, `task_id` — all nullable, all FK
+  **SetNull**; the denormalized link chain mirrors the Phase 2 activity ref. A linked event
+  posts an `event.scheduled` / `event.cancelled` activity onto that customer/project/task
+  timeline
+- **Recurrence fields** (a rule, not rows): `recurrence_freq` (`RecurrenceFreq?`, null =
+  single), `recurrence_interval` (`Int`, default 1), `recurrence_by_weekday` (`Int[]`, UTC
+  weekdays 0=Sun..6=Sat, `WEEKLY` only), `recurrence_count` (`Int?`) and `recurrence_until`
+  (`timestamptz?`). `count` and `until` are **series-wide** (mutually exclusive in the
+  contract)
+- `created_by_id` (raw column)
+- Relations: `organization`/`calendar` (**Cascade**), `organizer`/`customer`/`project`/`task`
+  (**SetNull**), plus `attendees`, `reminders`, `exceptions`, `sent_reminders`
+- Indexes `(organization_id, starts_at)`, `(calendar_id, starts_at)` and
+  `(organization_id, customer_id)` — the range-window prefilter and the per-customer lookup
+
+### event_attendees
+
+A user invited to an event, with their RSVP.
+
+- `event_id` (**Cascade**), `user_id` (**Cascade**), `response` (`AttendeeResponse`, default
+  `NEEDS_ACTION`), `is_organizer` (default false)
+- The **organizer is auto-added as an `ACCEPTED`, `is_organizer` attendee** on create and
+  **cannot be removed** (409 `cannot_remove_organizer`) — enforced in the service
+- **Unique `(event_id, user_id)`** (one row per user per event); index `(organization_id, user_id)`
+  (a user's calendar / free-busy lookup)
+
+### event_reminders
+
+A per-event lead time that fires a notification before each occurrence.
+
+- `event_id` (**Cascade**), `minutes_before` (`Int`, 0–40320 = up to 4 weeks), `method`
+  (`ReminderMethod`, default `EMAIL`)
+- Index `(event_id)`. On a series edit the reminder set is replaced wholesale
+
+### event_exceptions
+
+A **single occurrence** of a recurring series that has been cancelled or overridden. The
+occurrence identity is the **original, rule-generated UTC start** it replaces, not a row id.
+
+- `event_id` (**Cascade**), `occurrence_start` (`timestamptz` — the original rule start; the
+  join key), `type` (`ExceptionType`)
+- **Override fields** (all null when `type = CANCELLED`): `title`, `description`, `location`,
+  `starts_at`, `ends_at`, `status`. An `OVERRIDE` may retitle/restatus a single occurrence or
+  **move it** (`starts_at`/`ends_at`) — even into or out of a query window
+- **Unique `(event_id, occurrence_start)`** — one exception per rule slot, upserted by the
+  cancel/override endpoints; index `(organization_id, event_id)`
+
+### sent_reminders
+
+Worker idempotency ledger — one row per (reminder, occurrence) actually notified, so the
+reminder sweep never double-fires.
+
+- `event_id` (**Cascade**), `reminder_id`, `occurrence_start` (`timestamptz`), `sent_at`
+- **Unique `(reminder_id, occurrence_start)`** — the authoritative guard. The claim row and
+  the outbound emails are written in **one transaction**, so a duplicate claim rolls the whole
+  batch back; the sweep is safe across restarts and overlapping runs (see
+  [architecture.md](architecture.md#reminder-sweep-worker-job-phase-6)). Index
+  `(organization_id, event_id)`
+
 ## Tenancy rule for future tables
 
 Every tenant-owned table added in later phases carries `organization_id` and is queried

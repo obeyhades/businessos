@@ -58,6 +58,15 @@ item below needs professional review before the module is offered to real busine
   every currency as having 100 minor units per major unit (öre/cents). Currencies with a
   different number of decimal places are **not** handled and would need explicit work.
 
+## Calendar (Phase 6) — no bookkeeping/tax surface
+
+Phase 6 (team/personal calendars, events, recurrence, reminders, agenda, free/busy) has **no
+bookkeeping, invoicing, VAT or tax compliance surface** — nothing above applies to it. Its only
+compliance dimension is data protection: calendar events, attendee lists and reminder emails are
+personal data, and they fold into the existing **GDPR** items below (retention, export/erasure,
+records of processing) exactly like other tenant data. No calendar-specific legal review is
+required beyond that.
+
 ## GDPR
 
 Designed but **not implemented** (tracked for Phase 9) or not yet done at all:

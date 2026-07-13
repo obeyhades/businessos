@@ -97,6 +97,13 @@ Phase 5 adds the accounting actions: `account.created`, `account.updated`,
 recorded with actor, IP and user agent. Auto-drafted vouchers from the worker are audited as
 `voucher.created` with `metadata.auto = true` (actor null, since the worker acts without a user).
 
+Phase 6 adds the calendar actions: `calendar.created`, `calendar.updated`, `calendar.deleted`,
+`event.created`, `event.updated`, `event.cancelled`, `event.deleted`,
+`event.occurrence_overridden`, `event.occurrence_cancelled`, `event_attendee.added`,
+`event_attendee.removed`, `event_attendee.responded`. Every calendar/event mutation — including
+per-occurrence cancel/override and each attendee change and RSVP — is recorded with actor, IP and
+user agent inside the same transaction as the change.
+
 Action identifiers are stable and never renamed. The audit log is distinct from the
 Phase 2 user-facing `activities` feed (see
 [architecture.md](architecture.md#activity-timeline)): the audit log is the security
@@ -130,6 +137,13 @@ record, the activity feed is a product timeline.
   confirmed in the caller's org, and voucher numbers are per-organization (unique
   `(organization_id, number)`). The worker's auto-draft generator is likewise passed an explicit
   `organizationId` and scopes every read/write to it.
+- **Phase 6 resources** — calendars, events, attendees, reminders, exceptions and sent-reminder
+  rows all carry `organization_id` and are looked up scoped to the session organization. Event
+  customer/project/task links and attendee user ids are re-validated within the tenant
+  (`assertLinksInOrg`, `assertOrgMembers`) before a write, and free/busy resolves its target
+  through an `organizationMember` row in the caller's org, so a caller can never link, invite or
+  query across tenants. The worker reminder sweep scopes every claim row and email to the
+  event's `organizationId`.
 
 ## Attachment upload/download (Phase 2)
 
@@ -276,6 +290,33 @@ rules and a dedicated posting permission.
 - These are technical safeguards only. **Nothing here is verified against bokföringslagen,
   Bokföringsnämnden (BFN) standards, VAT reporting, SIE/e-accounting export requirements or tax
   law** — see [legal-review-required.md](legal-review-required.md).
+
+## Calendar privacy and RBAC (Phase 6)
+
+The calendar module adds two access concerns beyond ordinary CRUD: **per-event privacy** and a
+deliberately **minimal cross-member view**.
+
+- **Two-tier RBAC.** `calendar.read` (view calendars/events, RSVP, agenda, free/busy) and
+  `calendar.manage` (create/edit/delete calendars and events, manage attendees, occurrence
+  cancel/override). In the code-defined matrix (`packages/types/src/permissions.ts`) OWNER,
+  ADMIN and **MANAGER** hold both; EMPLOYEE and READONLY hold `calendar.read` only; **ACCOUNTANT
+  has no calendar access at all**. RSVP is a `read`-level action so an invited employee can
+  respond without any manage right.
+- **Private events.** A `PRIVATE` event is visible only to its **organizer and attendees**.
+  This is enforced at the data layer, not the UI: `visibilityWhere` narrows the range-list and
+  agenda queries in the database, and the single-event GET returns **404 (not 403)** to a
+  non-participant, so the API does not even reveal that a private event exists. `DEFAULT` events
+  are visible to anyone who can read the module.
+- **Personal calendars** are visible only to their owner (`ownerId`); team calendars are shared
+  across the org. The list endpoint filters to `TEAM` OR owned-personal calendars.
+- **Free/busy exposes times only.** `GET /v1/calendar/free-busy` returns busy start/end blocks
+  for any org member and **never titles, locations, attendees or any event detail** — cancelled
+  occurrences and events the member declined are excluded. It is the intentionally narrow
+  information-exposure model for scheduling across members: enough to find a free slot, nothing
+  that leaks what a colleague is doing (including their private events, which still surface as
+  anonymous busy blocks to the people entitled to see availability).
+- **Tenant isolation and audit** — every calendar action is org-scoped and audited (see the
+  [tenant isolation](#tenant-isolation) and [audit log](#audit-log) sections above).
 
 ## Secrets and configuration
 

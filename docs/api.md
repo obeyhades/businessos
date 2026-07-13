@@ -422,6 +422,66 @@ vouchers in.
 `too_few_lines` (400), `zero_voucher` (400), `already_posted` (409), `voucher_immutable` (409),
 `not_reversible` (409), `already_reversed` (409), `not_posted` (409).
 
+## Phase 6 — calendar & tasks
+
+All routes require an active organization. Two permissions gate the module: **`calendar.read`**
+(list/detail, RSVP, agenda, free/busy) and **`calendar.manage`** (create/edit/delete calendars
+and events, attendees, and occurrence operations). OWNER, ADMIN and MANAGER hold both; EMPLOYEE
+and READONLY hold `calendar.read` only; **ACCOUNTANT has no calendar access**.
+
+Times are **ISO 8601 UTC instants** (`startsAt`, `endsAt`, `from`, `to`, `occurrenceStart`).
+Recurring events are stored once (a rule on the master event) and **expanded server-side per
+query** — the range list, agenda and free/busy return concrete occurrences, not stored rows
+(see [architecture.md](architecture.md#server-side-recurrence-expansion-phase-6)).
+
+### Calendars
+
+| Method | Path                        | Auth              | Notes                                                                                                |
+| ------ | --------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/calendars`             | `calendar.read`   | team calendars + the caller's own personal calendars, default first                                  |
+| POST   | `/v1/calendars`             | `calendar.manage` | `name`, `color`, `type` (`TEAM` default / `PERSONAL`); a `PERSONAL` calendar is owned by the creator |
+| PATCH  | `/v1/calendars/:calendarId` | `calendar.manage` | `name`/`color`/`isDefault`; setting `isDefault=true` clears the flag on the org's other calendars    |
+| DELETE | `/v1/calendars/:calendarId` | `calendar.manage` | 204; **409 `calendar_is_default`** (default calendar) / **409 `calendar_in_use`** (still has events) |
+
+### Events
+
+The range list returns **materialized occurrences** (`occurrenceStart` = the rule-generated
+start, the identity used for overrides; `start`/`end` = the effective times after any override).
+A **`PRIVATE` event is only visible to its organizer and attendees** — enforced on the range
+list, single GET (404 to others) and the agenda.
+
+| Method | Path                                       | Auth              | Notes                                                                                                                                                                                       |
+| ------ | ------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/events`                               | `calendar.read`   | required `from`/`to`; filters `?calendarId=`, `?customerId=`, `?mine=true`. Expanded occurrences, privacy-filtered. **400 `bad_range`** if `to` < `from`                                    |
+| POST   | `/v1/events`                               | `calendar.manage` | `calendarId`, times, `recurrence?`, `reminders[]`, `attendeeUserIds[]`, `customer/project/task` links; organizer auto-added as `ACCEPTED`. Emits `event.created` + `calendar.event.created` |
+| GET    | `/v1/events/:eventId`                      | `calendar.read`   | master event (series definition) with reminders + attendees; **404** if `PRIVATE` and caller is not organizer/attendee                                                                      |
+| PATCH  | `/v1/events/:eventId`                      | `calendar.manage` | partial series update; `recurrence: null` clears recurrence; `reminders` / `attendeeUserIds` replace the set (organizer always kept). Emits `calendar.event.updated`                        |
+| POST   | `/v1/events/:eventId/cancel`               | `calendar.manage` | soft-cancel the whole series → `status = CANCELLED`; emits `calendar.event.cancelled`                                                                                                       |
+| DELETE | `/v1/events/:eventId`                      | `calendar.manage` | 204; hard-delete the series (cascades attendees/reminders/exceptions)                                                                                                                       |
+| POST   | `/v1/events/:eventId/occurrences/cancel`   | `calendar.manage` | 204; body `{ occurrenceStart }`; writes a `CANCELLED` exception. **400 `not_recurring`** on a single event                                                                                  |
+| POST   | `/v1/events/:eventId/occurrences/override` | `calendar.manage` | 204; body `{ occurrenceStart, title?/location?/startsAt?/endsAt?/status? }`; writes an `OVERRIDE` exception (may move the occurrence). **400 `not_recurring`** / **400 `bad_range`**        |
+
+### Attendees & RSVP
+
+| Method | Path                                    | Auth              | Notes                                                                                                                 |
+| ------ | --------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/v1/events/:eventId/attendees`         | `calendar.manage` | body `{ userId }` (must be an org member, else **400 `unknown_attendee`**); idempotent upsert                         |
+| DELETE | `/v1/events/:eventId/attendees/:userId` | `calendar.manage` | remove an attendee; **409 `cannot_remove_organizer`** for the organizer                                               |
+| POST   | `/v1/events/:eventId/rsvp`              | `calendar.read`   | the caller sets **their own** response (`NEEDS_ACTION`/`ACCEPTED`/`DECLINED`/`TENTATIVE`); **403** if not an attendee |
+
+### Agenda & free/busy
+
+| Method | Path                     | Auth            | Notes                                                                                                                                                                                    |
+| ------ | ------------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/agenda`             | `calendar.read` | `from`/`to`; the caller's own events (organizer or attendee) **merged with their due tasks** (assigned, not `DONE`, due in range), sorted; cancelled occurrences excluded                |
+| GET    | `/v1/calendar/free-busy` | `calendar.read` | `userId`/`from`/`to`; **busy blocks (times only, never details)** for any org member; excludes cancelled occurrences and events the target declined; **404** if `userId` is not a member |
+
+### Notable calendar error codes
+
+`bad_range` (400), `not_recurring` (400), `unknown_calendar` / `unknown_customer` /
+`unknown_project` / `unknown_task` / `unknown_attendee` (400), `cannot_remove_organizer` (409),
+`calendar_is_default` (409), `calendar_in_use` (409).
+
 ## OpenAPI
 
 - `GET /docs/json` serves the OpenAPI document in non-production environments.

@@ -80,7 +80,8 @@
     "accountingJournal": "Journal",
     "accountingAccounts": "Chart of accounts",
     "accountingPeriods": "Fiscal periods",
-    "accountingReports": "Reports"
+    "accountingReports": "Reports",
+    "calendar": "Calendar"
   },
   "auth": {
     "login": {
@@ -1172,5 +1173,154 @@
     "closingBalance": "Closing",
     "noEntries": "No entries",
     "runningBalance": "Running balance"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "restricted": "You do not have access to the calendar.",
+    "agenda": "My agenda",
+    "backToCalendar": "Back to calendar",
+    "newEvent": "New event",
+    "editEvent": "Edit event",
+    "previous": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "viewMonth": "Month",
+    "viewWeek": "Week",
+    "myEventsOnly": "My events only",
+    "addOnDay": "Add event",
+    "moreCount": "+{count} more",
+    "allDayShort": "All day",
+    "noEventsDay": "No events",
+    "emptyWeek": "No events this week.",
+    "selectCalendar": "Select a calendar",
+    "created": "Event created",
+    "updated": "Event updated",
+    "occurrenceUpdated": "Occurrence updated",
+    "occurrenceCancelled": "Occurrence cancelled",
+    "eventCancelled": "Event cancelled",
+    "eventDeleted": "Event deleted",
+    "rsvpSaved": "Response saved",
+    "yourResponse": "Your response",
+    "thisOccurrence": "This occurrence",
+    "wholeSeries": "Whole series",
+    "event": "Event",
+    "editThisOccurrence": "Edit this occurrence",
+    "cancelThisOccurrence": "Cancel this occurrence",
+    "editSeries": "Edit series",
+    "cancelSeries": "Cancel series",
+    "cancelEvent": "Cancel event",
+    "deleteSeries": "Delete series",
+    "deleteEvent": "Delete event",
+    "cancelOccurrenceConfirm": "This occurrence will be cancelled. Other occurrences in the series are not affected.",
+    "cancelSeriesConfirm": "The event will be marked as cancelled. This affects all occurrences.",
+    "deleteConfirm": "This permanently removes the event and all its occurrences. This cannot be undone.",
+    "isRecurring": "Part of a recurring series",
+    "isException": "Edited occurrence of a recurring series",
+    "editOccurrence": "Edit this occurrence",
+    "editOccurrenceHint": "Changes apply only to this occurrence, not the whole series.",
+    "attendeesRestricted": "You do not have permission to view members.",
+    "loadingMembers": "Loading members…",
+    "noMembers": "No members found.",
+    "from": "From",
+    "to": "To",
+    "agendaEmpty": "Nothing scheduled",
+    "agendaEmptyDescription": "No events or due tasks in this period.",
+    "taskBadge": "Task",
+    "eventStatus": {
+      "CONFIRMED": "Confirmed",
+      "TENTATIVE": "Tentative",
+      "CANCELLED": "Cancelled"
+    },
+    "visibility": {
+      "DEFAULT": "Default",
+      "PRIVATE": "Private"
+    },
+    "rsvp": {
+      "NEEDS_ACTION": "No response",
+      "ACCEPTED": "Accepted",
+      "DECLINED": "Declined",
+      "TENTATIVE": "Tentative"
+    },
+    "indicators": {
+      "cancelled": "Cancelled",
+      "private": "Private",
+      "exception": "Edited occurrence",
+      "recurring": "Recurring"
+    },
+    "fields": {
+      "title": "Title",
+      "calendar": "Calendar",
+      "allDay": "All day",
+      "start": "Starts",
+      "end": "Ends",
+      "location": "Location",
+      "description": "Description",
+      "status": "Status",
+      "visibility": "Visibility",
+      "attendees": "Attendees"
+    },
+    "recurrence": {
+      "label": "Repeat",
+      "none": "Does not repeat",
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly",
+      "interval": "Repeat every",
+      "onDays": "On days",
+      "ends": "Ends",
+      "endsNever": "Never",
+      "endsCount": "After a number of occurrences",
+      "endsUntil": "On a date",
+      "countLabel": "Number of occurrences",
+      "untilLabel": "End date"
+    },
+    "reminders": {
+      "label": "Reminders",
+      "none": "No reminders",
+      "amount": "Amount",
+      "unit": "Unit",
+      "minutes": "minutes",
+      "hours": "hours",
+      "days": "days",
+      "before": "before",
+      "remove": "Remove reminder",
+      "add": "Add reminder"
+    },
+    "links": {
+      "customer": "Customer",
+      "noCustomer": "No customer",
+      "project": "Project",
+      "noProject": "No project",
+      "task": "Task",
+      "noTask": "No task"
+    },
+    "calendars": {
+      "heading": "Calendars",
+      "new": "New calendar",
+      "empty": "No calendars yet.",
+      "edit": "Edit calendar",
+      "delete": "Delete calendar",
+      "deleteTitle": "Delete calendar",
+      "deleteConfirm": "Delete the calendar \"{name}\"? Its events will be removed.",
+      "deleted": "Calendar deleted",
+      "updated": "Calendar updated",
+      "created": "Calendar created",
+      "editTitle": "Edit calendar",
+      "createTitle": "New calendar",
+      "name": "Name",
+      "color": "Color",
+      "type": "Type",
+      "makeDefault": "Set as default",
+      "nameRequired": "Please enter a name."
+    },
+    "calendarType": {
+      "TEAM": "Team",
+      "PERSONAL": "Personal"
+    },
+    "errors": {
+      "calendarRequired": "Please choose a calendar.",
+      "titleRequired": "Please enter a title."
+    }
   }
 }

@@ -12,6 +12,16 @@ import { z } from 'zod';
 import { errors } from '../../lib/errors.js';
 import { orgContext, requirePermission } from '../../plugins/auth.js';
 import { materializeOccurrences } from './service.js';
+import { MAX_RANGE_MS } from './events.routes.js';
+
+function assertRange(from: Date, to: Date): void {
+  if (to.getTime() < from.getTime()) {
+    throw errors.badRequest('bad_range', 'to must be on or after from');
+  }
+  if (to.getTime() - from.getTime() > MAX_RANGE_MS) {
+    throw errors.badRequest('window_too_large', 'The requested range is too large (max ~2 years)');
+  }
+}
 
 /** Loads events a user is on (organizer or attendee) that could hit [from,to],
  *  plus their exceptions, and expands them into occurrences. */
@@ -34,6 +44,8 @@ async function occurrencesForUser(
             recurrenceFreq: { not: null },
             OR: [{ recurrenceUntil: null }, { recurrenceUntil: { gte: from } }],
           },
+          // Series with an override moving an occurrence into the window.
+          { exceptions: { some: { type: 'OVERRIDE', startsAt: { gte: from, lte: to } } } },
         ],
       },
     ],
@@ -71,6 +83,7 @@ export function registerAgendaRoutes(app: FastifyInstance): void {
       if (!userId) throw errors.unauthorized();
       const from = new Date(request.query.from);
       const to = new Date(request.query.to);
+      assertRange(from, to);
 
       const occurrences = await occurrencesForUser(app, organizationId, userId, from, to);
       const tasks = await app.prisma.task.findMany({
@@ -78,7 +91,7 @@ export function registerAgendaRoutes(app: FastifyInstance): void {
           organizationId,
           assigneeId: userId,
           dueDate: { gte: from, lte: to },
-          status: { not: 'DONE' },
+          status: { notIn: ['DONE', 'CANCELLED'] },
         },
         select: {
           id: true,
@@ -138,6 +151,7 @@ export function registerAgendaRoutes(app: FastifyInstance): void {
       if (!member) throw errors.notFound('Member');
       const from = new Date(request.query.from);
       const to = new Date(request.query.to);
+      assertRange(from, to);
 
       const occurrences = await occurrencesForUser(app, organizationId, targetUserId, from, to);
       // Exclude cancelled occurrences and events the user declined.

@@ -395,6 +395,103 @@ consumed it. They are the **designed interface for future accounting-system inte
 its own queue to these routing keys on `businessos.events` without the accounting module knowing
 about it.
 
+## Calendar & tasks (Phase 6)
+
+Phase 6 adds the `calendar` module (`apps/api/src/modules/calendar/`: `calendars.routes`,
+`events.routes`, `agenda.routes`, a shared `service.ts` and `mappers.ts`) and one worker job.
+Events are stored as **UTC instants**; recurrence is a rule on the master event, expanded
+server-side. Two permissions gate everything — `calendar.read` and `calendar.manage`.
+
+### Server-side recurrence expansion (Phase 6)
+
+A recurring event is stored **once** — the master `calendar_events` row carries the rule
+(`recurrence_freq`/`interval`/`by_weekday`/`count`/`until`); no per-occurrence rows exist.
+Every range query (list, agenda, free/busy, reminder sweep) expands the rule **on demand**
+through a pure, deterministic, bounded expander
+(`packages/types/src/calendar/recurrence.ts`, `expandOccurrences`) and applies the tenant
+`where`, privacy filter and per-occurrence exceptions in the service
+(`materializeOccurrences`). See [ADR-0007](decisions/adr-0007-server-side-recurrence-expansion.md).
+
+Properties of the expander:
+
+- **Pure and deterministic** — no clock, no I/O; the same spec + window always yields the same
+  occurrences. It is unit-testable in isolation and identical on the API and in the worker.
+- **Bounded** — a hard cap (`MAX_OCCURRENCES = 3660`) prevents runaway loops on unbounded
+  series, and the DB prefilters to series whose window could overlap `[from, to]` before any
+  expansion runs.
+- **UTC calendar units** — occurrences recur on UTC day/week/month/year steps **preserving the
+  start's UTC time-of-day**, and **impossible days are skipped** (Jan 31 + 1 month, Feb 29 in a
+  non-leap year) rather than rolled forward, matching RRULE semantics.
+- **Series-wide `count`/`until`** — expansion always iterates from the series start and then
+  filters to the query window, so `count`/`until` count the whole series regardless of where the
+  window falls.
+
+**DST limitation (documented design decision).** Recurrence is **UTC-exact**, so an event does
+**not** keep a fixed _local_ wall-clock time across a daylight-saving transition — a 09:00
+Europe/Stockholm daily event shifts by an hour in UTC-observed local time when the clocks
+change. This keeps expansion simple and exact; **DST-correct local recurrence** (anchoring to a
+timezone so the wall-clock time is preserved) is a documented future enhancement. The `timezone`
+column is stored for that future work and for display/all-day intent today.
+
+### Per-occurrence exceptions (Phase 6)
+
+A single occurrence of a series can diverge without splitting the series. Each
+`event_exceptions` row is keyed by the **original, rule-generated `occurrence_start`** and is
+either a `CANCELLED` (drop that occurrence) or an `OVERRIDE` (retitle/restatus/move it). During
+materialization the expander produces the rule occurrences, then exceptions are applied by
+`occurrence_start`: cancellations are dropped, overrides replace the fields — and an override
+that **moved an occurrence** can pull it into the window from just outside it or push it out.
+The occurrence endpoints (`/occurrences/cancel`, `/occurrences/override`) upsert on the unique
+`(event_id, occurrence_start)` and reject non-recurring events (`not_recurring`).
+
+### Event privacy and business-context links (Phase 6)
+
+`visibility = PRIVATE` restricts an event to its **organizer and attendees**. This is enforced
+in the service, not the UI: `visibilityWhere(userId)` narrows the range/agenda queries at the
+database, and `canSeeEvent` gates the single GET (returning 404, not 403, to others — existence
+is not revealed). Events carry the same denormalized `customer_id`/`project_id`/`task_id` ref
+chain as Phase 2 activities; a linked event records an `event.scheduled` (or `event.cancelled`)
+**activity** on that entity's timeline, reusing `recordActivity`.
+
+### Reminder-sweep worker job (Phase 6)
+
+`apps/worker/src/reminder-sweep.ts` is a periodic job (interval `REMINDER_SWEEP_SECONDS`,
+default 60, min 15; first run ~7 s after boot) that fires event reminders. Each sweep looks
+ahead a fixed horizon (`LOOKAHEAD_MS`, 30 days — covering the 4-week max lead time with
+headroom), expands each event's upcoming occurrences with the **same** recurrence expander the
+API uses, applies exceptions, and for every reminder whose fire time has passed enqueues an
+`email.send` outbox message to each **non-declined** attendee. It rides the existing outbox →
+RabbitMQ → email path (the same `email.send` message type used since Phase 1), carrying a
+`kind: 'event_reminder'` payload.
+
+- **Idempotent by construction.** Before enqueuing, the sweep **claims** a `sent_reminders` row
+  on the unique `(reminder_id, occurrence_start)`; the claim and the attendee emails are written
+  in **one transaction**, so a duplicate claim (unique-violation `P2002`) rolls the whole batch
+  back and is skipped. It therefore never double-notifies across restarts or overlapping sweeps
+  — the same "claim-row-plus-work-in-one-tx" pattern used elsewhere, here backed by a dedicated
+  ledger rather than `processed_messages`.
+- **Single instance**, like the overdue sweep and the outbox relay.
+
+### Agenda and free/busy (Phase 6)
+
+- **Agenda** (`GET /v1/agenda`) merges a user's own event occurrences (organizer or attendee)
+  with their **due tasks** (assigned, not `DONE`, `due_date` in range) into one time-sorted
+  list — a discriminated union of `event` and `task` items — so "what's on my plate" spans both
+  subsystems without a new store.
+- **Free/busy** (`GET /v1/calendar/free-busy`) returns **busy blocks only — start/end times,
+  never titles or details** — for any org member, excluding cancelled occurrences and events the
+  member declined. It is the deliberately minimal, privacy-preserving cross-member view (see
+  [security.md](security.md#calendar-privacy-and-rbac-phase-6)).
+
+### Integration seam: `calendar.event.*`
+
+Creating, updating and cancelling an event emits `calendar.event.created` /
+`calendar.event.updated` / `calendar.event.cancelled` to the transactional outbox. **No internal
+consumer binds them yet** — exactly like `invoice.finalized` before Phase 5 and
+`voucher.posted` today. They are the **designed interface for future external calendar-sync
+integrations** (Google Calendar, Microsoft 365): a downstream consumer binds its own queue to
+these routing keys on `businessos.events` without the calendar module knowing about it.
+
 ## Where future modules attach
 
 Each later phase adds a module directory under `apps/api/src/modules/`, tables with
@@ -412,7 +509,11 @@ Each later phase adds a module directory under `apps/api/src/modules/`, tables w
   Bookkeeping consumes the Phase 4 `invoice.finalized` / `payment.registered` events to draft
   vouchers and emits `voucher.posted` / `voucher.reversed` as a seam for future accounting-system
   integrations.
-- **Calendar (6), email module (7), voice notes (8)** — voice notes store audio in MinIO
+- **Calendar (6, done)** — team/personal calendars, events with attendees/RSVP, reminders,
+  recurrence expanded server-side, per-occurrence exceptions and a reminder-sweep worker job;
+  emits `calendar.event.*` as a seam for future external calendar-sync integrations (see the
+  [Phase 6 section above](#calendar--tasks-phase-6)).
+- **Email module (7), voice notes (8)** — voice notes store audio in MinIO
   and process transcriptions as queued jobs.
 - **Integrations (9)** — outbound webhooks are natural consumers of the existing topic
   exchange.

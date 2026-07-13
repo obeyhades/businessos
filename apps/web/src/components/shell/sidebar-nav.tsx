@@ -7,6 +7,7 @@ import {
   BookText,
   Briefcase,
   CalendarClock,
+  CalendarDays,
   CalendarRange,
   CircleCheck,
   ClipboardList,
@@ -33,6 +34,7 @@ interface NavItem {
     | 'customers'
     | 'projects'
     | 'tasks'
+    | 'calendar'
     | 'members'
     | 'personnel'
     | 'onboarding'
@@ -97,6 +99,12 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       labelKey: 'tasks',
       icon: CircleCheck,
       visible: can(session, 'tasks.read'),
+    },
+    {
+      href: '/calendar',
+      labelKey: 'calendar',
+      icon: CalendarDays,
+      visible: can(session, 'calendar.read'),
     },
     { href: '/members', labelKey: 'members', icon: Users, visible: can(session, 'members.read') },
     {
