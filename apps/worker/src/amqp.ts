@@ -1,5 +1,6 @@
 import amqplib from 'amqplib';
 import {
+  ACCOUNTING_QUEUE,
   DEAD_LETTER_QUEUE,
   DLX_NAME,
   EMAIL_QUEUE,
@@ -53,6 +54,11 @@ export async function assertTopology(channel: AmqpConfirmChannel): Promise<void>
       'x-dead-letter-routing-key': 'email.send',
     },
   });
+
+  // Phase 5: draft-voucher generation reacts to invoice + payment events.
+  await channel.assertQueue(ACCOUNTING_QUEUE, { durable: true });
+  await channel.bindQueue(ACCOUNTING_QUEUE, EXCHANGE_NAME, 'invoice.finalized');
+  await channel.bindQueue(ACCOUNTING_QUEUE, EXCHANGE_NAME, 'payment.registered');
 
   await channel.assertQueue(DEAD_LETTER_QUEUE, { durable: true });
   await channel.bindQueue(DEAD_LETTER_QUEUE, DLX_NAME, '#');

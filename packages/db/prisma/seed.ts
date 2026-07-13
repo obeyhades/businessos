@@ -5,7 +5,13 @@
  * Demo credentials are documented in the root README.
  */
 import argon2 from 'argon2';
-import { PrismaClient, OrganizationRole, type Prisma } from '@prisma/client';
+import {
+  PrismaClient,
+  OrganizationRole,
+  type AccountType,
+  type FiscalPeriodStatus,
+  type Prisma,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -123,6 +129,7 @@ async function main(): Promise<void> {
   await seedPhase2(org.id, owner.id);
   await seedPhase3(org.id, owner.id);
   await seedPhase4(org.id, owner.id);
+  await seedPhase5(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
 }
@@ -744,6 +751,158 @@ async function seedPhase4(organizationId: string, ownerId: string): Promise<void
 
   console.warn(
     'Seeded 3 products, 1 quote, 8 invoices (all statuses), payments and a credit note.',
+  );
+}
+
+/**
+ * Bookkeeping: a BAS-lite chart of accounts, a fiscal year with monthly periods
+ * (January LOCKED to demonstrate period locking), the account mapping used for
+ * auto-generated drafts, two POSTED vouchers (opening balance + a rent expense)
+ * and one DRAFT manual voucher. All fictional; NOT reviewed for compliance.
+ */
+async function seedPhase5(organizationId: string, ownerId: string): Promise<void> {
+  const already = await prisma.account.count({ where: { organizationId } });
+  if (already > 0) return;
+
+  const chart: Array<{ code: string; name: string; type: AccountType }> = [
+    { code: '1220', name: 'Inventarier och verktyg', type: 'ASSET' },
+    { code: '1510', name: 'Kundfordringar', type: 'ASSET' },
+    { code: '1910', name: 'Kassa', type: 'ASSET' },
+    { code: '1930', name: 'Företagskonto / bank', type: 'ASSET' },
+    { code: '2081', name: 'Aktiekapital', type: 'EQUITY' },
+    { code: '2440', name: 'Leverantörsskulder', type: 'LIABILITY' },
+    { code: '2610', name: 'Utgående moms 25%', type: 'LIABILITY' },
+    { code: '2640', name: 'Ingående moms', type: 'ASSET' },
+    { code: '3001', name: 'Försäljning inom Sverige', type: 'REVENUE' },
+    { code: '4000', name: 'Varuinköp', type: 'EXPENSE' },
+    { code: '5000', name: 'Lokalkostnader', type: 'EXPENSE' },
+    { code: '6000', name: 'Övriga externa kostnader', type: 'EXPENSE' },
+    { code: '8999', name: 'Årets resultat', type: 'EQUITY' },
+  ];
+  await prisma.account.createMany({
+    data: chart.map((c) => ({ organizationId, createdById: ownerId, ...c })),
+  });
+  const accounts = await prisma.account.findMany({
+    where: { organizationId },
+    select: { id: true, code: true },
+  });
+  const acc = (code: string): string => accounts.find((a) => a.code === code)!.id;
+
+  // Fiscal year with 12 monthly periods; lock January to show period locking.
+  const year = new Date().getUTCFullYear();
+  const fiscalYear = await prisma.fiscalYear.create({
+    data: {
+      organizationId,
+      name: String(year),
+      startDate: new Date(Date.UTC(year, 0, 1)),
+      endDate: new Date(Date.UTC(year, 11, 31)),
+      periods: {
+        create: Array.from({ length: 12 }, (_, m) => ({
+          organizationId,
+          name: `${year}-${String(m + 1).padStart(2, '0')}`,
+          startDate: new Date(Date.UTC(year, m, 1)),
+          endDate: new Date(Date.UTC(year, m + 1, 0)),
+          status: (m === 0 ? 'LOCKED' : 'OPEN') as FiscalPeriodStatus,
+        })),
+      },
+    },
+    include: { periods: true },
+  });
+  const periodForDate = (d: Date): string | null =>
+    fiscalYear.periods.find((p) => p.startDate <= d && d <= p.endDate)?.id ?? null;
+
+  await prisma.accountMapping.create({
+    data: {
+      organizationId,
+      salesAccountId: acc('3001'),
+      outputVatAccountId: acc('2610'),
+      receivableAccountId: acc('1510'),
+      bankAccountId: acc('1930'),
+    },
+  });
+
+  const now = new Date();
+  const janFirst = new Date(Date.UTC(year, 0, 1));
+  const juneFifteen = new Date(Date.UTC(year, 5, 15));
+  const draftDate = daysFromNow(-1);
+
+  // V-00001 — opening balance: Dr Bank 50 000 / Cr Share capital 50 000.
+  await prisma.voucher.create({
+    data: {
+      organizationId,
+      number: 'V-00001',
+      date: janFirst,
+      description: 'Opening balance — share capital',
+      status: 'POSTED',
+      source: 'OPENING_BALANCE',
+      fiscalPeriodId: periodForDate(janFirst),
+      totalDebitMinor: 5_000_000n,
+      totalCreditMinor: 5_000_000n,
+      postedAt: now,
+      postedById: ownerId,
+      createdById: ownerId,
+      lines: {
+        create: [
+          { organizationId, accountId: acc('1930'), description: 'Bank', debitMinor: 5_000_000n, creditMinor: 0n, sortOrder: 0 },
+          { organizationId, accountId: acc('2081'), description: 'Share capital', debitMinor: 0n, creditMinor: 5_000_000n, sortOrder: 1 },
+        ],
+      },
+    },
+  });
+
+  // V-00002 — rent + input VAT: Dr Premises 10 000 + Dr Input VAT 2 500 / Cr Bank 12 500.
+  await prisma.voucher.create({
+    data: {
+      organizationId,
+      number: 'V-00002',
+      date: juneFifteen,
+      description: 'Office rent June',
+      status: 'POSTED',
+      source: 'MANUAL',
+      fiscalPeriodId: periodForDate(juneFifteen),
+      totalDebitMinor: 1_250_000n,
+      totalCreditMinor: 1_250_000n,
+      postedAt: now,
+      postedById: ownerId,
+      createdById: ownerId,
+      lines: {
+        create: [
+          { organizationId, accountId: acc('5000'), description: 'Premises', debitMinor: 1_000_000n, creditMinor: 0n, sortOrder: 0 },
+          { organizationId, accountId: acc('2640'), description: 'Input VAT', debitMinor: 250_000n, creditMinor: 0n, sortOrder: 1 },
+          { organizationId, accountId: acc('1930'), description: 'Bank', debitMinor: 0n, creditMinor: 1_250_000n, sortOrder: 2 },
+        ],
+      },
+    },
+  });
+
+  // A balanced DRAFT the accountant can review and post from the UI.
+  await prisma.voucher.create({
+    data: {
+      organizationId,
+      date: draftDate,
+      description: 'Bank fees (draft)',
+      status: 'DRAFT',
+      source: 'MANUAL',
+      fiscalPeriodId: periodForDate(draftDate),
+      totalDebitMinor: 20_000n,
+      totalCreditMinor: 20_000n,
+      createdById: ownerId,
+      lines: {
+        create: [
+          { organizationId, accountId: acc('6000'), description: 'Bank fees', debitMinor: 20_000n, creditMinor: 0n, sortOrder: 0 },
+          { organizationId, accountId: acc('1930'), description: 'Bank', debitMinor: 0n, creditMinor: 20_000n, sortOrder: 1 },
+        ],
+      },
+    },
+  });
+
+  // Advance the voucher sequence past the two seeded posted numbers.
+  await prisma.numberSequence.create({
+    data: { organizationId, kind: 'VOUCHER', prefix: 'V-', padding: 5, next: 3 },
+  });
+
+  console.warn(
+    'Seeded 13 accounts, a fiscal year (Jan locked), account mapping, 2 posted vouchers and 1 draft.',
   );
 }
 

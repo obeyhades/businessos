@@ -39,6 +39,8 @@ export const ACTIVITY_TYPES = [
   'invoice.cancelled',
   'payment.registered',
   'invoice.credited',
+  // Phase 5
+  'invoice.accounting_drafted',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

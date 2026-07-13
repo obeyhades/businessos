@@ -57,6 +57,11 @@ model User {
   recordedPayments   Payment[]    @relation("PaymentCreatedBy")
   createdCreditNotes CreditNote[] @relation("CreditNoteCreatedBy")
 
+  // Phase 5 back-relations
+  createdVouchers            Voucher[]           @relation("VoucherCreatedBy")
+  postedVouchers             Voucher[]           @relation("VoucherPostedBy")
+  uploadedVoucherAttachments VoucherAttachment[] @relation("VoucherAttachmentUploadedBy")
+
   @@map("users")
 }
 
@@ -98,6 +103,13 @@ model Organization {
   payments        Payment[]
   creditNotes     CreditNote[]
   numberSequences NumberSequence[]
+
+  // Phase 5 back-relations
+  accounts       Account[]
+  fiscalYears    FiscalYear[]
+  fiscalPeriods  FiscalPeriod[]
+  vouchers       Voucher[]
+  accountMapping AccountMapping?
 
   @@map("organizations")
 }
@@ -730,6 +742,7 @@ enum NumberSequenceKind {
   QUOTE
   INVOICE
   CREDIT_NOTE
+  VOUCHER
 }
 
 // Per-organization, per-document-type monotonic counter. The `next` value is
@@ -958,4 +971,190 @@ model CreditNoteLineItem {
 
   @@index([creditNoteId, sortOrder])
   @@map("credit_note_line_items")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 — Bookkeeping support (double-entry ledger). A voucher (verifikation)
+// is a journal entry: a numbered, dated document whose lines must balance
+// (sum debit == sum credit) before it can be POSTED. Posted vouchers are
+// immutable and corrected only by reversing vouchers. Money is integer minor
+// units (BigInt). NOT reviewed for accounting/tax compliance — see
+// docs/legal-review-required.md.
+// ---------------------------------------------------------------------------
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum FiscalPeriodStatus {
+  OPEN
+  LOCKED
+  CLOSED
+}
+
+enum VoucherStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum VoucherSource {
+  MANUAL
+  INVOICE
+  PAYMENT
+  OPENING_BALANCE
+}
+
+model Account {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  type           AccountType
+  description    String?
+  isActive       Boolean     @default(true) @map("is_active")
+  createdById    String?     @map("created_by_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  voucherLines VoucherLine[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, type])
+  @@map("accounts")
+}
+
+model FiscalYear {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  name           String
+  startDate      DateTime           @map("start_date") @db.Date
+  endDate        DateTime           @map("end_date") @db.Date
+  status         FiscalPeriodStatus @default(OPEN)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  periods      FiscalPeriod[]
+
+  @@unique([organizationId, name])
+  @@map("fiscal_years")
+}
+
+model FiscalPeriod {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  fiscalYearId   String             @map("fiscal_year_id") @db.Uuid
+  name           String
+  startDate      DateTime           @map("start_date") @db.Date
+  endDate        DateTime           @map("end_date") @db.Date
+  status         FiscalPeriodStatus @default(OPEN)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fiscalYear   FiscalYear   @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  vouchers     Voucher[]
+
+  @@index([organizationId, startDate])
+  @@map("fiscal_periods")
+}
+
+model Voucher {
+  id                String        @id @default(uuid()) @db.Uuid
+  organizationId    String        @map("organization_id") @db.Uuid
+  number            String?
+  date              DateTime      @db.Date
+  description       String
+  status            VoucherStatus @default(DRAFT)
+  source            VoucherSource @default(MANUAL)
+  // Loose reference to the originating document (no FK, so vouchers survive it).
+  sourceType        String?       @map("source_type")
+  sourceId          String?       @map("source_id") @db.Uuid
+  fiscalPeriodId    String?       @map("fiscal_period_id") @db.Uuid
+  totalDebitMinor   BigInt        @default(0) @map("total_debit_minor")
+  totalCreditMinor  BigInt        @default(0) @map("total_credit_minor")
+  reversesVoucherId String?       @unique @map("reverses_voucher_id") @db.Uuid
+  reconciledAt      DateTime?     @map("reconciled_at") @db.Timestamptz(6)
+  postedAt          DateTime?     @map("posted_at") @db.Timestamptz(6)
+  createdById       String?       @map("created_by_id") @db.Uuid
+  postedById        String?       @map("posted_by_id") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fiscalPeriod FiscalPeriod?       @relation(fields: [fiscalPeriodId], references: [id], onDelete: SetNull)
+  createdBy    User?               @relation("VoucherCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  postedBy     User?               @relation("VoucherPostedBy", fields: [postedById], references: [id], onDelete: SetNull)
+  // Self-relation: a reversal voucher points at the original; the original sees
+  // its reversal via `reversedBy`.
+  reverses     Voucher?            @relation("VoucherReversal", fields: [reversesVoucherId], references: [id], onDelete: SetNull)
+  reversedBy   Voucher?            @relation("VoucherReversal")
+  lines        VoucherLine[]
+  attachments  VoucherAttachment[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, date])
+  @@index([sourceType, sourceId])
+  @@map("vouchers")
+}
+
+model VoucherLine {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  voucherId      String  @map("voucher_id") @db.Uuid
+  accountId      String  @map("account_id") @db.Uuid
+  description    String?
+  // A line is either a debit or a credit; the other side is 0.
+  debitMinor     BigInt  @default(0) @map("debit_minor")
+  creditMinor    BigInt  @default(0) @map("credit_minor")
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([voucherId, sortOrder])
+  @@index([organizationId, accountId])
+  @@map("voucher_lines")
+}
+
+model VoucherAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  voucherId      String   @map("voucher_id") @db.Uuid
+  uploadedById   String?  @map("uploaded_by_id") @db.Uuid
+  fileName       String   @map("file_name")
+  contentType    String   @map("content_type")
+  size           Int
+  storageKey     String   @unique @map("storage_key")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  voucher    Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  uploadedBy User?   @relation("VoucherAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, voucherId])
+  @@map("voucher_attachments")
+}
+
+// Per-organization default accounts used to auto-generate draft vouchers from
+// invoices and payments (configurable accounting rules).
+model AccountMapping {
+  id                  String   @id @default(uuid()) @db.Uuid
+  organizationId      String   @unique @map("organization_id") @db.Uuid
+  salesAccountId      String?  @map("sales_account_id") @db.Uuid
+  outputVatAccountId  String?  @map("output_vat_account_id") @db.Uuid
+  receivableAccountId String?  @map("receivable_account_id") @db.Uuid
+  bankAccountId       String?  @map("bank_account_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("account_mappings")
 }

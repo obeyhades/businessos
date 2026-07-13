@@ -26,3 +26,5 @@ export * from './quotes.js';
 export * from './invoices.js';
 export * from './payments.js';
 export * from './credit-notes.js';
+// Phase 5
+export * from './accounting.js';

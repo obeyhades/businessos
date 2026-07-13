@@ -19,6 +19,14 @@ import {
   memberDtoSchema,
   creditNoteDtoSchema,
   invoiceDtoSchema,
+  accountDtoSchema,
+  accountMappingDtoSchema,
+  fiscalYearDtoSchema,
+  fiscalPeriodDtoSchema,
+  voucherDtoSchema,
+  voucherAttachmentDtoSchema,
+  trialBalanceDtoSchema,
+  generalLedgerDtoSchema,
   membershipDtoSchema,
   onboardingTemplateDtoSchema,
   organizationDtoSchema,
@@ -80,6 +88,20 @@ import {
   type UpdateQuoteBody,
   type UpdateTaskBody,
   type UpdateTemplateBody,
+  type AccountListQuery,
+  type CreateAccountBody,
+  type UpdateAccountBody,
+  type CreateFiscalYearBody,
+  type CreateFiscalPeriodBody,
+  type UpdateFiscalPeriodStatusBody,
+  type CreateVoucherBody,
+  type UpdateVoucherBody,
+  type VoucherListQuery,
+  type ReverseVoucherBody,
+  type ReconcileVoucherBody,
+  type UpdateAccountMappingBody,
+  type ReportQuery,
+  type GeneralLedgerQuery,
 } from '@businessos/types';
 
 /** Maps an entity kind to its plural REST path segment. */
@@ -120,7 +142,7 @@ export function createApiClient(options: ApiClientOptions) {
   const fetchImpl = options.fetch ?? fetch;
 
   async function request<T>(
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     schema: z.ZodType<T>,
     { body, query }: RequestOptions = {},
@@ -527,6 +549,76 @@ export function createApiClient(options: ApiClientOptions) {
         request('GET', `/v1/invoices/${invoiceId}/credit-notes`, z.array(creditNoteDtoSchema)),
       createCreditNote: (invoiceId: string, body: CreateCreditNoteBody) =>
         request('POST', `/v1/invoices/${invoiceId}/credit-notes`, creditNoteDtoSchema, { body }),
+    },
+    accounting: {
+      // Chart of accounts
+      listAccounts: (query?: Partial<AccountListQuery>) =>
+        request('GET', '/v1/accounting/accounts', paginatedSchema(accountDtoSchema), { query }),
+      getAccount: (accountId: string) =>
+        request('GET', `/v1/accounting/accounts/${accountId}`, accountDtoSchema),
+      createAccount: (body: CreateAccountBody) =>
+        request('POST', '/v1/accounting/accounts', accountDtoSchema, { body }),
+      updateAccount: (accountId: string, body: UpdateAccountBody) =>
+        request('PATCH', `/v1/accounting/accounts/${accountId}`, accountDtoSchema, { body }),
+      removeAccount: (accountId: string) =>
+        request('DELETE', `/v1/accounting/accounts/${accountId}`, emptySchema),
+      // Account mapping
+      getMapping: () => request('GET', '/v1/accounting/mapping', accountMappingDtoSchema),
+      updateMapping: (body: UpdateAccountMappingBody) =>
+        request('PUT', '/v1/accounting/mapping', accountMappingDtoSchema, { body }),
+      // Fiscal years & periods
+      listFiscalYears: () =>
+        request('GET', '/v1/accounting/fiscal-years', z.array(fiscalYearDtoSchema)),
+      getFiscalYear: (fiscalYearId: string) =>
+        request('GET', `/v1/accounting/fiscal-years/${fiscalYearId}`, fiscalYearDtoSchema),
+      createFiscalYear: (body: CreateFiscalYearBody) =>
+        request('POST', '/v1/accounting/fiscal-years', fiscalYearDtoSchema, { body }),
+      addPeriod: (fiscalYearId: string, body: CreateFiscalPeriodBody) =>
+        request('POST', `/v1/accounting/fiscal-years/${fiscalYearId}/periods`, fiscalPeriodDtoSchema, {
+          body,
+        }),
+      setPeriodStatus: (periodId: string, body: UpdateFiscalPeriodStatusBody) =>
+        request('PATCH', `/v1/accounting/periods/${periodId}/status`, fiscalPeriodDtoSchema, { body }),
+      // Vouchers (journal entries)
+      listVouchers: (query?: Partial<VoucherListQuery>) =>
+        request('GET', '/v1/accounting/vouchers', paginatedSchema(voucherDtoSchema), { query }),
+      getVoucher: (voucherId: string) =>
+        request('GET', `/v1/accounting/vouchers/${voucherId}`, voucherDtoSchema),
+      createVoucher: (body: CreateVoucherBody) =>
+        request('POST', '/v1/accounting/vouchers', voucherDtoSchema, { body }),
+      updateVoucher: (voucherId: string, body: UpdateVoucherBody) =>
+        request('PATCH', `/v1/accounting/vouchers/${voucherId}`, voucherDtoSchema, { body }),
+      removeVoucher: (voucherId: string) =>
+        request('DELETE', `/v1/accounting/vouchers/${voucherId}`, emptySchema),
+      postVoucher: (voucherId: string) =>
+        request('POST', `/v1/accounting/vouchers/${voucherId}/post`, voucherDtoSchema),
+      reverseVoucher: (voucherId: string, body: ReverseVoucherBody = {}) =>
+        request('POST', `/v1/accounting/vouchers/${voucherId}/reverse`, voucherDtoSchema, { body }),
+      reconcileVoucher: (voucherId: string, body: ReconcileVoucherBody) =>
+        request('POST', `/v1/accounting/vouchers/${voucherId}/reconcile`, voucherDtoSchema, { body }),
+      listVoucherAttachments: (voucherId: string) =>
+        request(
+          'GET',
+          `/v1/accounting/vouchers/${voucherId}/attachments`,
+          z.array(voucherAttachmentDtoSchema),
+        ),
+      voucherAttachmentDownloadUrl: (voucherId: string, attachmentId: string) =>
+        request(
+          'GET',
+          `/v1/accounting/vouchers/${voucherId}/attachments/${attachmentId}/download-url`,
+          attachmentDownloadDtoSchema,
+        ),
+      removeVoucherAttachment: (voucherId: string, attachmentId: string) =>
+        request(
+          'DELETE',
+          `/v1/accounting/vouchers/${voucherId}/attachments/${attachmentId}`,
+          emptySchema,
+        ),
+      // Reports
+      trialBalance: (query?: Partial<ReportQuery>) =>
+        request('GET', '/v1/accounting/reports/trial-balance', trialBalanceDtoSchema, { query }),
+      generalLedger: (query?: Partial<GeneralLedgerQuery>) =>
+        request('GET', '/v1/accounting/reports/general-ledger', generalLedgerDtoSchema, { query }),
     },
   };
 }

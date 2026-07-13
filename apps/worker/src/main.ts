@@ -1,6 +1,7 @@
 import { createPrismaClient } from '@businessos/db';
 import { ObjectStorage } from '@businessos/storage';
 import { assertTopology, connectWithRetry } from './amqp.js';
+import { startAccountingConsumer } from './consumers/accounting.js';
 import { startEmailConsumer } from './consumers/email.js';
 import { createMailTransport } from './email/transport.js';
 import { env } from './env.js';
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   });
   const relay = startOutboxRelay(prisma, channel, logger);
   await startEmailConsumer({ prisma, channel, transport, storage, from: env.SMTP_FROM, logger });
+  await startAccountingConsumer({ prisma, channel, logger });
   const overdueSweep = startOverdueSweep(prisma, env.OVERDUE_SWEEP_SECONDS, logger);
   const healthServer = startHealthServer(
     env.WORKER_HEALTH_PORT,

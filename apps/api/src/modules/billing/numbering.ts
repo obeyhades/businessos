@@ -7,6 +7,7 @@ const DEFAULTS: Record<NumberSequenceKind, { prefix: string; padding: number }> 
   QUOTE: { prefix: 'Q-', padding: 4 },
   INVOICE: { prefix: 'INV-', padding: 4 },
   CREDIT_NOTE: { prefix: 'CN-', padding: 4 },
+  VOUCHER: { prefix: 'V-', padding: 5 },
 };
 
 /**

@@ -11,6 +11,8 @@ export const DLX_NAME = 'businessos.dlx';
 export const EMAIL_QUEUE = 'email.send';
 export const EMAIL_RETRY_QUEUE = 'email.send.retry';
 export const DEAD_LETTER_QUEUE = 'businessos.dead-letter';
+/** Phase 5: draft-voucher generation from invoice/payment domain events. */
+export const ACCOUNTING_QUEUE = 'accounting.draft';
 
 export const MAX_JOB_ATTEMPTS = 5;
 /** Base delay for retry backoff in ms; actual delay = base * 2^(attempt-1). */
@@ -51,6 +53,10 @@ export const domainEventTypes = [
   'invoice.sent',
   'invoice.overdue',
   'payment.registered',
+  // Phase 5 — emitted for future accounting-system integrations (no internal
+  // consumer binds these yet, mirroring how invoice.finalized began).
+  'voucher.posted',
+  'voucher.reversed',
 ] as const;
 export type DomainEventType = (typeof domainEventTypes)[number];
 

@@ -17,3 +17,12 @@ export async function lockInvoiceForUpdate(tx: Tx, id: string): Promise<void> {
 export async function lockQuoteForUpdate(tx: Tx, id: string): Promise<void> {
   await tx.$executeRaw`SELECT id FROM quotes WHERE id = ${id}::uuid FOR UPDATE`;
 }
+
+/**
+ * Row-locks a voucher FOR UPDATE so concurrent post/reverse/reconcile of the
+ * same journal entry serialize (otherwise two posts could both pass the
+ * DRAFT guard, allocating two numbers and firing two events).
+ */
+export async function lockVoucherForUpdate(tx: Tx, id: string): Promise<void> {
+  await tx.$executeRaw`SELECT id FROM vouchers WHERE id = ${id}::uuid FOR UPDATE`;
+}

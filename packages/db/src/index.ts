@@ -38,6 +38,14 @@ export type {
   CreditNote,
   CreditNoteLineItem,
   NumberSequence,
+  // Phase 5
+  Account,
+  FiscalYear,
+  FiscalPeriod,
+  Voucher,
+  VoucherLine,
+  VoucherAttachment,
+  AccountMapping,
 } from '@prisma/client';
 export {
   CustomerStatus,
@@ -57,6 +65,11 @@ export {
   PaymentMethod,
   CreditNoteStatus,
   NumberSequenceKind,
+  // Phase 5
+  AccountType,
+  FiscalPeriodStatus,
+  VoucherStatus,
+  VoucherSource,
 } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {

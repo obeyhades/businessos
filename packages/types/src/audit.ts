@@ -79,6 +79,25 @@ export const AUDIT_ACTIONS = [
   'payment.deleted',
   'credit_note.created',
   'credit_note.issued',
+  // Phase 5
+  'account.created',
+  'account.updated',
+  'account.deactivated',
+  'fiscal_year.created',
+  'fiscal_period.created',
+  'fiscal_period.locked',
+  'fiscal_period.unlocked',
+  'fiscal_period.closed',
+  'voucher.created',
+  'voucher.updated',
+  'voucher.posted',
+  'voucher.reversed',
+  'voucher.deleted',
+  'voucher.reconciled',
+  'voucher.unreconciled',
+  'voucher_attachment.uploaded',
+  'voucher_attachment.deleted',
+  'account_mapping.updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
