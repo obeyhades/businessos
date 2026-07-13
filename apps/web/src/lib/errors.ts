@@ -22,6 +22,13 @@ const TRANSLATED_ERROR_CODES = new Set([
   'already_member',
   'cannot_change_own_role',
   'cannot_remove_self',
+  'unbalanced',
+  'period_locked',
+  'already_posted',
+  'not_draft',
+  'not_posted',
+  'account_in_use',
+  'code_taken',
 ]);
 
 export function useApiErrorMessage(): (error: unknown) => string {

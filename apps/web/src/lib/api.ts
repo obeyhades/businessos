@@ -6,8 +6,10 @@ import { ApiError, createApiClient } from '@businessos/api-client';
  * fallback keeps a misconfigured production build loudly broken in the
  * network tab instead of silently pointing nowhere.
  */
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
 export const api = createApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001',
+  baseUrl: API_BASE_URL,
 });
 
 export { ApiError };

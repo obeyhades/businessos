@@ -88,6 +88,15 @@ Phase 3 adds: `employee.created`, `employee.updated`, `employee.status_changed`,
 `employee_document.deleted`, `onboarding_template.created`, `onboarding_template.updated`,
 `onboarding_template.deleted`, `onboarding_template.applied`.
 
+Phase 5 adds the accounting actions: `account.created`, `account.updated`,
+`account.deactivated`, `fiscal_year.created`, `fiscal_period.created`, `fiscal_period.locked`,
+`fiscal_period.unlocked`, `fiscal_period.closed`, `voucher.created`, `voucher.updated`,
+`voucher.posted`, `voucher.reversed`, `voucher.deleted`, `voucher.reconciled`,
+`voucher.unreconciled`, `voucher_attachment.uploaded`, `voucher_attachment.deleted`,
+`account_mapping.updated`. Every ledger-mutating action (post, reverse, period lock/close) is
+recorded with actor, IP and user agent. Auto-drafted vouchers from the worker are audited as
+`voucher.created` with `metadata.auto = true` (actor null, since the worker acts without a user).
+
 Action identifiers are stable and never renamed. The audit log is distinct from the
 Phase 2 user-facing `activities` feed (see
 [architecture.md](architecture.md#activity-timeline)): the audit log is the security
@@ -114,6 +123,13 @@ record, the activity feed is a product timeline.
   within the caller's tenant, and the invoice PDF's presigned URL is minted only after that
   ownership check. Document numbers are per-organization (unique `(organization_id, number)`),
   so tenants never see or collide on each other's invoice numbers.
+- **Phase 5 resources** — accounts, fiscal years/periods, vouchers, voucher lines, voucher
+  attachments and the account mapping all carry `organization_id` and are looked up scoped to
+  the session organization. Voucher lines only reference accounts re-validated within the tenant
+  (`buildVoucherLines`), a voucher attachment is only minted a signed URL after its voucher is
+  confirmed in the caller's org, and voucher numbers are per-organization (unique
+  `(organization_id, number)`). The worker's auto-draft generator is likewise passed an explicit
+  `organizationId` and scopes every read/write to it.
 
 ## Attachment upload/download (Phase 2)
 
@@ -227,6 +243,39 @@ Invoicing touches money, so Phase 4 adds integrity controls beyond ordinary CRUD
 - These are technical safeguards. VAT correctness, invoice-content requirements and
   numbering/immutability against **bokföringslagen** still require professional review before
   production (see [legal-review-required.md](legal-review-required.md)).
+
+## Bookkeeping integrity and RBAC (Phase 5)
+
+The double-entry ledger extends the Phase 4 financial-integrity controls with its own posting
+rules and a dedicated posting permission.
+
+- **Three-tier RBAC.** `accounting.read` (list/detail, reports, CSV exports),
+  `accounting.manage` (accounts, fiscal years/periods, draft vouchers, mapping, attachments,
+  reconcile) and **`accounting.post`** (post and reverse — the actions that write the immutable
+  ledger). In the code-defined matrix (`packages/types/src/permissions.ts`) OWNER, ADMIN and
+  **ACCOUNTANT** hold all three; READONLY holds `accounting.read` only; **MANAGER and EMPLOYEE
+  have no accounting access at all**. Separating `post` from `manage` means preparing a draft
+  and committing it to the books are distinct rights.
+- **Immutable posted entries.** Posting recomputes totals from the persisted lines, enforces
+  balance (Σ debit = Σ credit), ≥2 lines, non-zero amount and a covering `OPEN` fiscal period,
+  then freezes the voucher (numbered, `posted_at` set). Posted and reversed vouchers reject
+  edits and deletes (`voucher_immutable`); the **only** correction is a reversing voucher that
+  swaps debit/credit and nets to zero — posted rows are never mutated or removed. Accounts that
+  carry journal entries cannot be deleted, only deactivated (`account_in_use`), preserving the
+  trail.
+- **Period locking.** A `LOCKED` or `CLOSED` fiscal period rejects new postings
+  (`period_locked`), and a date with no covering period rejects posting (`no_fiscal_period`) —
+  the ledger stays inside a defined fiscal structure.
+- **Concurrency safety.** `post` and `reverse` run in explicit transactions that row-lock the
+  voucher (`lockVoucherForUpdate`) before re-reading and validating, so two concurrent posts of
+  one draft cannot both allocate a number or double-emit; voucher numbers come from the same
+  row-locked `number_sequences` mechanism as invoices.
+- **Every ledger mutation is audited** (see the [audit log](#audit-log) actions above), and
+  voucher receipts reuse the private-bucket, server-validated, presigned-download attachment
+  model.
+- These are technical safeguards only. **Nothing here is verified against bokföringslagen,
+  Bokföringsnämnden (BFN) standards, VAT reporting, SIE/e-accounting export requirements or tax
+  law** — see [legal-review-required.md](legal-review-required.md).
 
 ## Secrets and configuration
 

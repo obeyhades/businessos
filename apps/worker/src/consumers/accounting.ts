@@ -36,9 +36,12 @@ export async function startAccountingConsumer(deps: AccountingConsumerDeps): Pro
   await channel.consume(ACCOUNTING_QUEUE, (message) => {
     if (!message) return;
     void (async () => {
+      // Capture the raw body once — the error path must never re-parse it, or a
+      // malformed payload would throw inside catch and the message would never ack.
+      const rawContent = message.content.toString();
       let envelopeId: string | undefined;
       try {
-        const envelope = outboxEnvelopeSchema.parse(JSON.parse(message.content.toString()));
+        const envelope = outboxEnvelopeSchema.parse(JSON.parse(rawContent));
         envelopeId = envelope.id;
 
         const already = await prisma.processedMessage.findUnique({
@@ -49,12 +52,28 @@ export async function startAccountingConsumer(deps: AccountingConsumerDeps): Pro
           return;
         }
 
-        const payload = envelope.payload as { organizationId?: string; invoiceId?: string; paymentId?: string };
+        const payload = envelope.payload as {
+          organizationId?: string;
+          invoiceId?: string;
+          paymentId?: string;
+        };
         let result: DraftResult | 'ignored' = 'ignored';
         if (envelope.type === 'invoice.finalized' && payload.organizationId && payload.invoiceId) {
-          result = await generateInvoiceDraftVoucher(prisma, payload.organizationId, payload.invoiceId);
-        } else if (envelope.type === 'payment.registered' && payload.organizationId && payload.paymentId) {
-          result = await generatePaymentDraftVoucher(prisma, payload.organizationId, payload.paymentId);
+          result = await generateInvoiceDraftVoucher(
+            prisma,
+            payload.organizationId,
+            payload.invoiceId,
+          );
+        } else if (
+          envelope.type === 'payment.registered' &&
+          payload.organizationId &&
+          payload.paymentId
+        ) {
+          result = await generatePaymentDraftVoucher(
+            prisma,
+            payload.organizationId,
+            payload.paymentId,
+          );
         }
 
         try {
@@ -65,7 +84,10 @@ export async function startAccountingConsumer(deps: AccountingConsumerDeps): Pro
           if (!isUniqueViolation(error)) throw error;
         }
 
-        logger.info({ messageId: envelope.id, type: envelope.type, result }, 'accounting draft processed');
+        logger.info(
+          { messageId: envelope.id, type: envelope.type, result },
+          'accounting draft processed',
+        );
         channel.ack(message);
       } catch (error) {
         logger.error({ err: error, messageId: envelopeId }, 'accounting draft failed');
@@ -74,7 +96,9 @@ export async function startAccountingConsumer(deps: AccountingConsumerDeps): Pro
             data: {
               queue: ACCOUNTING_QUEUE,
               messageType: 'accounting.draft',
-              payload: JSON.parse(message.content.toString()) as Prisma.InputJsonValue,
+              // Store the raw body verbatim — never re-parse (it may be the very
+              // thing that failed to parse).
+              payload: { raw: rawContent } as Prisma.InputJsonValue,
               error: error instanceof Error ? error.message.slice(0, 2000) : String(error),
               attempts: 1,
             },

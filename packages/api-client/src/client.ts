@@ -574,11 +574,18 @@ export function createApiClient(options: ApiClientOptions) {
       createFiscalYear: (body: CreateFiscalYearBody) =>
         request('POST', '/v1/accounting/fiscal-years', fiscalYearDtoSchema, { body }),
       addPeriod: (fiscalYearId: string, body: CreateFiscalPeriodBody) =>
-        request('POST', `/v1/accounting/fiscal-years/${fiscalYearId}/periods`, fiscalPeriodDtoSchema, {
+        request(
+          'POST',
+          `/v1/accounting/fiscal-years/${fiscalYearId}/periods`,
+          fiscalPeriodDtoSchema,
+          {
+            body,
+          },
+        ),
+      setPeriodStatus: (periodId: string, body: UpdateFiscalPeriodStatusBody) =>
+        request('PATCH', `/v1/accounting/periods/${periodId}/status`, fiscalPeriodDtoSchema, {
           body,
         }),
-      setPeriodStatus: (periodId: string, body: UpdateFiscalPeriodStatusBody) =>
-        request('PATCH', `/v1/accounting/periods/${periodId}/status`, fiscalPeriodDtoSchema, { body }),
       // Vouchers (journal entries)
       listVouchers: (query?: Partial<VoucherListQuery>) =>
         request('GET', '/v1/accounting/vouchers', paginatedSchema(voucherDtoSchema), { query }),
@@ -595,7 +602,9 @@ export function createApiClient(options: ApiClientOptions) {
       reverseVoucher: (voucherId: string, body: ReverseVoucherBody = {}) =>
         request('POST', `/v1/accounting/vouchers/${voucherId}/reverse`, voucherDtoSchema, { body }),
       reconcileVoucher: (voucherId: string, body: ReconcileVoucherBody) =>
-        request('POST', `/v1/accounting/vouchers/${voucherId}/reconcile`, voucherDtoSchema, { body }),
+        request('POST', `/v1/accounting/vouchers/${voucherId}/reconcile`, voucherDtoSchema, {
+          body,
+        }),
       listVoucherAttachments: (voucherId: string) =>
         request(
           'GET',

@@ -11,8 +11,17 @@ export const nonNegativeMoneyMinorSchema = z.number().int().min(0).max(1_000_000
 export const quantitySchema = z.number().min(0).max(1_000_000);
 export const percentSchema = z.number().min(0).max(100);
 
-/** ISO date (no time), e.g. "2026-01-15". */
-export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date (YYYY-MM-DD)');
+/** ISO date (no time), e.g. "2026-01-15". Also rejects non-existent calendar
+ *  days (e.g. 2026-02-30, 2026-13-01) that the shape check alone would let
+ *  through and that Date parsing would silently roll into the next month. */
+export const isoDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date (YYYY-MM-DD)')
+  .refine((s) => {
+    const [y, m, d] = s.split('-').map(Number) as [number, number, number];
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  }, 'Not a valid calendar date');
 
 export const taxLineSchema = z.object({
   ratePercent: z.string(),

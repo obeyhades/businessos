@@ -176,7 +176,7 @@ export const voucherLineInputSchema = z
     debitMinor: nonNegativeMoneyMinorSchema.default(0),
     creditMinor: nonNegativeMoneyMinorSchema.default(0),
   })
-  .refine((l) => (l.debitMinor > 0) !== (l.creditMinor > 0), {
+  .refine((l) => l.debitMinor > 0 !== l.creditMinor > 0, {
     message: 'Each line must be either a debit or a credit, not both or neither',
   });
 export type VoucherLineInput = z.infer<typeof voucherLineInputSchema>;
@@ -208,8 +208,9 @@ export const createVoucherBodySchema = z.object({
   date: isoDateSchema,
   description: z.string().trim().min(1).max(500),
   // Double entry always has ≥2 lines. Balance is NOT required here: a draft may
-  // be saved unbalanced and corrected before posting.
-  lines: z.array(voucherLineInputSchema).min(2),
+  // be saved unbalanced and corrected before posting. Upper bound guards against
+  // pathological payloads and keeps summed totals well inside safe-integer range.
+  lines: z.array(voucherLineInputSchema).min(2).max(1000),
 });
 export type CreateVoucherBody = z.infer<typeof createVoucherBodySchema>;
 
@@ -218,7 +219,7 @@ export const updateVoucherBodySchema = z
     date: isoDateSchema.optional(),
     description: z.string().trim().min(1).max(500).optional(),
     // When present, replaces all lines wholesale.
-    lines: z.array(voucherLineInputSchema).min(2).optional(),
+    lines: z.array(voucherLineInputSchema).min(2).max(1000).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 export type UpdateVoucherBody = z.infer<typeof updateVoucherBodySchema>;

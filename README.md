@@ -4,20 +4,24 @@ Operational platform for small and medium-sized businesses: personnel, bookkeepi
 quotes/invoicing, calendar/tasks, email and voice notes — built as a modular monolith that
 grows module by module.
 
-**Current state (Phase 4):** on top of the Phase 1 foundation (authentication,
+**Current state (Phase 5):** on top of the Phase 1 foundation (authentication,
 organizations, memberships, roles/permissions, invitations, audit log, dashboard shell), the
-Phase 2 customer/project/task modules and the Phase 3 personnel module, Phase 4 ships
-**quotes & invoicing**. A product catalogue feeds quotes and invoices; quotes move
-`DRAFT → SENT → ACCEPTED` and can be **converted** into a draft invoice. Invoices are editable
-only while draft; **finalize** assigns a sequential per-organization number, freezes the
-document (corrections are made via **credit notes**, not edits) and generates a PDF; then you
-can email the invoice with the PDF attached, register **payments** (partial allowed,
-overpayment rejected server-side) or issue **credit notes** (full or partial). An overdue
-sweep flags unpaid past-due invoices. **Money is deterministic**: all amounts are integer
-minor units (öre) computed on the server with decimal.js and HALF_UP line-level rounding —
-never floating point. Everything is gated by `invoices.read` / `invoices.manage`.
-Everything from Phase 5 on is planned, not built — see
-[docs/product-roadmap.md](docs/product-roadmap.md).
+Phase 2 customer/project/task modules, the Phase 3 personnel module and the Phase 4
+quotes & invoicing module, Phase 5 ships **bookkeeping support** — a **double-entry ledger**.
+It adds a typed **chart of accounts**, **fiscal years and periods** (`OPEN`/`LOCKED`/`CLOSED`),
+and **vouchers** (verifikationer): journal entries with ≥2 debit/credit lines. A voucher starts
+as an editable `DRAFT` (may be unbalanced); **posting** it requires balance (Σ debit = Σ credit),
+≥2 lines, a non-zero amount and a covering `OPEN` period, assigns a concurrency-safe
+per-organization number and makes the entry **immutable** — corrections are made only by a
+**reversing voucher**, never by editing posted entries. The worker turns finalized invoices and
+registered payments into **DRAFT vouchers** (via a configurable account mapping) that an
+accountant reviews and posts — **never auto-posted**. **Reports** cover trial balance and general
+ledger with **CSV exports**, and `voucher.posted` / `voucher.reversed` events are emitted as a
+seam for future accounting-system integrations. Money stays integer minor units (öre), like
+invoicing. Everything is gated by `accounting.read` / `accounting.manage` / `accounting.post`.
+**Bookkeeping is _support_, not a certified accounting product** — not reviewed against
+bokföringslagen, VAT reporting, SIE export or tax law. Everything from Phase 6 on is planned, not
+built — see [docs/product-roadmap.md](docs/product-roadmap.md).
 
 | Phase | Scope                                                                         | Status  |
 | ----- | ----------------------------------------------------------------------------- | ------- |
@@ -25,8 +29,8 @@ Everything from Phase 5 on is planned, not built — see
 | 2     | Customers, contacts, projects, tasks, comments, attachments, activity, search | Done    |
 | 3     | Personnel (employees, sensitive tier, certs, absences, docs, onboarding)      | Done    |
 | 4     | Quotes & invoicing (products, quotes, invoices, payments, credit notes, PDF)  | Done    |
-| 5     | Bookkeeping support                                                           | Next    |
-| 6     | Calendar                                                                      | Planned |
+| 5     | Bookkeeping support (accounts, fiscal periods, vouchers, reports, CSV export) | Done    |
+| 6     | Calendar                                                                      | Next    |
 | 7     | Email module                                                                  | Planned |
 | 8     | Voice notes                                                                   | Planned |
 | 9     | External integrations, data retention, org export                             | Planned |
@@ -122,6 +126,18 @@ Invoicing is gated by `invoices.read` / `invoices.manage`: `owner@` and `account
 both (full access), while the `EMPLOYEE` accounts have none. Money is shown in major units in
 the UI but stored and sent as integer minor units (öre).
 
+Phase 5 demo data adds the bookkeeping ledger: a **BAS-lite chart of 13 accounts** (e.g. `1930`
+_Företagskonto / bank_, `1510` _Kundfordringar_, `2610` _Utgående moms 25%_, `3001` _Försäljning
+inom Sverige_), a **fiscal year for the current year with 12 monthly periods where January is
+`LOCKED`** to demonstrate period locking, the **account mapping** used to auto-draft vouchers
+(sales `3001`, output VAT `2610`, receivable `1510`, bank `1930`), and **demo vouchers** — two
+`POSTED` (`V-00001` opening-balance share capital, `V-00002` office rent with input VAT) plus one
+balanced `DRAFT` (bank fees) for the accountant to review and post. The `VOUCHER` number sequence
+(`V-`, zero-padded to 5) is advanced past the seeded numbers. Bookkeeping is gated by
+`accounting.read` / `accounting.manage` / `accounting.post`: `owner@`, `admin@` and `accountant@`
+can post, `READONLY` reads only, and the `EMPLOYEE` accounts have no access. All figures are
+fictional and **not reviewed for compliance**.
+
 | Email                              | Password             | Role       | Notes               |
 | ---------------------------------- | -------------------- | ---------- | ------------------- |
 | `owner@demo.businessos.local`      | `OwnerDemo123!`      | OWNER      | also platform admin |
@@ -138,7 +154,8 @@ the UI but stored and sent as integer minor units (öre).
 | RabbitMQ management | http://localhost:15672 | `businessos` / `businessos`            |
 | MinIO console       | http://localhost:9001  | `businessos` / `businessos-dev-secret` |
 
-File attachments (Phase 2), employee documents (Phase 3) and **invoice PDFs (Phase 4)** use
+File attachments (Phase 2), employee documents (Phase 3), **invoice PDFs (Phase 4)** and
+**voucher receipts (Phase 5)** use
 the S3-compatible object store configured via `S3_*` in
 `.env` (defaults in `.env.example`): `S3_ENDPOINT` (`http://localhost:9000`),
 `S3_ACCESS_KEY` (`businessos`), `S3_SECRET_KEY` (`businessos-dev-secret`), `S3_BUCKET`
@@ -161,8 +178,10 @@ pnpm test:e2e             # needs the full stack (db migrated + seeded)
   only — **not** reviewed against Swedish momslagen/EU VAT rules or bokföringslagen. Do not
   present output as compliant invoicing until a professional review passes.
   See [docs/legal-review-required.md](docs/legal-review-required.md).
-- **Bookkeeping is not implemented and NOT legally compliant.** Phase 5 will be a technical
-  foundation only; nothing has been reviewed against bokföringslagen, tax law or GAAP.
+- **Bookkeeping is support only and NOT legally compliant.** Phase 5 (double-entry ledger,
+  vouchers, reports, CSV export) is built as a technical foundation; nothing has been reviewed
+  against bokföringslagen, Bokföringsnämnden (BFN) standards, VAT reporting, SIE/e-accounting
+  export, archiving requirements or tax law. Do not present output as compliant bookkeeping.
   See [docs/legal-review-required.md](docs/legal-review-required.md).
 - **Single-worker outbox.** The outbox relay assumes exactly one worker instance; running
   more than one can double-publish. Upgrade path documented in

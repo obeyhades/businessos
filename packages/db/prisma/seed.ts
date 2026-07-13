@@ -843,8 +843,22 @@ async function seedPhase5(organizationId: string, ownerId: string): Promise<void
       createdById: ownerId,
       lines: {
         create: [
-          { organizationId, accountId: acc('1930'), description: 'Bank', debitMinor: 5_000_000n, creditMinor: 0n, sortOrder: 0 },
-          { organizationId, accountId: acc('2081'), description: 'Share capital', debitMinor: 0n, creditMinor: 5_000_000n, sortOrder: 1 },
+          {
+            organizationId,
+            accountId: acc('1930'),
+            description: 'Bank',
+            debitMinor: 5_000_000n,
+            creditMinor: 0n,
+            sortOrder: 0,
+          },
+          {
+            organizationId,
+            accountId: acc('2081'),
+            description: 'Share capital',
+            debitMinor: 0n,
+            creditMinor: 5_000_000n,
+            sortOrder: 1,
+          },
         ],
       },
     },
@@ -867,9 +881,30 @@ async function seedPhase5(organizationId: string, ownerId: string): Promise<void
       createdById: ownerId,
       lines: {
         create: [
-          { organizationId, accountId: acc('5000'), description: 'Premises', debitMinor: 1_000_000n, creditMinor: 0n, sortOrder: 0 },
-          { organizationId, accountId: acc('2640'), description: 'Input VAT', debitMinor: 250_000n, creditMinor: 0n, sortOrder: 1 },
-          { organizationId, accountId: acc('1930'), description: 'Bank', debitMinor: 0n, creditMinor: 1_250_000n, sortOrder: 2 },
+          {
+            organizationId,
+            accountId: acc('5000'),
+            description: 'Premises',
+            debitMinor: 1_000_000n,
+            creditMinor: 0n,
+            sortOrder: 0,
+          },
+          {
+            organizationId,
+            accountId: acc('2640'),
+            description: 'Input VAT',
+            debitMinor: 250_000n,
+            creditMinor: 0n,
+            sortOrder: 1,
+          },
+          {
+            organizationId,
+            accountId: acc('1930'),
+            description: 'Bank',
+            debitMinor: 0n,
+            creditMinor: 1_250_000n,
+            sortOrder: 2,
+          },
         ],
       },
     },
@@ -889,8 +924,22 @@ async function seedPhase5(organizationId: string, ownerId: string): Promise<void
       createdById: ownerId,
       lines: {
         create: [
-          { organizationId, accountId: acc('6000'), description: 'Bank fees', debitMinor: 20_000n, creditMinor: 0n, sortOrder: 0 },
-          { organizationId, accountId: acc('1930'), description: 'Bank', debitMinor: 0n, creditMinor: 20_000n, sortOrder: 1 },
+          {
+            organizationId,
+            accountId: acc('6000'),
+            description: 'Bank fees',
+            debitMinor: 20_000n,
+            creditMinor: 0n,
+            sortOrder: 0,
+          },
+          {
+            organizationId,
+            accountId: acc('1930'),
+            description: 'Bank',
+            debitMinor: 0n,
+            creditMinor: 20_000n,
+            sortOrder: 1,
+          },
         ],
       },
     },

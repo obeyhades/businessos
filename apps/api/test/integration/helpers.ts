@@ -1,10 +1,13 @@
 import { createPrismaClient, type PrismaClient } from '@businessos/db';
 import type {
+  AccountDto,
   AssignableRole,
   ContactDto,
+  CreateAccountBody,
   CreateContactBody,
   CreateCustomerBody,
   CreateEmployeeBody,
+  CreateFiscalYearBody,
   CreateInvoiceBody,
   CreateProductBody,
   CreateProjectBody,
@@ -14,6 +17,7 @@ import type {
   CustomerDto,
   EmployeeDto,
   EntityKind,
+  FiscalYearDto,
   InvitationDto,
   InvoiceDto,
   LineItemInput,
@@ -24,6 +28,8 @@ import type {
   QuoteDto,
   SessionDto,
   TaskDto,
+  VoucherDto,
+  VoucherLineInput,
 } from '@businessos/types';
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../../src/app.js';
@@ -530,4 +536,90 @@ export async function finalizeInvoiceViaApi(
   const response = await api(ctx.app, 'POST', `/v1/invoices/${invoiceId}/finalize`, { session });
   expectStatus(response, 200, 'finalize invoice');
   return response.json<InvoiceDto>();
+}
+
+// --- Phase 5 (bookkeeping) factories ---------------------------------------
+
+/** Extracts the machine-readable error code from an error-envelope response body. */
+export function errorCode(body: string): string {
+  return (JSON.parse(body) as { error: { code: string } }).error.code;
+}
+
+/**
+ * Creates a chart-of-accounts account. Codes are auto-uniquified from a global
+ * counter (offset into the 1000-range) unless one is supplied in overrides.
+ */
+export async function createAccountViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateAccountBody> = {},
+): Promise<AccountDto> {
+  const n = nextSeq();
+  const response = await api(ctx.app, 'POST', '/v1/accounting/accounts', {
+    session,
+    body: { code: String(1000 + n), name: `Account ${n}`, type: 'ASSET', ...overrides },
+  });
+  expectStatus(response, 201, 'create account');
+  return response.json<AccountDto>();
+}
+
+/** A single debit line for the given account (credit side defaults to 0). */
+export function debit(accountId: string, amountMinor: number): VoucherLineInput {
+  return { accountId, debitMinor: amountMinor } as VoucherLineInput;
+}
+
+/** A single credit line for the given account (debit side defaults to 0). */
+export function credit(accountId: string, amountMinor: number): VoucherLineInput {
+  return { accountId, creditMinor: amountMinor } as VoucherLineInput;
+}
+
+/** Creates a DRAFT voucher with the supplied lines. */
+export async function createVoucherViaApi(
+  ctx: TestContext,
+  session: Actor,
+  lines: VoucherLineInput[],
+  overrides: Partial<{ date: string; description: string }> = {},
+): Promise<VoucherDto> {
+  const response = await api(ctx.app, 'POST', '/v1/accounting/vouchers', {
+    session,
+    body: { date: '2026-06-15', description: `Voucher ${nextSeq()}`, lines, ...overrides },
+  });
+  expectStatus(response, 201, 'create voucher');
+  return response.json<VoucherDto>();
+}
+
+/** Posts a draft voucher (draft → posted); returns the response for status checks. */
+export async function postVoucherViaApi(
+  ctx: TestContext,
+  session: Actor,
+  voucherId: string,
+): Promise<VoucherDto> {
+  const response = await api(ctx.app, 'POST', `/v1/accounting/vouchers/${voucherId}/post`, {
+    session,
+  });
+  expectStatus(response, 200, 'post voucher');
+  return response.json<VoucherDto>();
+}
+
+/**
+ * Creates a fiscal year. Defaults to calendar 2026 with auto-generated monthly
+ * (OPEN) periods, so a voucher dated in 2026 has a covering, postable period.
+ */
+export async function createFiscalYearViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateFiscalYearBody> = {},
+): Promise<FiscalYearDto> {
+  const response = await api(ctx.app, 'POST', '/v1/accounting/fiscal-years', {
+    session,
+    body: {
+      name: `FY ${nextSeq()}`,
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      generateMonthlyPeriods: true,
+      ...overrides,
+    },
+  });
+  expectStatus(response, 201, 'create fiscal year');
+  return response.json<FiscalYearDto>();
 }

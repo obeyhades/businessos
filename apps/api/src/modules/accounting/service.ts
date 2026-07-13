@@ -57,7 +57,10 @@ export async function buildVoucherLines(
     const account = byId.get(id);
     if (!account) throw errors.badRequest('unknown_account', `Account ${id} does not exist`);
     if (!account.isActive) {
-      throw errors.badRequest('inactive_account', `Account ${id} is inactive and cannot be posted to`);
+      throw errors.badRequest(
+        'inactive_account',
+        `Account ${id} is inactive and cannot be posted to`,
+      );
     }
   }
 
@@ -119,8 +122,19 @@ export async function assertPostablePeriod(
       'No fiscal period covers this date; create one before posting',
     );
   }
-  if (period.status !== 'OPEN') {
-    throw errors.conflict('period_locked', `The fiscal period is ${period.status} and cannot accept postings`);
+  // Lock the period row and re-read its status under the lock, so a concurrent
+  // lock/close of this period serializes with the posting (TOCTOU): either the
+  // post commits before the lock, or it sees the new status and is rejected.
+  await tx.$executeRaw`SELECT id FROM fiscal_periods WHERE id = ${period.id}::uuid FOR UPDATE`;
+  const locked = await tx.fiscalPeriod.findUnique({
+    where: { id: period.id },
+    select: { status: true },
+  });
+  if (!locked || locked.status !== 'OPEN') {
+    throw errors.conflict(
+      'period_locked',
+      `The fiscal period is ${locked?.status ?? 'missing'} and cannot accept postings`,
+    );
   }
   return period.id;
 }

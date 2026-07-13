@@ -2,9 +2,9 @@
 
 Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
 (customers, projects, tasks, comments, attachments, activity, search), Phase 3
-(personnel) and Phase 4 (quotes & invoicing) are **done** — see
+(personnel), Phase 4 (quotes & invoicing) and Phase 5 (bookkeeping support) are **done** — see
 [implementation-plan.md](implementation-plan.md).
-**Phase 5 (Bookkeeping support) is next.** Everything from Phase 5 on is planned, not built.
+**Phase 6 (Calendar) is next.** Everything from Phase 6 on is planned, not built.
 Permissions for all of these modules already exist in the reviewed matrix
 (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
@@ -68,17 +68,30 @@ Delivered:
 - **Professional review of invoice/VAT rules still required before real use** — the money/VAT
   machinery is a technical foundation only ([legal-review-required.md](legal-review-required.md))
 
-## Phase 5 — Bookkeeping support — **Next**
+## Phase 5 — Bookkeeping support — **Done**
 
-Definition of done:
+Delivered:
 
-- Chart of accounts, verifications, append-only posted entries; `accounting.post` as a
-  distinct permission
-- Consumes the Phase 4 **`invoice.finalized`** outbox event as the accounting-draft hook —
-  a finalized invoice becomes the source for a journal entry / verification
-- Export formats (e.g. SIE) evaluated
-- **Explicitly labeled non-compliant until legal/accounting review passes**
-  ([legal-review-required.md](legal-review-required.md))
+- **Double-entry ledger**: chart of accounts (typed ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE,
+  per-org unique code), fiscal years and periods (`OPEN`/`LOCKED`/`CLOSED`), and vouchers
+  (verifikationer) with ≥2 debit/credit lines — money as integer minor units (`BigInt`)
+- **Voucher lifecycle** `DRAFT → POST → REVERSED`: a draft may be unbalanced; **posting**
+  enforces balance (Σ debit = Σ credit), ≥2 lines, non-zero, a covering `OPEN` period, assigns a
+  concurrency-safe per-org number (`V-` sequence) and makes the entry **immutable**; corrections
+  are made only by a **reversing voucher** (debit/credit swapped, nets to zero) — posted entries
+  are never edited or deleted. Reconciliation status on posted vouchers
+- **`accounting.post` as a distinct permission** (separate from `accounting.read` /
+  `accounting.manage`); OWNER/ADMIN/ACCOUNTANT post, READONLY reads, MANAGER/EMPLOYEE none
+- **Configurable rules (`AccountMapping`)** + a worker consumer that turns the Phase 4
+  **`invoice.finalized`** and **`payment.registered`** events into **DRAFT vouchers** an
+  accountant reviews and posts — idempotent, **never auto-posted**
+- **Reports**: trial balance and general ledger (running balances); **CSV exports** as the first
+  export format (SIE and other e-accounting formats deferred)
+- **Integration seam**: `voucher.posted` / `voucher.reversed` domain events emitted to the
+  outbox for future accounting-system integrations (no internal consumer binds them yet)
+- **Explicitly labeled bookkeeping _support_, non-compliant until legal/accounting review
+  passes** — not certified for bokföringslagen / BFN, VAT reporting, SIE export, archiving or
+  tax filing ([legal-review-required.md](legal-review-required.md))
 
 ## Phase 6 — Calendar
 

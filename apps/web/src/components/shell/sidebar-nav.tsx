@@ -2,8 +2,12 @@
 
 import { cn } from '@businessos/ui';
 import {
+  BarChart3,
+  BookOpen,
+  BookText,
   Briefcase,
   CalendarClock,
+  CalendarRange,
   CircleCheck,
   ClipboardList,
   Contact,
@@ -36,6 +40,10 @@ interface NavItem {
     | 'products'
     | 'quotes'
     | 'invoices'
+    | 'accountingJournal'
+    | 'accountingAccounts'
+    | 'accountingPeriods'
+    | 'accountingReports'
     | 'auditLog'
     | 'settings'
     | 'failedJobs';
@@ -43,9 +51,31 @@ interface NavItem {
   visible: boolean;
 }
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
+  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active
+          ? 'bg-accent text-accent-foreground'
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+      )}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      {t(item.labelKey)}
+    </Link>
+  );
+}
+
+export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useTranslations('nav');
   const { data: session } = useSession();
 
   const items: NavItem[] = [
@@ -125,31 +155,53 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     },
   ];
 
+  const accountingItems: NavItem[] = [
+    {
+      href: '/accounting/vouchers',
+      labelKey: 'accountingJournal',
+      icon: BookOpen,
+      visible: true,
+    },
+    {
+      href: '/accounting/accounts',
+      labelKey: 'accountingAccounts',
+      icon: BookText,
+      visible: true,
+    },
+    {
+      href: '/accounting/periods',
+      labelKey: 'accountingPeriods',
+      icon: CalendarRange,
+      visible: true,
+    },
+    {
+      href: '/accounting/reports',
+      labelKey: 'accountingReports',
+      icon: BarChart3,
+      visible: true,
+    },
+  ];
+
+  const showAccounting = can(session, 'accounting.read');
+
   return (
     <nav className="flex flex-col gap-1 p-3" aria-label={t('dashboard')}>
       {items
         .filter((item) => item.visible)
-        .map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                active
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              )}
-            >
-              <Icon className="size-4 shrink-0" aria-hidden="true" />
-              {t(item.labelKey)}
-            </Link>
-          );
-        })}
+        .map((item) => (
+          <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+        ))}
+
+      {showAccounting ? (
+        <>
+          <p className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('accounting')}
+          </p>
+          {accountingItems.map((item) => (
+            <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+          ))}
+        </>
+      ) : null}
     </nav>
   );
 }

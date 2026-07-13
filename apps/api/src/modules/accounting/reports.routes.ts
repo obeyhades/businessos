@@ -33,7 +33,12 @@ function money(minor: number): string {
 }
 
 function csvCell(value: string | number): string {
-  const s = String(value);
+  let s = String(value);
+  // Neutralize spreadsheet formula injection in free-text cells (account names,
+  // descriptions). Numeric cells — including negative money like "-12.34" — are
+  // left intact so they still parse as numbers.
+  const isNumeric = typeof value === 'number' || /^-?\d+(\.\d+)?$/.test(s);
+  if (!isNumeric && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 const csvRow = (cells: (string | number)[]): string => cells.map(csvCell).join(',');
@@ -62,7 +67,7 @@ async function computeTrialBalance(
     _sum: { debitMinor: true, creditMinor: true },
   });
   const accounts = await prisma.account.findMany({
-    where: { id: { in: grouped.map((g) => g.accountId) } },
+    where: { organizationId, id: { in: grouped.map((g) => g.accountId) } },
     select: { id: true, code: true, name: true, type: true },
   });
   const byId = new Map(accounts.map((a) => [a.id, a]));
@@ -166,7 +171,11 @@ export function registerReportRoutes(app: FastifyInstance): void {
           account: { select: { code: true, name: true, type: true } },
           voucher: { select: { id: true, number: true, date: true, description: true } },
         },
-        orderBy: [{ voucher: { date: 'asc' } }, { voucher: { createdAt: 'asc' } }, { sortOrder: 'asc' }],
+        orderBy: [
+          { voucher: { date: 'asc' } },
+          { voucher: { createdAt: 'asc' } },
+          { sortOrder: 'asc' },
+        ],
       });
 
       const accountsMap = new Map<string, GeneralLedgerAccount>();
@@ -204,6 +213,30 @@ export function registerReportRoutes(app: FastifyInstance): void {
         acc.closingBalanceMinor = newRunning;
       }
 
+      // Accounts with a non-zero carried-forward opening balance but no entries
+      // in [from,to] would otherwise vanish — surface them with empty entries.
+      const missingOpening = [...opening.entries()].filter(
+        ([id, bal]) => bal !== 0 && !accountsMap.has(id),
+      );
+      if (missingOpening.length > 0) {
+        const metas = await app.prisma.account.findMany({
+          where: { organizationId, id: { in: missingOpening.map(([id]) => id) } },
+          select: { id: true, code: true, name: true, type: true },
+        });
+        for (const m of metas) {
+          const bal = opening.get(m.id) ?? 0;
+          accountsMap.set(m.id, {
+            accountId: m.id,
+            code: m.code,
+            name: m.name,
+            type: m.type,
+            openingBalanceMinor: bal,
+            closingBalanceMinor: bal,
+            entries: [],
+          });
+        }
+      }
+
       const accounts = [...accountsMap.values()].sort((a, b) => a.code.localeCompare(b.code));
       return reply.send({
         accounts,
@@ -232,10 +265,19 @@ export function registerReportRoutes(app: FastifyInstance): void {
       const out = [csvRow(['Account', 'Name', 'Type', 'Debit', 'Credit', 'Balance'])];
       for (const row of tb.rows) {
         out.push(
-          csvRow([row.code, row.name, row.type, money(row.debitMinor), money(row.creditMinor), money(row.balanceMinor)]),
+          csvRow([
+            row.code,
+            row.name,
+            row.type,
+            money(row.debitMinor),
+            money(row.creditMinor),
+            money(row.balanceMinor),
+          ]),
         );
       }
-      out.push(csvRow(['', 'TOTAL', '', money(tb.totalDebitMinor), money(tb.totalCreditMinor), '']));
+      out.push(
+        csvRow(['', 'TOTAL', '', money(tb.totalDebitMinor), money(tb.totalCreditMinor), '']),
+      );
       return reply
         .header('content-type', 'text/csv; charset=utf-8')
         .header('content-disposition', 'attachment; filename="trial-balance.csv"')
@@ -255,16 +297,32 @@ export function registerReportRoutes(app: FastifyInstance): void {
       const lines = await app.prisma.voucherLine.findMany({
         where: {
           organizationId,
-          voucher: { status: { in: reportingStatuses(includeDrafts) }, ...(df ? { date: df } : {}) },
+          voucher: {
+            status: { in: reportingStatuses(includeDrafts) },
+            ...(df ? { date: df } : {}),
+          },
         },
         include: {
           account: { select: { code: true, name: true } },
           voucher: { select: { number: true, date: true, description: true, createdAt: true } },
         },
-        orderBy: [{ voucher: { date: 'asc' } }, { voucher: { createdAt: 'asc' } }, { sortOrder: 'asc' }],
+        orderBy: [
+          { voucher: { date: 'asc' } },
+          { voucher: { createdAt: 'asc' } },
+          { sortOrder: 'asc' },
+        ],
       });
       const out = [
-        csvRow(['Voucher', 'Date', 'VoucherDescription', 'Account', 'AccountName', 'LineDescription', 'Debit', 'Credit']),
+        csvRow([
+          'Voucher',
+          'Date',
+          'VoucherDescription',
+          'Account',
+          'AccountName',
+          'LineDescription',
+          'Debit',
+          'Credit',
+        ]),
       ];
       for (const l of lines) {
         out.push(

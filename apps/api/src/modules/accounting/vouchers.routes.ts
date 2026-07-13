@@ -332,7 +332,12 @@ export function registerVoucherRoutes(app: FastifyInstance): void {
     },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const reversalDate = request.body.date ? parseIsoDate(request.body.date) : new Date();
+      // Normalize to date-only UTC midnight (matches @db.Date and period
+      // resolution); a raw new Date() carries a time-of-day that fails to match
+      // a period whose end date is the reversal day.
+      const reversalDate = request.body.date
+        ? parseIsoDate(request.body.date)
+        : parseIsoDate(new Date().toISOString().slice(0, 10));
       const reversal = await app.prisma.$transaction(async (tx) => {
         await lockVoucherForUpdate(tx, request.params.voucherId);
         const original = await tx.voucher.findFirst({

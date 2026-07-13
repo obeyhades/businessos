@@ -443,6 +443,119 @@ Lines belonging to a credit note (`credit_note_id`, **Cascade**). Same computed-
 columns as the other line-item tables (no `discount_percent`). Index
 `(credit_note_id, sort_order)`.
 
+## Phase 5 — bookkeeping (double-entry ledger)
+
+Added by migration `20260713171720_phase5_bookkeeping`. Seven new tables; every one carries
+`organization_id` for tenant isolation and cascade-deletes with its organization. This is the
+second money module, so it follows the Phase 4 convention: **all amounts are integer minor
+units** (öre; 1 SEK = 100 minor) stored as **`BigInt`** columns whose names end in `_minor`
+(`debit_minor`, `credit_minor`, `total_debit_minor`, `total_credit_minor`). **Never floating
+point.**
+
+The core concept is a **voucher** (verifikation) — a numbered, dated journal entry whose
+lines must **balance** (Σ debit = Σ credit) before it can be posted. Posted vouchers are
+**immutable** and corrected only by reversing vouchers (see
+[architecture.md](architecture.md#voucher-posting--immutability-phase-5) and
+[ADR-0006](decisions/adr-0006-double-entry-voucher-model.md)).
+
+Enums:
+
+- `AccountType` — `ASSET`, `LIABILITY`, `EQUITY`, `REVENUE`, `EXPENSE` (an account's normal
+  balance side is derived from the type; `ASSET`/`EXPENSE` are debit-normal)
+- `FiscalPeriodStatus` — `OPEN` (default), `LOCKED`, `CLOSED` (shared by fiscal years and
+  periods; only an `OPEN` period accepts postings)
+- `VoucherStatus` — `DRAFT` (default), `POSTED`, `REVERSED`
+- `VoucherSource` — `MANUAL` (default), `INVOICE`, `PAYMENT`, `OPENING_BALANCE`
+
+The `NumberSequenceKind` enum (Phase 4) gained a **`VOUCHER`** value (prefix `V-`, padding 5),
+so posted vouchers draw a concurrency-safe per-org number from the same `number_sequences`
+mechanism as invoices (see [architecture.md](architecture.md#concurrency-safe-document-numbering)).
+
+### accounts
+
+Chart-of-accounts entry — a typed, per-organization account addressed by its `code`.
+
+- `code` (account number, e.g. `1930`; **immutable after creation** — it is the account's
+  identity), `name`, `type` (`AccountType`), `description`, `is_active` (default true),
+  `created_by_id` (raw column, no relation)
+- **Unique `(organization_id, code)`** — codes are unique within a tenant; index
+  `(organization_id, type)`
+- Back-relation to `voucher_lines`. An account **referenced by any voucher line cannot be
+  deleted** — it is deactivated instead (enforced in the service; the line FK is `Restrict`),
+  preserving the audit trail
+
+### fiscal_years
+
+A financial year holding the periods that postings fall into.
+
+- `name` (e.g. `2026`), `start_date`, `end_date` (both `@db.Date`), `status`
+  (`FiscalPeriodStatus`, default `OPEN`)
+- **Unique `(organization_id, name)`**; relation to `periods` (Cascade)
+
+### fiscal_periods
+
+A sub-period (typically a month) of a fiscal year. **A voucher can only be posted into a
+period that covers its date and is `OPEN`.**
+
+- `fiscal_year_id` (**Cascade**), `name` (e.g. `2026-01`), `start_date`, `end_date` (both
+  `@db.Date`), `status` (`FiscalPeriodStatus`, default `OPEN`)
+- Index `(organization_id, start_date)`; relation to `vouchers`
+- Periods are validated **non-overlapping** at creation, so a date resolves to at most one
+  period
+
+### vouchers
+
+The journal entry (verifikation). A double entry with ≥2 lines; the header stores the rolled-up
+debit/credit totals.
+
+- `number` (nullable until posted; assigned from the `VOUCHER` sequence on post), `date`
+  (`@db.Date`), `description`, `status` (`VoucherStatus`, default `DRAFT`), `source`
+  (`VoucherSource`, default `MANUAL`)
+- `source_type` / `source_id` — a **loose reference** to the originating document (e.g.
+  `invoice`/`payment`); deliberately **no FK**, so a voucher survives deletion of its source
+  and stays idempotency-keyable
+- `fiscal_period_id` (**SetNull**) — the covering period; informational on a draft, stamped
+  authoritatively on post
+- `total_debit_minor` / `total_credit_minor` (`BigInt`, default 0) — recomputed from the
+  persisted lines on post (stored totals are never trusted)
+- **Reversal self-relation** — `reverses_voucher_id` (nullable, **`@unique`**, `SetNull`)
+  points from a reversing voucher to the original it cancels; the original exposes its
+  reversal through the `reversedBy` back-relation (Prisma relation `VoucherReversal`). The
+  `@unique` guarantees a voucher can be reversed **at most once**
+- `reconciled_at` (nullable) — reconciliation status on a posted voucher; `posted_at`,
+  `posted_by_id` (**SetNull**), `created_by_id` (**SetNull**)
+- **Unique `(organization_id, number)`**; indexes `(organization_id, status)`,
+  `(organization_id, date)` and `(source_type, source_id)` (the auto-draft idempotency lookup)
+
+### voucher_lines
+
+Ordered debit/credit lines belonging to a voucher. Cascade-delete with the voucher.
+
+- `voucher_id` (**Cascade**), `account_id` (**Restrict** — see `accounts`), `description`,
+  `debit_minor` / `credit_minor` (`BigInt`, default 0), `sort_order`
+- **A line is either a debit or a credit** — exactly one side is positive, the other 0
+  (enforced in the contract; posting re-sums both sides)
+- Indexes `(voucher_id, sort_order)` and `(organization_id, account_id)` (the per-account
+  ledger/trial-balance grouping)
+
+### voucher_attachments
+
+Receipt/underlag files for a voucher, stored in object storage like the Phase 2/3 attachments.
+
+- `voucher_id` (**Cascade**), `uploaded_by_id` (**SetNull**), `file_name`, `content_type`,
+  `size` (bytes, server-measured), `storage_key` (unique), `created_at`
+- Index `(organization_id, voucher_id)`. Reuses the private-bucket / presigned-download model
+  and the 25 MB / content-type allow-list (see [security.md](security.md#attachment-uploaddownload-phase-2))
+
+### account_mappings
+
+Per-organization default accounts driving auto-generated draft vouchers (configurable rules).
+
+- **`organization_id` is `@unique`** — exactly one mapping row per organization
+- `sales_account_id`, `output_vat_account_id`, `receivable_account_id`, `bank_account_id`
+  (all nullable, raw columns) — the accounts the worker posts to when it drafts a voucher from
+  an invoice or payment (see [architecture.md](architecture.md#event-driven-accounting-drafts-phase-5))
+
 ## Tenancy rule for future tables
 
 Every tenant-owned table added in later phases carries `organization_id` and is queried

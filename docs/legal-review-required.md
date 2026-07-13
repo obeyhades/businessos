@@ -3,20 +3,40 @@
 This document exists so nobody mistakes technical completeness for legal compliance.
 None of the items below block local development; **all of them block production use**.
 
-## Bookkeeping (Phase 5) — technical foundation only
+## Bookkeeping (Phase 5) — bookkeeping SUPPORT, pending professional review
 
-The planned bookkeeping module is a **technical foundation, not an accounting product**.
-It has **not** been reviewed against:
+Phase 5 (chart of accounts, fiscal years/periods, double-entry vouchers with
+balance/period/immutability enforcement, reversal, reconciliation, trial-balance and
+general-ledger reports, CSV export, and event-driven draft-voucher generation from invoices and
+payments) is **built**. It is deliberately positioned as **bookkeeping _support_ — a technical
+foundation, not a certified accounting product.** No qualified accountant, auditor or tax
+professional has reviewed it. It is **not certified** for, and **must not** be presented to
+users as compliant with, any of the following:
 
-- **Bokföringslagen** (the Swedish Bookkeeping Act) — archiving requirements, verification
-  numbering, immutability of posted entries, retention periods
-- **Skattelagstiftning** — Swedish tax law, including reporting formats
-- **GAAP / god redovisningssed** or any other accounting standard
+- **Bokföringslagen** (the Swedish Bookkeeping Act) — mandatory verification (verifikation)
+  content, gap-free sequential numbering, immutability and correction rules, and **archiving /
+  retention** periods (the immutability, per-org numbering and reversal-only-correction design
+  is intended to align with these principles, but is **not confirmed compliant**).
+- **Bokföringsnämnden (BFN)** general guidance and **god redovisningssed** (generally accepted
+  accounting principles), or **GAAP** / any other accounting standard.
+- **VAT (moms) reporting** — the auto-drafted output-VAT lines and any VAT figures are a
+  technical convenience; VAT rates, reverse charge, periodic VAT returns and the like are **not**
+  verified against momslagen / EU VAT rules (see the invoicing section below).
+- **SIE and other e-accounting / bookkeeping-export standards** — the only export today is CSV
+  (trial balance and journal). The Swedish **SIE** interchange format and any authority-accepted
+  e-accounting export are **not** implemented.
+- **Archiving and immutability legal requirements** — posted entries are immutable _in the
+  application_, but statutory archival (durable, tamper-evident, retained for the legally
+  required years) is **not** provided.
+- **Tax filing (skattelagstiftning)** — no tax computation, declaration or filing format is
+  produced or certified.
 
-Nothing the platform produces may be presented to users as compliant bookkeeping until a
-qualified accountant/auditor and legal counsel have reviewed the design and output.
-The data-model groundwork (integer minor units, currency per document, append-only
-patterns) is deliberate but does not constitute compliance.
+The auto-generated vouchers are always **DRAFTS**; the system never posts to the books on its
+own. Even so, a qualified accountant/auditor and legal counsel **must** review the account
+structure, posting rules, VAT treatment, numbering, archiving and export before any of this is
+used for real bookkeeping. The engineering groundwork (integer minor units, per-document
+currency, double-entry balance enforcement, posted-immutability, append-only patterns) is
+deliberate but **does not constitute compliance**.
 
 ## Invoicing and VAT (Phase 4) — technical foundation only
 

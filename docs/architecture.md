@@ -48,6 +48,8 @@ helpers:
 - `employees` — employee directory + sensitive tier, onboarding template application, per-employee activity (Phase 3)
 - `employee-notes` / `certifications` / `absences` / `employee-documents` — restricted notes, qualifications, leave workflow, and categorized documents (Phase 3)
 - `onboarding-templates` — reusable onboarding/offboarding checklists that generate tasks (Phase 3)
+- `products` / `quotes` / `invoices` / `payments` / `credit-notes` (`billing`) — catalogue, quote/invoice lifecycle, deterministic money, numbering (Phase 4)
+- `accounting` — chart of accounts, fiscal years/periods, vouchers (journal entries), voucher attachments and reports (Phase 5)
 
 Hard rules enforced by structure:
 
@@ -310,6 +312,89 @@ outbox):
 - `payment.registered` — a payment was recorded
 - `invoice.overdue` — audit/activity emitted by the sweep (worker-local, not an outbox event)
 
+## Bookkeeping (Phase 5)
+
+Phase 5 adds the `accounting` module (`apps/api/src/modules/accounting/`: `accounts`,
+`fiscal`, `vouchers`, `attachments`, `reports` route files plus a shared `service.ts`) and one
+worker consumer. It is a **double-entry ledger** built on the money and numbering machinery
+Phase 4 established.
+
+### Voucher posting & immutability (Phase 5)
+
+A voucher (verifikation) is a journal entry: a dated document with ≥2 lines, each a debit or a
+credit. Its lifecycle mirrors invoice finalize — an editable draft becomes an immutable posted
+record:
+
+- **DRAFT** — fully editable and **may be unbalanced**; the covering fiscal period is recorded
+  only informationally.
+- **POST** (`POST /v1/accounting/vouchers/:id/post`) — one transaction that **row-locks the
+  voucher** (`lockVoucherForUpdate`, so two concurrent posts serialize instead of both
+  allocating a number), re-sums the persisted lines (stored totals are never trusted) and
+  enforces the rules: **balanced** (Σ debit = Σ credit), **≥2 lines**, **non-zero**, and a
+  **covering `OPEN` fiscal period** (`assertPostablePeriod` → `no_fiscal_period` /
+  `period_locked`). It then allocates a per-org `VOUCHER` number
+  (`allocateNumber`, prefix `V-`), sets `status = POSTED` + `posted_at`, writes a
+  `voucher.posted` audit, and enqueues the `voucher.posted` outbox event. From here the entry
+  is **immutable** — edits and deletes are rejected (`voucher_immutable`).
+- **REVERSE** (`POST /v1/accounting/vouchers/:id/reverse`) — the only correction. It creates a
+  new **posted** voucher whose lines swap debit and credit, links it to the original via the
+  `reverses_voucher_id` self-relation (`@unique`, so a voucher reverses at most once), sets the
+  original to `REVERSED`, and enqueues `voucher.reversed`. The original and its reversal net to
+  zero; **posted rows are never edited or deleted.**
+
+This reuses Phase 4's concurrency-safe numbering (the `VOUCHER` `NumberSequenceKind`, row-lock
+inside the transaction — see [above](#concurrency-safe-document-numbering)) and the same
+integer-minor-unit money model.
+
+### Reports (Phase 5)
+
+Trial balance and general ledger are computed from `voucher_lines` grouped by account. Only
+**reporting statuses** count: `POSTED` and `REVERSED` always (the reversal is itself posted, so
+excluding `REVERSED` would leave it uncancelled), plus `DRAFT` when `?includeDrafts=true`. The
+general ledger derives an opening balance (net of everything before `from`) and a per-account
+**running balance**. **CSV** (`/exports/trial-balance.csv`, `/exports/journal.csv`) is the
+first export format; SIE and other e-accounting formats are deferred.
+
+### Event-driven accounting drafts (Phase 5)
+
+The ledger is fed semi-automatically. The worker binds a new **`accounting.draft`** queue to
+`businessos.events` for two existing Phase 4 events, and turns each into a **DRAFT voucher** an
+accountant then reviews and posts:
+
+```
+api tx (Phase 4): invoice.finalized / payment.registered → outbox
+                                     │  worker outbox relay → businessos.events
+                                     ▼
+   routing keys invoice.finalized, payment.registered ──▶ accounting.draft queue
+                                     │
+                          accounting.draft consumer (apps/worker/src/consumers/accounting.ts)
+                                     ▼
+   invoice → Dr Accounts receivable (gross) / Cr Sales (net) / Cr Output VAT (tax)
+   payment → Dr Bank / Cr Accounts receivable          (accounts from AccountMapping)
+                                     │
+                          DRAFT voucher + audit voucher.created + activity invoice.accounting_drafted
+```
+
+- The accounts come from the org's **`AccountMapping`** (configurable rules). If the mapping is
+  incomplete or a mapped account is inactive/missing, the draft is skipped
+  (`mapping_incomplete`) — nothing is fabricated.
+- **Never auto-posted.** Generation stops at `DRAFT`; posting is always a human, permissioned
+  (`accounting.post`) action. Ledger integrity comes from the API's post/balance/period rules,
+  not from this consumer.
+- **Idempotent** via `(source_type, source_id)` on the voucher **plus** the shared
+  `processed_messages` ledger (`consumer = 'accounting.draft'`). Unlike the email consumer there
+  is **no retry ladder**: a hard failure is recorded to `failed_jobs` and acked (dropped) so a
+  bad message cannot loop — the accountant can always create the voucher by hand.
+
+### Integration seam: `voucher.posted` / `voucher.reversed`
+
+Posting and reversing emit `voucher.posted` and `voucher.reversed` to the transactional outbox.
+**No internal consumer binds them yet** — exactly how `invoice.finalized` began before Phase 5
+consumed it. They are the **designed interface for future accounting-system integrations**
+(export/sync to external bookkeeping or fiscal-reporting systems): a downstream consumer binds
+its own queue to these routing keys on `businessos.events` without the accounting module knowing
+about it.
+
 ## Where future modules attach
 
 Each later phase adds a module directory under `apps/api/src/modules/`, tables with
@@ -321,10 +406,12 @@ Each later phase adds a module directory under `apps/api/src/modules/`, tables w
   permissions `customers.*`, `projects.*`, `tasks.*` already exist in the matrix.
 - **Personnel (Phase 3, done)** — sensitive fields gated by a dedicated
   `personnel.read_sensitive` permission (see the Phase 3 section above).
-- **Quotes/invoicing (Phase 4)** and **bookkeeping (Phase 5)** — money as integer minor
-  units and per-organization currency are locked in now (see
-  [data-model.md](data-model.md)); PDF/email delivery rides the existing outbox →
-  `email.send` path.
+- **Quotes/invoicing (Phase 4)** and **bookkeeping (Phase 5, done)** — money as integer minor
+  units and per-organization currency, and concurrency-safe document numbering, are shared by
+  both (see [data-model.md](data-model.md) and the [Phase 5 section above](#bookkeeping-phase-5)).
+  Bookkeeping consumes the Phase 4 `invoice.finalized` / `payment.registered` events to draft
+  vouchers and emits `voucher.posted` / `voucher.reversed` as a seam for future accounting-system
+  integrations.
 - **Calendar (6), email module (7), voice notes (8)** — voice notes store audio in MinIO
   and process transcriptions as queued jobs.
 - **Integrations (9)** — outbound webhooks are natural consumers of the existing topic

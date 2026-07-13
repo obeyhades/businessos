@@ -33,7 +33,10 @@ async function assertAccountsInOrg(
     where: { id: { in: present }, organizationId },
   });
   if (count !== present.length) {
-    throw errors.badRequest('unknown_account', 'One or more accounts do not exist in this organization');
+    throw errors.badRequest(
+      'unknown_account',
+      'One or more accounts do not exist in this organization',
+    );
   }
 }
 
@@ -155,6 +158,20 @@ export function registerAccountRoutes(app: FastifyInstance): void {
       if (!existing) throw errors.notFound('Account');
       const body = request.body;
       const updated = await app.prisma.$transaction(async (tx) => {
+        // An account's type is fixed once it carries journal entries — changing
+        // it would retroactively reclassify already-posted (immutable) lines and
+        // shift the trial balance.
+        if (body.type !== undefined && body.type !== existing.type) {
+          const lineCount = await tx.voucherLine.count({
+            where: { accountId: existing.id, organizationId },
+          });
+          if (lineCount > 0) {
+            throw errors.conflict(
+              'account_in_use',
+              'Cannot change the type of an account that has journal entries',
+            );
+          }
+        }
         const result = await tx.account.update({
           where: { id: existing.id },
           data: {
@@ -195,7 +212,10 @@ export function registerAccountRoutes(app: FastifyInstance): void {
         where: { accountId: existing.id, organizationId },
       });
       if (lineCount > 0) {
-        throw errors.conflict('account_in_use', 'Account has journal entries; deactivate it instead');
+        throw errors.conflict(
+          'account_in_use',
+          'Account has journal entries; deactivate it instead',
+        );
       }
       await app.prisma.$transaction(async (tx) => {
         await tx.account.delete({ where: { id: existing.id } });

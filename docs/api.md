@@ -333,6 +333,95 @@ exposes derived `isOverdue` and `amountDueMinor` (= total − paid − credited)
 | GET    | `/v1/invoices/:invoiceId/credit-notes` | `invoices.read`   | credit notes against the invoice                                                        |
 | POST   | `/v1/invoices/:invoiceId/credit-notes` | `invoices.manage` | full or partial; **over-credit rejected** (400 `over_credit`); full credit → `CREDITED` |
 
+## Phase 5 — bookkeeping (double-entry ledger)
+
+All routes are under `/v1/accounting` and require an active organization. Three permissions
+gate the module: **`accounting.read`** (list/detail, reports, CSV exports),
+**`accounting.manage`** (create/edit/delete accounts, fiscal years/periods, draft vouchers,
+mapping, attachments, reconcile) and **`accounting.post`** (post and reverse — the actions that
+write to the immutable ledger). OWNER, ADMIN and ACCOUNTANT hold all three; READONLY holds
+`accounting.read` only; MANAGER and EMPLOYEE have no accounting access.
+
+**Money is integer minor units** (öre; 100 = 1 SEK) on the wire — `debitMinor` / `creditMinor`
+on lines, `totalDebitMinor` / `totalCreditMinor` / `balanceMinor` on documents and reports.
+Each voucher line is **either a debit or a credit** (exactly one side positive). Dates are ISO
+`YYYY-MM-DD`.
+
+### Chart of accounts
+
+| Method | Path                                 | Auth                | Notes                                                                                            |
+| ------ | ------------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------ |
+| GET    | `/v1/accounting/accounts`            | `accounting.read`   | paginated (default page size 200, max 500); filters `?type=`, `?active=`, `?search=` (code/name) |
+| POST   | `/v1/accounting/accounts`            | `accounting.manage` | `code`, `name`, `type`, `description?`, `isActive?`; 409 `duplicate_code`                        |
+| GET    | `/v1/accounting/accounts/:accountId` | `accounting.read`   | detail                                                                                           |
+| PATCH  | `/v1/accounting/accounts/:accountId` | `accounting.manage` | `name`/`type`/`description`/`isActive` — **`code` is immutable**                                 |
+| DELETE | `/v1/accounting/accounts/:accountId` | `accounting.manage` | 204; **409 `account_in_use`** if any voucher line references it (deactivate instead)             |
+
+### Account mapping (auto-draft rules)
+
+| Method | Path                     | Auth                | Notes                                                                                     |
+| ------ | ------------------------ | ------------------- | ----------------------------------------------------------------------------------------- |
+| GET    | `/v1/accounting/mapping` | `accounting.read`   | the org's `sales`/`outputVat`/`receivable`/`bank` account ids (nulls until set)           |
+| PUT    | `/v1/accounting/mapping` | `accounting.manage` | upsert; each provided id is validated to be an account in the org (400 `unknown_account`) |
+
+### Fiscal years & periods
+
+| Method | Path                                                | Auth                | Notes                                                                                                |
+| ------ | --------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/accounting/fiscal-years`                       | `accounting.read`   | all years, each with its periods                                                                     |
+| POST   | `/v1/accounting/fiscal-years`                       | `accounting.manage` | `name`, `startDate`, `endDate`, `generateMonthlyPeriods?` (default true → one OPEN period per month) |
+| GET    | `/v1/accounting/fiscal-years/:fiscalYearId`         | `accounting.read`   | detail with periods                                                                                  |
+| POST   | `/v1/accounting/fiscal-years/:fiscalYearId/periods` | `accounting.manage` | add a period; **409 `period_overlap`** if it overlaps an existing one                                |
+| PATCH  | `/v1/accounting/periods/:periodId/status`           | `accounting.manage` | body `{ status: OPEN\|LOCKED\|CLOSED }` — locking/closing blocks further postings                    |
+
+### Vouchers (journal entries)
+
+Created as `DRAFT` (editable, may be unbalanced). **Post** enforces the double-entry rules,
+assigns a number and freezes the entry; a posted entry is corrected only by a **reverse**.
+
+| Method | Path                                           | Auth                | Notes                                                                                                                                                                                                                                                                                                        |
+| ------ | ---------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/v1/accounting/vouchers`                      | `accounting.read`   | paginated (default 50, max 200); filters `?status=`, `?source=`, `?from=`, `?to=`, `?accountId=`, `?reconciled=`                                                                                                                                                                                             |
+| POST   | `/v1/accounting/vouchers`                      | `accounting.manage` | `date`, `description`, `lines[]` (**≥2**, each a debit or a credit); created `DRAFT`, **balance not required yet**                                                                                                                                                                                           |
+| GET    | `/v1/accounting/vouchers/:voucherId`           | `accounting.read`   | detail with lines; DTO exposes `isBalanced`, `reversesVoucherId`, `reversedByVoucherId`                                                                                                                                                                                                                      |
+| PATCH  | `/v1/accounting/vouchers/:voucherId`           | `accounting.manage` | **only while `DRAFT`** (409 `voucher_immutable`); `lines` replace the set wholesale                                                                                                                                                                                                                          |
+| DELETE | `/v1/accounting/vouchers/:voucherId`           | `accounting.manage` | 204; **only while `DRAFT`** (409 `voucher_immutable`)                                                                                                                                                                                                                                                        |
+| POST   | `/v1/accounting/vouchers/:voucherId/post`      | `accounting.post`   | `DRAFT → POSTED`; must balance (400 `unbalanced`), have ≥2 lines (400 `too_few_lines`), be non-zero (400 `zero_voucher`), and fall in an `OPEN` covering period (409 `no_fiscal_period` / `period_locked`); 409 `already_posted` if not a draft. Assigns the number, sets `postedAt`, emits `voucher.posted` |
+| POST   | `/v1/accounting/vouchers/:voucherId/reverse`   | `accounting.post`   | 201; only a `POSTED` voucher (409 `not_reversible`) that is not yet reversed (409 `already_reversed`). Creates an offsetting **posted** voucher (debit/credit swapped) into an OPEN period, sets the original to `REVERSED`, emits `voucher.reversed`. Body: optional `date`, `description`                  |
+| POST   | `/v1/accounting/vouchers/:voucherId/reconcile` | `accounting.manage` | body `{ reconciled }`; toggles `reconciledAt`. **409 `not_posted`** on a draft                                                                                                                                                                                                                               |
+
+### Voucher attachments (receipts)
+
+Multipart upload streamed through the API, same size/content-type validation as Phase 2
+attachments (max **25 MB**, allow-list). Downloads are presigned 5-minute GET URLs.
+
+| Method | Path                                                                        | Auth                | Notes                                            |
+| ------ | --------------------------------------------------------------------------- | ------------------- | ------------------------------------------------ |
+| GET    | `/v1/accounting/vouchers/:voucherId/attachments`                            | `accounting.read`   | newest-first                                     |
+| POST   | `/v1/accounting/vouchers/:voucherId/attachments`                            | `accounting.manage` | multipart; records `voucher_attachment.uploaded` |
+| GET    | `/v1/accounting/vouchers/:voucherId/attachments/:attachmentId/download-url` | `accounting.read`   | `{ url, expiresInSeconds }` — signed 5-min GET   |
+| DELETE | `/v1/accounting/vouchers/:voucherId/attachments/:attachmentId`              | `accounting.manage` | 204; deletes row + best-effort object            |
+
+### Reports & exports
+
+Figures cover **posted vouchers** by default; a `REVERSED` voucher is still counted (its
+offsetting reversal is posted, so the pair nets to zero). `?includeDrafts=true` folds draft
+vouchers in.
+
+| Method | Path                                       | Auth              | Notes                                                                                                                 |
+| ------ | ------------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/accounting/reports/trial-balance`     | `accounting.read` | per-account debit/credit/net + totals and `isBalanced`; `?from=`, `?to=`, `?includeDrafts=`                           |
+| GET    | `/v1/accounting/reports/general-ledger`    | `accounting.read` | per-account entries with opening/closing and **running balances**; `?accountId=`, `?from=`, `?to=`, `?includeDrafts=` |
+| GET    | `/v1/accounting/exports/trial-balance.csv` | `accounting.read` | CSV export (the first export format); same filters                                                                    |
+| GET    | `/v1/accounting/exports/journal.csv`       | `accounting.read` | CSV journal (one row per line) — same filters                                                                         |
+
+### Notable accounting error codes
+
+`duplicate_code` (409), `account_in_use` (409), `unknown_account` / `inactive_account` (400),
+`period_overlap` (409), `no_fiscal_period` (409), `period_locked` (409), `unbalanced` (400),
+`too_few_lines` (400), `zero_voucher` (400), `already_posted` (409), `voucher_immutable` (409),
+`not_reversible` (409), `already_reversed` (409), `not_posted` (409).
+
 ## OpenAPI
 
 - `GET /docs/json` serves the OpenAPI document in non-production environments.
