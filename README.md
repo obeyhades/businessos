@@ -4,26 +4,30 @@ Operational platform for small and medium-sized businesses: personnel, bookkeepi
 quotes/invoicing, calendar/tasks, email and voice notes — built as a modular monolith that
 grows module by module.
 
-**Current state (Phase 1):** authentication, organizations, memberships, roles/permissions,
-invitations, audit log and the dashboard shell are implemented. Everything else is planned,
-not built — see [docs/product-roadmap.md](docs/product-roadmap.md).
+**Current state (Phase 2):** on top of the Phase 1 foundation (authentication,
+organizations, memberships, roles/permissions, invitations, audit log, dashboard shell),
+Phase 2 ships a **customer registry with contacts, projects, tasks, threaded comments,
+file attachments (MinIO/S3), user-facing activity timelines and org-wide search** — all
+tenant-isolated and permission-scoped. Everything from Phase 3 on is planned, not built —
+see [docs/product-roadmap.md](docs/product-roadmap.md).
 
-| Phase | Scope                                             | Status      |
-| ----- | ------------------------------------------------- | ----------- |
-| 0–1   | Foundation, auth, orgs, RBAC, audit, dashboard    | In progress |
-| 2     | Customers, projects, tasks, file attachments      | Planned     |
-| 3     | Personnel                                         | Planned     |
-| 4     | Quotes & invoicing                                | Planned     |
-| 5     | Bookkeeping support                               | Planned     |
-| 6     | Calendar                                          | Planned     |
-| 7     | Email module                                      | Planned     |
-| 8     | Voice notes                                       | Planned     |
-| 9     | External integrations, data retention, org export | Planned     |
+| Phase | Scope                                                                         | Status  |
+| ----- | ----------------------------------------------------------------------------- | ------- |
+| 0–1   | Foundation, auth, orgs, RBAC, audit, dashboard                                | Done    |
+| 2     | Customers, contacts, projects, tasks, comments, attachments, activity, search | Done    |
+| 3     | Personnel                                                                     | Next    |
+| 4     | Quotes & invoicing                                                            | Planned |
+| 5     | Bookkeeping support                                                           | Planned |
+| 6     | Calendar                                                                      | Planned |
+| 7     | Email module                                                                  | Planned |
+| 8     | Voice notes                                                                   | Planned |
+| 9     | External integrations, data retention, org export                             | Planned |
 
 ## Architecture
 
 Modular monolith (Fastify API) + separate background worker, one PostgreSQL database,
-RabbitMQ for async jobs, MinIO for files (Phase 2+), Mailpit for local email.
+RabbitMQ for async jobs, MinIO for files (used from Phase 2 for attachments), Mailpit for
+local email.
 
 ```
 ┌─────────┐  HTTP (cookie session)  ┌─────────┐        ┌────────────┐
@@ -87,7 +91,10 @@ More detail (including Windows notes and troubleshooting) in
 
 ## Demo credentials
 
-Seeded by `pnpm db:seed` into the organization **Demo Hantverk AB**:
+Seeded by `pnpm db:seed` into the organization **Demo Hantverk AB**. The seed also loads
+Phase 2 demo data: customers (**Lindqvist Fastigheter AB**, **Berg & Söner Bygg**,
+**Solgården Restaurang**), their contacts, projects, tasks in various statuses, comments and
+a populated activity feed — enough to exercise the list/detail/timeline/search UI.
 
 | Email                              | Password             | Role       | Notes               |
 | ---------------------------------- | -------------------- | ---------- | ------------------- |
@@ -104,6 +111,11 @@ Seeded by `pnpm db:seed` into the organization **Demo Hantverk AB**:
 | Mailpit (email)     | http://localhost:8025  | none                                   |
 | RabbitMQ management | http://localhost:15672 | `businessos` / `businessos`            |
 | MinIO console       | http://localhost:9001  | `businessos` / `businessos-dev-secret` |
+
+File attachments (Phase 2) use the S3-compatible object store configured via `S3_*` in
+`.env` (defaults in `.env.example`): `S3_ENDPOINT` (`http://localhost:9000`),
+`S3_ACCESS_KEY` (`businessos`), `S3_SECRET_KEY` (`businessos-dev-secret`), `S3_BUCKET`
+(`businessos`), `S3_REGION` (`us-east-1`). In production `S3_SECRET_KEY` is a real secret.
 
 ## Testing
 

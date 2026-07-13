@@ -1,6 +1,6 @@
 'use client';
 
-import { Input, Label } from '@businessos/ui';
+import { Input, Label, Textarea } from '@businessos/ui';
 import type { ComponentProps } from 'react';
 
 interface TextFieldProps extends ComponentProps<typeof Input> {
@@ -16,6 +16,33 @@ export function TextField({ id, label, error, ...props }: TextFieldProps) {
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        {...props}
+      />
+      {error ? (
+        <p id={errorId} role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+interface TextareaFieldProps extends ComponentProps<typeof Textarea> {
+  id: string;
+  label: string;
+  error?: string;
+}
+
+/** Label + textarea + inline error, mirroring TextField. */
+export function TextareaField({ id, label, error, ...props }: TextareaFieldProps) {
+  const errorId = `${id}-error`;
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}

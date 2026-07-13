@@ -19,7 +19,10 @@
     "errorTitle": "Something went wrong",
     "languageEn": "English",
     "languageSv": "Swedish",
-    "you": "You"
+    "you": "You",
+    "status": "Status",
+    "edit": "Edit",
+    "remove": "Remove"
   },
   "errors": {
     "unauthorized": "You need to be logged in to do that.",
@@ -50,6 +53,9 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "customers": "Customers",
+    "projects": "Projects",
+    "tasks": "Tasks",
     "members": "Members",
     "auditLog": "Audit log",
     "settings": "Settings",
@@ -149,6 +155,16 @@
       "title": "Recent activity",
       "empty": "No activity recorded yet.",
       "viewAll": "View audit log"
+    },
+    "myTasks": {
+      "title": "My open tasks",
+      "description": "Tasks assigned to you that still need attention.",
+      "empty": "You have no open tasks. Nice work!",
+      "viewAll": "View all tasks"
+    },
+    "activityFeed": {
+      "title": "Latest updates",
+      "description": "Recent activity across customers, projects and tasks."
     },
     "comingSoon": {
       "title": "Coming soon",
@@ -270,6 +286,218 @@
       "retryDescription": "Requeue this {type} job from {queue}?",
       "retrySuccess": "Job requeued.",
       "forbidden": "You need platform administrator access to view this page."
+    }
+  },
+  "customerStatus": {
+    "LEAD": "Lead",
+    "ACTIVE": "Active",
+    "ARCHIVED": "Archived"
+  },
+  "projectStatus": {
+    "label": "Status",
+    "ACTIVE": "Active",
+    "ON_HOLD": "On hold",
+    "COMPLETED": "Completed",
+    "ARCHIVED": "Archived"
+  },
+  "taskStatus": {
+    "label": "Status",
+    "TODO": "To do",
+    "IN_PROGRESS": "In progress",
+    "BLOCKED": "Blocked",
+    "DONE": "Done",
+    "CANCELLED": "Cancelled"
+  },
+  "taskPriority": {
+    "LOW": "Low",
+    "MEDIUM": "Medium",
+    "HIGH": "High",
+    "URGENT": "Urgent"
+  },
+  "activity": {
+    "empty": "No activity yet.",
+    "someone": "Someone"
+  },
+  "activityTypes": {
+    "customer_created": "{actor} created this customer",
+    "customer_updated": "{actor} updated this customer",
+    "customer_archived": "{actor} archived this customer",
+    "contact_added": "{actor} added a contact",
+    "project_created": "{actor} created this project",
+    "project_updated": "{actor} updated this project",
+    "project_status_changed": "{actor} changed the project status",
+    "task_created": "{actor} created this task",
+    "task_status_changed": "{actor} changed the task status",
+    "task_completed": "{actor} completed this task",
+    "task_assigned": "{actor} reassigned this task",
+    "comment_added": "{actor} left a comment",
+    "attachment_added": "{actor} added an attachment"
+  },
+  "customers": {
+    "title": "Customers",
+    "new": "New customer",
+    "searchPlaceholder": "Search customers",
+    "filterStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "empty": "No customers yet.",
+    "emptyDescription": "Create your first customer to start tracking contacts, projects and tasks.",
+    "emptyFiltered": "No customers match your filters.",
+    "table": {
+      "name": "Name",
+      "city": "City"
+    },
+    "backToList": "Back to customers",
+    "overview": "Overview",
+    "address": "Address",
+    "attachments": "Attachments",
+    "comments": "Comments",
+    "activity": "Activity",
+    "archive": "Archive",
+    "archiveTitle": "Archive customer",
+    "archiveDescription": "Archive {name}? They will be hidden from the active list but not deleted.",
+    "archivedToast": "Customer archived.",
+    "form": {
+      "createTitle": "New customer",
+      "editTitle": "Edit customer",
+      "description": "Basic details for this customer.",
+      "name": "Name",
+      "orgNumber": "Organization number",
+      "phone": "Phone",
+      "addressLine1": "Address line 1",
+      "addressLine2": "Address line 2",
+      "postalCode": "Postal code",
+      "city": "City",
+      "country": "Country",
+      "notes": "Notes",
+      "created": "Customer created.",
+      "updated": "Customer updated."
+    }
+  },
+  "contacts": {
+    "title": "Contacts",
+    "add": "Add contact",
+    "empty": "No contacts yet.",
+    "primary": "Primary",
+    "jobTitle": "Title",
+    "phone": "Phone",
+    "markPrimary": "Mark as primary contact",
+    "addTitle": "Add contact",
+    "editTitle": "Edit contact",
+    "created": "Contact added.",
+    "updated": "Contact updated.",
+    "deleted": "Contact removed.",
+    "deleteTitle": "Remove contact",
+    "deleteDescription": "Remove {name} from this customer?"
+  },
+  "comments": {
+    "addPlaceholder": "Write a comment…",
+    "submit": "Comment",
+    "empty": "No comments yet.",
+    "delete": "Delete",
+    "deleted": "Comment deleted.",
+    "deleteTitle": "Delete comment",
+    "deleteDescription": "Delete this comment? This cannot be undone.",
+    "unknownAuthor": "Unknown"
+  },
+  "attachments": {
+    "upload": "Upload file",
+    "uploaded": "File uploaded.",
+    "empty": "No attachments yet.",
+    "download": "Download",
+    "delete": "Delete",
+    "deleted": "Attachment deleted.",
+    "meta": "{size} · {author} · {date}",
+    "unknownUploader": "Unknown",
+    "invalidType": "That file type is not allowed.",
+    "tooLarge": "The file is too large. Maximum size is {max}.",
+    "deleteTitle": "Delete attachment",
+    "deleteDescription": "Delete {name}? This cannot be undone."
+  },
+  "projects": {
+    "title": "Projects",
+    "new": "New project",
+    "filterStatus": "Filter by status",
+    "allStatuses": "All statuses",
+    "filterCustomer": "Filter by customer",
+    "allCustomers": "All customers",
+    "empty": "No projects yet.",
+    "emptyDescription": "Create a project to organise the work you do for a customer.",
+    "emptyFiltered": "No projects match your filters.",
+    "table": {
+      "name": "Name",
+      "customer": "Customer",
+      "created": "Created"
+    },
+    "backToList": "Back to projects",
+    "forCustomer": "For",
+    "tasks": "Tasks",
+    "noTasks": "No tasks in this project yet.",
+    "attachments": "Attachments",
+    "comments": "Comments",
+    "activity": "Activity",
+    "form": {
+      "createTitle": "New project",
+      "editTitle": "Edit project",
+      "name": "Name",
+      "description": "Description",
+      "customer": "Customer",
+      "noCustomer": "No customer",
+      "created": "Project created.",
+      "updated": "Project updated."
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "new": "New task",
+    "searchPlaceholder": "Search tasks",
+    "filterPriority": "Filter by priority",
+    "allPriorities": "All priorities",
+    "filterAssignee": "Filter by assignee",
+    "allAssignees": "All assignees",
+    "mine": "My tasks",
+    "empty": "No tasks yet.",
+    "emptyDescription": "Create a task to track work that needs to get done.",
+    "unassigned": "Unassigned",
+    "due": "Due {date}",
+    "backToList": "Back to tasks",
+    "details": "Details",
+    "noDescription": "No description.",
+    "attachments": "Attachments",
+    "comments": "Comments",
+    "activity": "Activity",
+    "completedAt": "Completed",
+    "deleted": "Task deleted.",
+    "delete": "Delete",
+    "deleteTitle": "Delete task",
+    "deleteDescription": "Delete \"{title}\"? This cannot be undone.",
+    "form": {
+      "createTitle": "New task",
+      "editTitle": "Edit task",
+      "titleField": "Title",
+      "description": "Description",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "customer": "Customer",
+      "noCustomer": "No customer",
+      "project": "Project",
+      "noProject": "No project",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "created": "Task created.",
+      "updated": "Task updated."
+    }
+  },
+  "search": {
+    "trigger": "Search",
+    "title": "Search",
+    "placeholder": "Search customers, projects and tasks…",
+    "hint": "Start typing to search.",
+    "error": "Search failed. Please try again.",
+    "empty": "No results for \"{term}\".",
+    "kind": {
+      "customer": "Customer",
+      "project": "Project",
+      "task": "Task"
     }
   }
 }

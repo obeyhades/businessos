@@ -106,6 +106,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   await app.register(multipart, {
     limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1 },
+    // Truncate oversized uploads instead of throwing, so the attachment route's
+    // own guard reports a clean 400 file_too_large (a thrown 413 would surface
+    // as a generic 500 through the error handler).
+    throwFileSizeLimit: false,
   });
 
   await registerSecurity(app);

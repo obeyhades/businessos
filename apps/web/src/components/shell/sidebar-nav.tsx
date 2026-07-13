@@ -1,7 +1,16 @@
 'use client';
 
 import { cn } from '@businessos/ui';
-import { LayoutDashboard, ScrollText, Settings, Users, Wrench } from 'lucide-react';
+import {
+  Briefcase,
+  CircleCheck,
+  LayoutDashboard,
+  ScrollText,
+  Settings,
+  Users,
+  UsersRound,
+  Wrench,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -9,7 +18,15 @@ import { can, useSession } from '@/lib/session';
 
 interface NavItem {
   href: string;
-  labelKey: 'dashboard' | 'members' | 'auditLog' | 'settings' | 'failedJobs';
+  labelKey:
+    | 'dashboard'
+    | 'customers'
+    | 'projects'
+    | 'tasks'
+    | 'members'
+    | 'auditLog'
+    | 'settings'
+    | 'failedJobs';
   icon: typeof LayoutDashboard;
   visible: boolean;
 }
@@ -21,6 +38,24 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const items: NavItem[] = [
     { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, visible: true },
+    {
+      href: '/customers',
+      labelKey: 'customers',
+      icon: UsersRound,
+      visible: can(session, 'customers.read'),
+    },
+    {
+      href: '/projects',
+      labelKey: 'projects',
+      icon: Briefcase,
+      visible: can(session, 'projects.read'),
+    },
+    {
+      href: '/tasks',
+      labelKey: 'tasks',
+      icon: CircleCheck,
+      visible: can(session, 'tasks.read'),
+    },
     { href: '/members', labelKey: 'members', icon: Users, visible: can(session, 'members.read') },
     {
       href: '/audit-log',

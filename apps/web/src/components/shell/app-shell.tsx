@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
+import { GlobalSearch } from '@/components/phase2/global-search';
 import { OrgSwitcher } from './org-switcher';
 import { SidebarNav } from './sidebar-nav';
 import { UserMenu } from './user-menu';
@@ -69,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
           <OrgSwitcher />
           <div className="flex-1" />
+          <GlobalSearch />
           <UserMenu />
         </header>
         <main className="flex-1 p-4 md:p-6">{children}</main>

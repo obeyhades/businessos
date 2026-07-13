@@ -40,6 +40,10 @@ helpers:
 - `audit` / `audit-logs` — audit recording service and read API
 - `admin` — platform-operator surface (failed jobs)
 - `outbox` — helper to enqueue domain events/commands inside a transaction
+- `customers` / `contacts` — customer registry and per-customer contacts (Phase 2)
+- `projects` / `tasks` — projects linked to customers, tasks linked to both (Phase 2)
+- `comments` / `attachments` — polymorphic notes and files over customers/projects/tasks (Phase 2)
+- `activity` / `search` — user-facing timeline feed and org-wide permission-scoped search (Phase 2)
 
 Hard rules enforced by structure:
 
@@ -111,6 +115,65 @@ Properties:
   require `SELECT … FOR UPDATE SKIP LOCKED` (documented upgrade path, ADR-0005).
 - Message envelope: `{ id, type, payload, occurredAt }`; `type` doubles as the AMQP
   routing key. Event types are defined in `packages/types/src/events.ts`.
+
+## Phase 2 — activity timeline, object storage, search
+
+### Activity timeline
+
+Phase 2 introduces two append-only logs that must not be confused:
+
+- **`audit_logs`** (Phase 1) — the **security** record: who did what, with IP and user
+  agent, for compliance and forensics. Written for every mutation.
+- **`activities`** (Phase 2) — the **user-facing** feed shown on customer/project/task
+  timelines and the dashboard. It records product-meaningful moments
+  (`customer.created`, `task.completed`, `task.status_changed`, `task.assigned`,
+  `comment.added`, `attachment.added`) with a human-readable `metadata` payload.
+
+Both are written inside the same Prisma transaction as the change they describe (via
+`recordAudit` and `recordActivity` in the respective services). Activity rows carry a
+**denormalized ownership chain**: `resolveEntityRef` walks task → project → customer once,
+and the resolved `customer_id`/`project_id` are copied onto the row. A customer timeline is
+then a single indexed read (`(organization_id, customer_id, created_at DESC)`) instead of a
+fan-out join across projects and tasks.
+
+Completing a task (first transition to `DONE`) additionally emits a **`task.completed`
+domain event** through the transactional outbox, so future consumers (notifications,
+reporting) can react without the API knowing about them. It rides the same
+`outbox_messages` → `businessos.events` path as Phase 1 events; it has no consumer yet.
+
+### Object storage flow
+
+File attachments are the first user of MinIO/S3, wrapped by the `ObjectStorage` class
+(`apps/api/src/lib/storage.ts`). Clients never talk to storage directly:
+
+```
+upload:   client ──multipart──▶ API validates (size ≤ 25 MB, content-type allow-list)
+                              ──▶ ObjectStorage.put(key, bytes) ──▶ MinIO
+                              ──▶ file_attachments row + audit + activity (one tx)
+download: client ──▶ API ──▶ ObjectStorage.getDownloadUrl(key) ──▶ presigned GET (5 min)
+                              ──▶ { url, expiresInSeconds }; client fetches bytes from MinIO
+```
+
+- Uploads stream through the API so validation happens server-side before anything is
+  stored; the client-declared size is never trusted (the byte length is measured from the
+  buffer and `@fastify/multipart` truncation is checked).
+- Object keys are namespaced per organization (`org/<orgId>/<uuid>/<safe-name>`), so keys
+  never collide and are trivially attributable to a tenant.
+- Downloads are **presigned GET URLs** valid for 5 minutes with a forced
+  `Content-Disposition` filename — the bucket itself stays private.
+- Writes are transactional-ish: the object is `put` first, then the metadata row; if the
+  row write fails the object is deleted to avoid orphans. On delete, the row goes first and
+  the object is removed best-effort.
+- `forcePathStyle` is required for MinIO. Configuration comes from the `S3_*` env vars (see
+  [security.md](security.md#secrets-and-configuration)).
+
+### Org-wide search
+
+`GET /v1/search` queries customers, projects and tasks in one call. It requires only a
+session, but **each entity type is searched only if the caller holds its `*.read`
+permission** (`hasPermission(role, 'customers.read')`, etc.). A role that cannot read tasks
+gets no task hits — search never becomes a side channel around the permission matrix. The
+result budget is split evenly across the permitted types.
 
 ## Where future modules attach
 

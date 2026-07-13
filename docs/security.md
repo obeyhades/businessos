@@ -72,7 +72,15 @@ in Phase 1 (`packages/types/src/audit.ts`):
 `organization.switched`, `member.invited`, `member.invitation_accepted`,
 `member.invitation_revoked`, `member.role_changed`, `member.removed`.
 
-Action identifiers are stable and never renamed.
+Phase 2 adds: `customer.created`, `customer.updated`, `customer.archived`,
+`project.created`, `project.updated`, `project.archived`, `task.created`, `task.updated`,
+`task.completed`, `task.deleted`, `comment.created`, `comment.deleted`,
+`attachment.uploaded`, `attachment.deleted`.
+
+Action identifiers are stable and never renamed. The audit log is distinct from the
+Phase 2 user-facing `activities` feed (see
+[architecture.md](architecture.md#activity-timeline)): the audit log is the security
+record, the activity feed is a product timeline.
 
 ## Tenant isolation
 
@@ -82,12 +90,57 @@ Action identifiers are stable and never renamed.
   before touching the session
 - Integration tests assert cross-tenant access fails (member of org A cannot read or
   mutate org B data) — this is a required part of the Phase 1 test suite
+- **Phase 2 resources** — customers, contacts, projects, tasks, comments, attachments and
+  activities all carry `organization_id` and are queried only through the session-resolved
+  organization. Polymorphic writes (comments/attachments) go through `resolveEntityRef`,
+  which looks the parent up scoped to the organization and throws 404 if it is not in the
+  caller's tenant — this is the isolation gate for every polymorphic insert. Signed
+  download URLs are minted only after the attachment row is confirmed to belong to the
+  caller's organization.
+
+## Attachment upload/download (Phase 2)
+
+File attachments stream through the API (`apps/api/src/modules/attachments`), which
+validates every upload server-side before storing anything:
+
+- **Size** — capped at `MAX_ATTACHMENT_BYTES` (**25 MB**). The **client-declared size is
+  never trusted**: the limit is enforced from the measured buffer length and the
+  `@fastify/multipart` truncation flag.
+- **Content type** — checked against the `ALLOWED_ATTACHMENT_TYPES` allow-list
+  (`packages/types/src/contracts/attachments.ts`): PNG, JPEG, GIF, WebP, PDF, plain text,
+  CSV, Word/Excel (`.doc`/`.docx`/`.xls`/`.xlsx`) and ZIP. Anything else is rejected 400.
+- **Private bucket, signed downloads** — clients never receive bucket credentials or a
+  public URL. Downloads are **presigned GET URLs valid for 5 minutes**
+  (`DOWNLOAD_URL_TTL_SECONDS`) with a forced download filename; the URL is issued only
+  after the row is confirmed in the caller's organization.
+- **Namespacing** — object keys are `org/<orgId>/<uuid>/<safe-name>`, so a leaked or
+  guessed key still maps to one tenant and cannot collide.
+
+## Search permission scoping (Phase 2)
+
+`GET /v1/search` requires a session but scopes results by permission: each of customers,
+projects and tasks is queried only when the caller holds its `*.read` permission. Roles
+never see entities they could not read directly — search is not a bypass around the
+permission matrix.
 
 ## Secrets and configuration
 
 Environment is validated with zod at startup in every app (`packages/config`);
 missing or invalid values abort boot with a readable report (e.g. `SESSION_SECRET`
 minimum length). No app starts partially configured.
+
+Object storage (Phase 2) is configured via `S3_*` variables, validated at API startup:
+
+| Variable        | Local value             | Purpose                                  |
+| --------------- | ----------------------- | ---------------------------------------- |
+| `S3_ENDPOINT`   | `http://localhost:9000` | S3-compatible endpoint (MinIO locally)   |
+| `S3_ACCESS_KEY` | `businessos`            | access key                               |
+| `S3_SECRET_KEY` | `businessos-dev-secret` | secret key — a real secret in production |
+| `S3_BUCKET`     | `businessos`            | bucket for attachments                   |
+| `S3_REGION`     | `us-east-1`             | region (required by the S3 SDK)          |
+
+`S3_SECRET_KEY` is a credential and must be rotated/managed like other secrets in
+production; the local value is a development default only.
 
 ## Not implemented yet (designed, Phase 9)
 

@@ -178,3 +178,19 @@ integration (auth flows, tenant isolation, RBAC, invitations, members, CSRF/secu
 health) and one Playwright e2e covering the main workflow. The api-client decision in §3
 reflects the implemented approach (shared zod contracts, hand-maintained client, generated
 OpenAPI document via `pnpm generate:openapi`).
+
+## 11. Status (2026-07-13, Phase 2)
+
+Phase 2 is implemented on top of the Phase 1 foundation: the `customers`, `contacts`,
+`projects`, `tasks`, `comments`, `attachments`, `activity` and `search` API modules, backed
+by seven new models (migration `20260713103911_phase2_customers_projects_tasks`) and shared
+zod contracts in `packages/types`. File attachments use MinIO/S3 through the `ObjectStorage`
+wrapper (server-side size + content-type validation, presigned 5-minute downloads); comments
+and attachments are polymorphic over customers/projects/tasks with the "exactly one parent"
+rule and tenant-isolation gate enforced in the service layer. A user-facing `activities`
+timeline (distinct from the security audit log, with a denormalized customer chain) and an
+org-wide, permission-scoped search complete the module, and completing a task emits a
+`task.completed` domain event on the existing outbox. The reviewed permission matrix already
+carried `customers.*`, `projects.*`, `tasks.*`, so no matrix change was needed. Docs
+(data-model, api, architecture, security, README, roadmap) are updated to match; Phase 3
+(Personnel) is next.

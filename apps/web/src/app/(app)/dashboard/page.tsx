@@ -13,13 +13,16 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { ErrorState, ListSkeleton } from '@/components/data-states';
+import { EmptyState, ErrorState, ListSkeleton } from '@/components/data-states';
+import { ActivityTimeline } from '@/components/phase2/activity-timeline';
+import { TaskPriorityBadge } from '@/components/phase2/badges';
 import { api } from '@/lib/api';
 import { useApiErrorMessage } from '@/lib/errors';
 import { activeMembership, can, useSession } from '@/lib/session';
 
+const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED'] as const;
+
 const COMING_SOON_MODULES = [
-  'customers',
   'invoicing',
   'bookkeeping',
   'calendar',
@@ -40,6 +43,16 @@ export default function DashboardPage() {
   const canReadMembers = can(session, 'members.read');
   const canInvite = can(session, 'members.invite');
   const canReadAudit = can(session, 'audit.read');
+  const canReadTasks = can(session, 'tasks.read');
+
+  const myTasksQuery = useQuery({
+    queryKey: ['tasks', 'mine', 'open'],
+    queryFn: () => api.tasks.list({ mine: true, pageSize: 50 }),
+    enabled: canReadTasks,
+  });
+  const myOpenTasks = (myTasksQuery.data?.items ?? [])
+    .filter((task) => (OPEN_TASK_STATUSES as readonly string[]).includes(task.status))
+    .slice(0, 5);
 
   const membersQuery = useQuery({
     queryKey: ['members', 'count'],
@@ -199,6 +212,57 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ) : null}
+
+        {canReadTasks ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('myTasks.title')}</CardTitle>
+              <CardDescription>{t('myTasks.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {myTasksQuery.isPending ? (
+                <ListSkeleton rows={3} />
+              ) : myTasksQuery.isError ? (
+                <ErrorState
+                  message={errorMessage(myTasksQuery.error)}
+                  onRetry={() => void myTasksQuery.refetch()}
+                />
+              ) : myOpenTasks.length === 0 ? (
+                <EmptyState title={t('myTasks.empty')} />
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {myOpenTasks.map((task) => (
+                    <li key={task.id} className="flex items-center justify-between gap-2">
+                      <Link
+                        href={`/tasks/${task.id}`}
+                        className="min-w-0 flex-1 truncate hover:underline"
+                      >
+                        {task.title}
+                      </Link>
+                      <TaskPriorityBadge priority={task.priority} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link href="/tasks">{t('myTasks.viewAll')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('activityFeed.title')}</CardTitle>
+            <CardDescription>{t('activityFeed.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ActivityTimeline
+              queryKey={['activity', 'recent']}
+              queryFn={() => api.activity.list({ page: 1, pageSize: 5 })}
+            />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

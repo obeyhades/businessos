@@ -1,7 +1,7 @@
 # Data model
 
 Source of truth: `packages/db/prisma/schema.prisma`. This document describes every table
-in the Phase 1 schema and the conventions later phases must follow.
+in the Phase 1 and Phase 2 schema and the conventions later phases must follow.
 
 ## Conventions
 
@@ -97,6 +97,101 @@ Jobs that exhausted retries (dead-lettered), surfaced in the platform-admin API.
 - `queue`, `message_type`, `payload` JSONB, `error`, `attempts`, `failed_at`,
   `retried_at` (set when re-enqueued through the outbox)
 - Index `failed_at DESC`
+
+## Phase 2 — customers, projects, tasks, comments, attachments, activity
+
+Added by migration `20260713103911_phase2_customers_projects_tasks`. Every table below
+carries `organization_id` for tenant isolation and cascade-deletes with its organization.
+
+Enums:
+
+- `CustomerStatus` — `LEAD`, `ACTIVE` (default), `ARCHIVED`
+- `ProjectStatus` — `ACTIVE` (default), `ON_HOLD`, `COMPLETED`, `ARCHIVED`
+- `TaskStatus` — `TODO` (default), `IN_PROGRESS`, `BLOCKED`, `DONE`, `CANCELLED`
+- `TaskPriority` — `LOW`, `MEDIUM` (default), `HIGH`, `URGENT`
+
+### customers
+
+Customer/company registry — the top of the Phase 2 ownership chain.
+
+- `name`, `org_number`, `email`, `phone`, address (`address_line1`, `address_line2`,
+  `postal_code`, `city`, `country`), `notes`, `status` (`CustomerStatus`)
+- `created_by_id` (SetNull on user deletion)
+- Indexes `(organization_id, status)` and `(organization_id, name)` for the filtered/sorted
+  list
+
+### customer_contacts
+
+People at a customer. Cascade-deletes with the customer.
+
+- `customer_id`, `name`, `email`, `phone`, `title`, `is_primary`
+- FK `customer_id` **Cascade**; indexes on `organization_id` and `customer_id`
+
+### projects
+
+Work engagement, optionally linked to a customer.
+
+- `customer_id` (nullable), `name`, `description`, `status` (`ProjectStatus`),
+  `created_by_id` (SetNull)
+- FK `customer_id` **SetNull** — deleting a customer detaches its projects rather than
+  deleting them
+- Indexes `(organization_id, status)` and `(customer_id)`
+
+### tasks
+
+Unit of work, optionally linked to a customer and/or project and assigned to a user.
+
+- `title`, `description`, `status` (`TaskStatus`), `priority` (`TaskPriority`), `due_date`
+- `customer_id`, `project_id`, `assignee_id`, `created_by_id` — all **SetNull**, so
+  deleting a customer/project/user detaches the task instead of destroying it
+- `completed_at` — set when the task first transitions to `DONE`, cleared if it leaves
+  `DONE` (see [architecture.md](architecture.md#activity-timeline)); the same transition
+  records a `task.completed` activity, audit action and outbox event
+- Indexes `(organization_id, status)`, `(organization_id, assignee_id)`, `(project_id)`,
+  `(customer_id)`
+
+### comments
+
+Polymorphic note attached to **exactly one** of a customer, project or task.
+
+- `author_id` (SetNull), `body`, plus three nullable parent FKs `customer_id`,
+  `project_id`, `task_id`
+- The "exactly one parent" rule is **enforced in the service layer** (there is no DB check
+  constraint): each polymorphic route sets exactly one FK from its URL, and `resolveEntityRef`
+  validates the parent belongs to the organization before the write
+- All three parent FKs are **Cascade** — a comment disappears with its parent
+- Indexes `(organization_id, customer_id)`, `(organization_id, project_id)`,
+  `(organization_id, task_id)`
+
+### file_attachments
+
+Metadata for a file stored in object storage (MinIO/S3). The bytes live under
+`storage_key`; clients only ever receive signed, short-lived download URLs.
+
+- `uploaded_by_id` (SetNull), `file_name`, `content_type`, `size` (bytes, server-measured),
+  `storage_key` (unique)
+- Polymorphic parent: exactly one of `customer_id`, `project_id`, `task_id`, all
+  **Cascade** — deleting the parent removes the attachment row (the object is best-effort
+  deleted by the service)
+- Indexes `(organization_id, customer_id)`, `(organization_id, project_id)`,
+  `(organization_id, task_id)`
+
+### activities
+
+Append-only **user-facing** timeline, distinct from the security `audit_logs` table
+(see [architecture.md](architecture.md#activity-timeline)).
+
+- `actor_user_id` (SetNull), `type` (stable string, e.g. `customer.created`,
+  `task.completed`, `task.status_changed`, `task.assigned`, `comment.added`,
+  `attachment.added`), `metadata` JSONB
+- `customer_id`, `project_id`, `task_id` — the **denormalized ownership chain**. When an
+  activity is recorded for a project or task, the resolved `customer_id` (and `project_id`
+  for a task) is copied onto the row so a customer timeline is a single indexed query
+  rather than a join across projects and tasks. `resolveEntityRef` computes this chain.
+- All three parent FKs are **Cascade**
+- Indexes `(organization_id, customer_id, created_at DESC)`,
+  `(organization_id, project_id, created_at DESC)`,
+  `(organization_id, task_id, created_at DESC)` — one per timeline scope
 
 ## Tenancy rule for future tables
 

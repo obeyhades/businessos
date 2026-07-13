@@ -19,7 +19,10 @@
     "errorTitle": "Något gick fel",
     "languageEn": "Engelska",
     "languageSv": "Svenska",
-    "you": "Du"
+    "you": "Du",
+    "status": "Status",
+    "edit": "Redigera",
+    "remove": "Ta bort"
   },
   "errors": {
     "unauthorized": "Du måste vara inloggad för att göra det här.",
@@ -50,6 +53,9 @@
   },
   "nav": {
     "dashboard": "Översikt",
+    "customers": "Kunder",
+    "projects": "Projekt",
+    "tasks": "Uppgifter",
     "members": "Medlemmar",
     "auditLog": "Aktivitetslogg",
     "settings": "Inställningar",
@@ -149,6 +155,16 @@
       "title": "Senaste aktivitet",
       "empty": "Ingen aktivitet registrerad ännu.",
       "viewAll": "Visa aktivitetslogg"
+    },
+    "myTasks": {
+      "title": "Mina öppna uppgifter",
+      "description": "Uppgifter som tilldelats dig och som behöver åtgärdas.",
+      "empty": "Du har inga öppna uppgifter. Bra jobbat!",
+      "viewAll": "Visa alla uppgifter"
+    },
+    "activityFeed": {
+      "title": "Senaste händelser",
+      "description": "Senaste aktivitet för kunder, projekt och uppgifter."
     },
     "comingSoon": {
       "title": "Kommer snart",
@@ -270,6 +286,218 @@
       "retryDescription": "Lägg tillbaka det här {type}-jobbet från {queue} i kön?",
       "retrySuccess": "Jobbet har lagts i kön igen.",
       "forbidden": "Du behöver plattformsadministratörsbehörighet för att se den här sidan."
+    }
+  },
+  "customerStatus": {
+    "LEAD": "Prospekt",
+    "ACTIVE": "Aktiv",
+    "ARCHIVED": "Arkiverad"
+  },
+  "projectStatus": {
+    "label": "Status",
+    "ACTIVE": "Aktiv",
+    "ON_HOLD": "Pausad",
+    "COMPLETED": "Avslutad",
+    "ARCHIVED": "Arkiverad"
+  },
+  "taskStatus": {
+    "label": "Status",
+    "TODO": "Att göra",
+    "IN_PROGRESS": "Pågår",
+    "BLOCKED": "Blockerad",
+    "DONE": "Klar",
+    "CANCELLED": "Avbruten"
+  },
+  "taskPriority": {
+    "LOW": "Låg",
+    "MEDIUM": "Medel",
+    "HIGH": "Hög",
+    "URGENT": "Brådskande"
+  },
+  "activity": {
+    "empty": "Ingen aktivitet ännu.",
+    "someone": "Någon"
+  },
+  "activityTypes": {
+    "customer_created": "{actor} skapade den här kunden",
+    "customer_updated": "{actor} uppdaterade den här kunden",
+    "customer_archived": "{actor} arkiverade den här kunden",
+    "contact_added": "{actor} lade till en kontakt",
+    "project_created": "{actor} skapade det här projektet",
+    "project_updated": "{actor} uppdaterade det här projektet",
+    "project_status_changed": "{actor} ändrade projektets status",
+    "task_created": "{actor} skapade den här uppgiften",
+    "task_status_changed": "{actor} ändrade uppgiftens status",
+    "task_completed": "{actor} slutförde den här uppgiften",
+    "task_assigned": "{actor} tilldelade om den här uppgiften",
+    "comment_added": "{actor} lämnade en kommentar",
+    "attachment_added": "{actor} lade till en bilaga"
+  },
+  "customers": {
+    "title": "Kunder",
+    "new": "Ny kund",
+    "searchPlaceholder": "Sök kunder",
+    "filterStatus": "Filtrera på status",
+    "allStatuses": "Alla statusar",
+    "empty": "Inga kunder ännu.",
+    "emptyDescription": "Skapa din första kund för att börja hantera kontakter, projekt och uppgifter.",
+    "emptyFiltered": "Inga kunder matchar dina filter.",
+    "table": {
+      "name": "Namn",
+      "city": "Ort"
+    },
+    "backToList": "Tillbaka till kunder",
+    "overview": "Översikt",
+    "address": "Adress",
+    "attachments": "Bilagor",
+    "comments": "Kommentarer",
+    "activity": "Aktivitet",
+    "archive": "Arkivera",
+    "archiveTitle": "Arkivera kund",
+    "archiveDescription": "Arkivera {name}? Kunden döljs från den aktiva listan men raderas inte.",
+    "archivedToast": "Kunden har arkiverats.",
+    "form": {
+      "createTitle": "Ny kund",
+      "editTitle": "Redigera kund",
+      "description": "Grunduppgifter för den här kunden.",
+      "name": "Namn",
+      "orgNumber": "Organisationsnummer",
+      "phone": "Telefon",
+      "addressLine1": "Adressrad 1",
+      "addressLine2": "Adressrad 2",
+      "postalCode": "Postnummer",
+      "city": "Ort",
+      "country": "Land",
+      "notes": "Anteckningar",
+      "created": "Kunden har skapats.",
+      "updated": "Kunden har uppdaterats."
+    }
+  },
+  "contacts": {
+    "title": "Kontakter",
+    "add": "Lägg till kontakt",
+    "empty": "Inga kontakter ännu.",
+    "primary": "Primär",
+    "jobTitle": "Titel",
+    "phone": "Telefon",
+    "markPrimary": "Markera som primär kontakt",
+    "addTitle": "Lägg till kontakt",
+    "editTitle": "Redigera kontakt",
+    "created": "Kontakten har lagts till.",
+    "updated": "Kontakten har uppdaterats.",
+    "deleted": "Kontakten har tagits bort.",
+    "deleteTitle": "Ta bort kontakt",
+    "deleteDescription": "Ta bort {name} från den här kunden?"
+  },
+  "comments": {
+    "addPlaceholder": "Skriv en kommentar…",
+    "submit": "Kommentera",
+    "empty": "Inga kommentarer ännu.",
+    "delete": "Radera",
+    "deleted": "Kommentaren har raderats.",
+    "deleteTitle": "Radera kommentar",
+    "deleteDescription": "Radera den här kommentaren? Det går inte att ångra.",
+    "unknownAuthor": "Okänd"
+  },
+  "attachments": {
+    "upload": "Ladda upp fil",
+    "uploaded": "Filen har laddats upp.",
+    "empty": "Inga bilagor ännu.",
+    "download": "Ladda ner",
+    "delete": "Radera",
+    "deleted": "Bilagan har raderats.",
+    "meta": "{size} · {author} · {date}",
+    "unknownUploader": "Okänd",
+    "invalidType": "Den filtypen är inte tillåten.",
+    "tooLarge": "Filen är för stor. Största tillåtna storlek är {max}.",
+    "deleteTitle": "Radera bilaga",
+    "deleteDescription": "Radera {name}? Det går inte att ångra."
+  },
+  "projects": {
+    "title": "Projekt",
+    "new": "Nytt projekt",
+    "filterStatus": "Filtrera på status",
+    "allStatuses": "Alla statusar",
+    "filterCustomer": "Filtrera på kund",
+    "allCustomers": "Alla kunder",
+    "empty": "Inga projekt ännu.",
+    "emptyDescription": "Skapa ett projekt för att organisera arbetet du gör åt en kund.",
+    "emptyFiltered": "Inga projekt matchar dina filter.",
+    "table": {
+      "name": "Namn",
+      "customer": "Kund",
+      "created": "Skapad"
+    },
+    "backToList": "Tillbaka till projekt",
+    "forCustomer": "För",
+    "tasks": "Uppgifter",
+    "noTasks": "Inga uppgifter i det här projektet ännu.",
+    "attachments": "Bilagor",
+    "comments": "Kommentarer",
+    "activity": "Aktivitet",
+    "form": {
+      "createTitle": "Nytt projekt",
+      "editTitle": "Redigera projekt",
+      "name": "Namn",
+      "description": "Beskrivning",
+      "customer": "Kund",
+      "noCustomer": "Ingen kund",
+      "created": "Projektet har skapats.",
+      "updated": "Projektet har uppdaterats."
+    }
+  },
+  "tasks": {
+    "title": "Uppgifter",
+    "new": "Ny uppgift",
+    "searchPlaceholder": "Sök uppgifter",
+    "filterPriority": "Filtrera på prioritet",
+    "allPriorities": "Alla prioriteter",
+    "filterAssignee": "Filtrera på ansvarig",
+    "allAssignees": "Alla ansvariga",
+    "mine": "Mina uppgifter",
+    "empty": "Inga uppgifter ännu.",
+    "emptyDescription": "Skapa en uppgift för att hålla koll på arbete som behöver göras.",
+    "unassigned": "Ej tilldelad",
+    "due": "Förfaller {date}",
+    "backToList": "Tillbaka till uppgifter",
+    "details": "Detaljer",
+    "noDescription": "Ingen beskrivning.",
+    "attachments": "Bilagor",
+    "comments": "Kommentarer",
+    "activity": "Aktivitet",
+    "completedAt": "Slutförd",
+    "deleted": "Uppgiften har raderats.",
+    "delete": "Radera",
+    "deleteTitle": "Radera uppgift",
+    "deleteDescription": "Radera \"{title}\"? Det går inte att ångra.",
+    "form": {
+      "createTitle": "Ny uppgift",
+      "editTitle": "Redigera uppgift",
+      "titleField": "Titel",
+      "description": "Beskrivning",
+      "priority": "Prioritet",
+      "dueDate": "Förfallodatum",
+      "customer": "Kund",
+      "noCustomer": "Ingen kund",
+      "project": "Projekt",
+      "noProject": "Inget projekt",
+      "assignee": "Ansvarig",
+      "unassigned": "Ej tilldelad",
+      "created": "Uppgiften har skapats.",
+      "updated": "Uppgiften har uppdaterats."
+    }
+  },
+  "search": {
+    "trigger": "Sök",
+    "title": "Sök",
+    "placeholder": "Sök kunder, projekt och uppgifter…",
+    "hint": "Börja skriva för att söka.",
+    "error": "Sökningen misslyckades. Försök igen.",
+    "empty": "Inga resultat för \"{term}\".",
+    "kind": {
+      "customer": "Kund",
+      "project": "Projekt",
+      "task": "Uppgift"
     }
   }
 }

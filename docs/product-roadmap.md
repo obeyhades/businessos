@@ -1,24 +1,29 @@
 # Product roadmap (Phases 2–9)
 
-Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell) is the current
-iteration — see [implementation-plan.md](implementation-plan.md). Everything below is
-planned, not built. Permissions for all of these modules already exist in the reviewed
-matrix (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
+Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell) and Phase 2
+(customers, projects, tasks, comments, attachments, activity, search) are **done** — see
+[implementation-plan.md](implementation-plan.md). **Phase 3 (Personnel) is next.**
+Everything from Phase 3 on is planned, not built. Permissions for all of these modules
+already exist in the reviewed matrix (`packages/types/src/permissions.ts`), and each module
+attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
 
-## Phase 2 — Customers, projects, tasks
+## Phase 2 — Customers, projects, tasks — **Done**
 
 First user of MinIO/S3 (file attachments).
 
-Definition of done:
+Delivered:
 
-- Customer registry with contacts; projects linked to customers; tasks linked to projects
-  with assignee, status and due date
-- File attachments stored in object storage, scoped to the organization
+- Customer registry with contacts; projects linked to customers; tasks linked to
+  customers/projects with assignee, status, priority and due date
+- Threaded comments and file attachments (25 MB / content-type allow-list, signed 5-minute
+  downloads) polymorphic over customers/projects/tasks, scoped to the organization
+- User-facing activity timelines (denormalized customer chain) and org-wide,
+  permission-scoped search; `task.completed` domain event on the outbox
 - Permissions `customers.*`, `projects.*`, `tasks.*` enforced end-to-end with tests
 - List/detail UI with loading/empty/error states, i18n (en/sv)
 
-## Phase 3 — Personnel
+## Phase 3 — Personnel — **Next**
 
 Definition of done:
 
