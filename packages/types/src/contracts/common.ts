@@ -11,6 +11,21 @@ export const currencySchema = z
   .regex(/^[A-Z]{3}$/, 'Must be an ISO 4217 currency code');
 
 /**
+ * Query-string boolean. NEVER use z.coerce.boolean() for query params: it is
+ * Boolean(value), so the string "false" coerces to true. This parses the usual
+ * truthy/falsy string forms and rejects anything else.
+ */
+export function booleanQueryParam(defaultValue = false) {
+  return z.preprocess((value) => {
+    if (value === undefined) return defaultValue;
+    if (typeof value === 'boolean') return value;
+    if (value === 'true' || value === '1') return true;
+    if (value === 'false' || value === '0' || value === '') return false;
+    return value; // z.boolean() rejects anything unexpected
+  }, z.boolean());
+}
+
+/**
  * Minimum 10 characters. Length over composition rules per current NIST /
  * OWASP guidance; a maximum guards against DoS via huge argon2 inputs.
  */

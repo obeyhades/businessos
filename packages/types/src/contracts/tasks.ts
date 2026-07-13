@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { timestampSchema, uuidSchema } from './common.js';
+import { booleanQueryParam, timestampSchema, uuidSchema } from './common.js';
 
 export const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'CANCELLED'] as const;
 export const taskStatusSchema = z.enum(TASK_STATUSES);
@@ -21,6 +21,7 @@ export const taskDtoSchema = z.object({
   completedAt: timestampSchema.nullable(),
   customer: miniRef.nullable(),
   project: miniRef.nullable(),
+  employee: miniRef.nullable(),
   assignee: z.object({ id: uuidSchema, name: z.string() }).nullable(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
@@ -70,8 +71,9 @@ export const taskListQuerySchema = z.object({
   assigneeId: uuidSchema.optional(),
   customerId: uuidSchema.optional(),
   projectId: uuidSchema.optional(),
+  employeeId: uuidSchema.optional(),
   // 'me' resolves to the authenticated user server-side.
-  mine: z.coerce.boolean().optional(),
+  mine: booleanQueryParam(false),
   search: z.string().trim().max(200).optional(),
 });
 export type TaskListQuery = z.infer<typeof taskListQuerySchema>;

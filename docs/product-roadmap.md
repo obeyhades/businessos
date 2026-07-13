@@ -1,11 +1,11 @@
 # Product roadmap (Phases 2–9)
 
-Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell) and Phase 2
-(customers, projects, tasks, comments, attachments, activity, search) are **done** — see
-[implementation-plan.md](implementation-plan.md). **Phase 3 (Personnel) is next.**
-Everything from Phase 3 on is planned, not built. Permissions for all of these modules
-already exist in the reviewed matrix (`packages/types/src/permissions.ts`), and each module
-attaches per the patterns in
+Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
+(customers, projects, tasks, comments, attachments, activity, search) and Phase 3
+(personnel) are **done** — see [implementation-plan.md](implementation-plan.md).
+**Phase 4 (Quotes & invoicing) is next.** Everything from Phase 4 on is planned, not built.
+Permissions for all of these modules already exist in the reviewed matrix
+(`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
 
 ## Phase 2 — Customers, projects, tasks — **Done**
@@ -23,14 +23,28 @@ Delivered:
 - Permissions `customers.*`, `projects.*`, `tasks.*` enforced end-to-end with tests
 - List/detail UI with loading/empty/error states, i18n (en/sv)
 
-## Phase 3 — Personnel — **Next**
+## Phase 3 — Personnel — **Done**
 
-Definition of done:
+Delivered:
 
-- Employee records with employment data; sensitive fields (personnummer, salary) readable
-  only with `personnel.read_sensitive`
-- Audit log entries for every read of sensitive data
-- GDPR impact assessed for the fields stored (feeds Phase 9 retention work)
+- Employee records with a **two-tier sensitivity model** — directory fields
+  (`personnel.read`) separated from sensitive personal data (personnummer, date of birth,
+  home address, emergency contact — `personnel.read_sensitive`, OWNER/ADMIN only); the
+  sensitive block is omitted from serialization for everyone else and never appears in the
+  list
+- `employee.sensitive_viewed` **audit entry on every sensitive detail read**; sensitive
+  writes and internal notes also gated by `personnel.read_sensitive`; sensitive documents
+  return 404 to directory-only viewers; pino redaction of the personal fields
+- Certifications with an expiry dashboard query, an absence-request workflow
+  (request → review/cancel), and categorized employee documents on MinIO/S3
+- **Onboarding templates that generate real, dated tasks** linked to the employee, feeding
+  the shared activity timeline via the denormalized `employee_id`
+- Permissions `personnel.read`, `personnel.read_sensitive`, `personnel.manage` enforced
+  end-to-end; search extended to `kind: 'employee'` (directory fields only)
+
+GDPR note: the stored fields are special-category personal data and still **require legal/DPO
+review** (lawful basis, retention, right-to-erasure) — feeds the Phase 9 retention/export
+work. See [legal-review-required.md](legal-review-required.md).
 
 ## Phase 4 — Quotes & invoicing
 

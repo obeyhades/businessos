@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const tCommon = useTranslations('common');
   const tRoles = useTranslations('roles');
   const tActions = useTranslations('auditActions');
+  const tPersonnel = useTranslations('dashboardPersonnel');
   const format = useFormatter();
   const errorMessage = useApiErrorMessage();
 
@@ -44,6 +45,13 @@ export default function DashboardPage() {
   const canInvite = can(session, 'members.invite');
   const canReadAudit = can(session, 'audit.read');
   const canReadTasks = can(session, 'tasks.read');
+  const canReadPersonnel = can(session, 'personnel.read');
+
+  const expiringCertsQuery = useQuery({
+    queryKey: ['certifications', 'expiring', 60],
+    queryFn: () => api.certifications.expiring(60),
+    enabled: canReadPersonnel,
+  });
 
   const myTasksQuery = useQuery({
     queryKey: ['tasks', 'mine', 'open'],
@@ -263,6 +271,51 @@ export default function DashboardPage() {
             />
           </CardContent>
         </Card>
+
+        {canReadPersonnel ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{tPersonnel('expiringTitle')}</CardTitle>
+              <CardDescription>{tPersonnel('expiringDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {expiringCertsQuery.isPending ? (
+                <ListSkeleton rows={3} />
+              ) : expiringCertsQuery.isError ? (
+                <ErrorState
+                  message={errorMessage(expiringCertsQuery.error)}
+                  onRetry={() => void expiringCertsQuery.refetch()}
+                />
+              ) : expiringCertsQuery.data.length === 0 ? (
+                <EmptyState title={tPersonnel('expiringEmpty')} />
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {expiringCertsQuery.data.slice(0, 5).map((cert) => (
+                    <li key={cert.id} className="flex items-center justify-between gap-2">
+                      <Link
+                        href={`/employees/${cert.employee.id}`}
+                        className="min-w-0 flex-1 truncate hover:underline"
+                      >
+                        {cert.name}
+                      </Link>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {tPersonnel('expiringMeta', {
+                          name: cert.employee.name,
+                          date: cert.expiresAt
+                            ? format.dateTime(new Date(cert.expiresAt), { dateStyle: 'medium' })
+                            : '—',
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link href="/employees">{tPersonnel('viewAll')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>

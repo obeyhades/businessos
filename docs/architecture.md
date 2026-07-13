@@ -44,6 +44,9 @@ helpers:
 - `projects` / `tasks` — projects linked to customers, tasks linked to both (Phase 2)
 - `comments` / `attachments` — polymorphic notes and files over customers/projects/tasks (Phase 2)
 - `activity` / `search` — user-facing timeline feed and org-wide permission-scoped search (Phase 2)
+- `employees` — employee directory + sensitive tier, onboarding template application, per-employee activity (Phase 3)
+- `employee-notes` / `certifications` / `absences` / `employee-documents` — restricted notes, qualifications, leave workflow, and categorized documents (Phase 3)
+- `onboarding-templates` — reusable onboarding/offboarding checklists that generate tasks (Phase 3)
 
 Hard rules enforced by structure:
 
@@ -175,6 +178,57 @@ permission** (`hasPermission(role, 'customers.read')`, etc.). A role that cannot
 gets no task hits — search never becomes a side channel around the permission matrix. The
 result budget is split evenly across the permitted types.
 
+## Phase 3 — personnel
+
+### Sensitive-data serialization gate
+
+The personnel module reuses everything above, and adds one architectural element: a
+**serialization gate** for the two-tier employee model. Directory fields (`personnel.read`)
+and sensitive personal fields (`personnel.read_sensitive`) live in one `employees` row; the
+tier split is not a database concern but a serialization one. `toEmployeeDto`
+(`apps/api/src/lib/mappers-personnel.ts`) attaches the `sensitive` block only when the route
+passes `includeSensitive: true`, which it computes from the caller's role. The list endpoint
+always passes `false`; the detail endpoint passes the permission check and, when it grants
+access, writes an `employee.sensitive_viewed` audit row. Symmetrically, write handlers reject
+sensitive-field mutations from callers lacking `read_sensitive`. See
+[security.md](security.md#personnel-sensitive-data-handling-phase-3).
+
+### Onboarding automation
+
+Onboarding/offboarding checklists are **templates that generate real tasks**, so onboarding
+work shows up in the same task lists and timelines as everything else — no separate checklist
+subsystem.
+
+```
+OnboardingTemplate (name, type, items[])            apply
+   item{ title, description, dueOffsetDays } ──────────────▶ POST /v1/employees/:id/apply-template
+                                                                    │  (one Prisma transaction)
+                                                                    ▼
+   for each template item:  Task{ employeeId, title, description,
+                                  dueDate = (employee.startDate ?? now) + dueOffsetDays,
+                                  assignee = explicit ?? manager's user ?? actor }
+                                                                    │
+                                              + audit onboarding_template.applied
+                                              + activity employee.onboarding_started
+```
+
+- Each item's `dueOffsetDays` is added to the employee's `startDate` (or now, if unset) to
+  date the generated task; the assignee falls back explicit → the employee's manager's linked
+  user → the acting user, and is dropped if that user is not an org member.
+- The generated `tasks` carry `employeeId`, so they are ordinary tasks that also appear on the
+  employee's record. Applying a template returns `{ createdTaskCount }`.
+
+### Personnel activities on the shared timeline
+
+Personnel events feed the **same `activities` table** as Phase 2, using the new
+`activities.employee_id` denormalization column (index `(organization_id, employee_id,
+created_at DESC)`). `recordActivity` is called with an `{ employeeId }` ref, so an employee
+timeline (`GET /v1/employees/:id/activity`) is a single indexed read, exactly like the
+customer/project/task timelines. Phase 3 activity types: `employee.created`,
+`employee.status_changed`, `employee.onboarding_started`, `certification.added`,
+`absence.requested`, `absence.approved`, `absence.rejected`, `document.added`, `note.added`.
+No new outbox event types were added in Phase 3.
+
 ## Where future modules attach
 
 Each later phase adds a module directory under `apps/api/src/modules/`, tables with
@@ -184,8 +238,8 @@ Each later phase adds a module directory under `apps/api/src/modules/`, tables w
 
 - **Customers/projects/tasks (Phase 2)** — first user of MinIO (file attachments);
   permissions `customers.*`, `projects.*`, `tasks.*` already exist in the matrix.
-- **Personnel (Phase 3)** — sensitive fields gated by a dedicated
-  `personnel.read_sensitive` permission.
+- **Personnel (Phase 3, done)** — sensitive fields gated by a dedicated
+  `personnel.read_sensitive` permission (see the Phase 3 section above).
 - **Quotes/invoicing (Phase 4)** and **bookkeeping (Phase 5)** — money as integer minor
   units and per-organization currency are locked in now (see
   [data-model.md](data-model.md)); PDF/email delivery rides the existing outbox →

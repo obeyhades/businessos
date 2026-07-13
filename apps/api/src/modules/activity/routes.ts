@@ -1,4 +1,11 @@
-import { activityDtoSchema, paginatedSchema, paginationQuerySchema } from '@businessos/types';
+import {
+  activityDtoSchema,
+  hasPermission,
+  paginatedSchema,
+  paginationQuerySchema,
+  type OrganizationRole,
+} from '@businessos/types';
+import type { Prisma } from '@businessos/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { toActivityDto } from '../../lib/mappers-domain.js';
@@ -19,9 +26,16 @@ export function registerActivityRoutes(app: FastifyInstance): void {
       response: { 200: paginatedSchema(activityDtoSchema) },
     },
     handler: async (request, reply) => {
-      const { organizationId } = orgContext(request);
+      const { organizationId, role } = orgContext(request);
       const { skip, take } = toSkipTake(request.query);
-      const where = { organizationId };
+      // Personnel activity (employee-linked rows) carries HR data — names,
+      // sick-leave, document names. Callers without personnel.read must not see
+      // it in the org-wide feed, mirroring the per-permission scoping of search.
+      const canSeePersonnel = hasPermission(role as OrganizationRole, 'personnel.read');
+      const where: Prisma.ActivityWhereInput = {
+        organizationId,
+        ...(canSeePersonnel ? {} : { employeeId: null }),
+      };
       const [rows, total] = await Promise.all([
         app.prisma.activity.findMany({
           where,

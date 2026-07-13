@@ -4,11 +4,15 @@ import type {
   ContactDto,
   CreateContactBody,
   CreateCustomerBody,
+  CreateEmployeeBody,
   CreateProjectBody,
   CreateTaskBody,
+  CreateTemplateBody,
   CustomerDto,
+  EmployeeDto,
   EntityKind,
   InvitationDto,
+  OnboardingTemplateDto,
   OrganizationDto,
   ProjectDto,
   SessionDto,
@@ -80,6 +84,16 @@ const ALL_TABLES = [
   'projects',
   'customer_contacts',
   'customers',
+  // Phase 3 personnel tables. Truncating employees/onboarding_templates already
+  // cascades to their children, but every table is listed explicitly so the
+  // reset is order independent and obvious.
+  'employee_notes',
+  'certifications',
+  'absence_requests',
+  'employee_documents',
+  'onboarding_template_items',
+  'onboarding_templates',
+  'employees',
 ];
 
 export async function truncateAll(prisma: PrismaClient): Promise<void> {
@@ -372,6 +386,63 @@ export async function uploadAttachmentViaApi(
   return app.inject({
     method: 'POST',
     url: `/v1/${KIND_PATH[kind]}/${entityId}/attachments`,
+    headers: { origin: WEB_ORIGIN, 'content-type': contentType },
+    cookies: { [SESSION_COOKIE]: session.cookie },
+    remoteAddress: nextIp(),
+    payload,
+  });
+}
+
+// --- Phase 3 factories -----------------------------------------------------
+
+/** Creates an employee through the API using the actor's active organization. */
+export async function createEmployeeViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateEmployeeBody> = {},
+): Promise<EmployeeDto> {
+  const n = nextSeq();
+  const response = await api(ctx.app, 'POST', '/v1/employees', {
+    session,
+    body: { firstName: 'Emp', lastName: `Employee ${n}`, ...overrides },
+  });
+  expectStatus(response, 201, 'create employee');
+  return response.json<EmployeeDto>();
+}
+
+/** Creates an onboarding template (with items) through the API. */
+export async function createTemplateViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateTemplateBody> = {},
+): Promise<OnboardingTemplateDto> {
+  const response = await api(ctx.app, 'POST', '/v1/onboarding-templates', {
+    session,
+    body: { name: `Template ${nextSeq()}`, items: [], ...overrides },
+  });
+  expectStatus(response, 201, 'create onboarding template');
+  return response.json<OnboardingTemplateDto>();
+}
+
+/**
+ * Uploads an employee document via app.inject with a hand-built multipart body.
+ * category and sensitive travel as query params (not form fields).
+ */
+export async function uploadEmployeeDocumentViaApi(
+  app: FastifyInstance,
+  session: Actor,
+  employeeId: string,
+  file: UploadFile,
+  query: { category?: string; sensitive?: boolean } = {},
+): Promise<LightMyRequestResponse> {
+  const { payload, contentType } = buildMultipart(file);
+  const params = new URLSearchParams();
+  if (query.category !== undefined) params.set('category', query.category);
+  if (query.sensitive !== undefined) params.set('sensitive', String(query.sensitive));
+  const qs = params.toString();
+  return app.inject({
+    method: 'POST',
+    url: `/v1/employees/${employeeId}/documents${qs ? `?${qs}` : ''}`,
     headers: { origin: WEB_ORIGIN, 'content-type': contentType },
     cookies: { [SESSION_COOKIE]: session.cookie },
     remoteAddress: nextIp(),

@@ -75,6 +75,7 @@ export function toTaskDto(
   task: Task & {
     customer: MiniRef | null;
     project: MiniRef | null;
+    employee: { id: string; firstName: string; lastName: string } | null;
     assignee: MiniUser | null;
   },
 ): TaskDto {
@@ -88,6 +89,12 @@ export function toTaskDto(
     completedAt: task.completedAt?.toISOString() ?? null,
     customer: task.customer ? { id: task.customer.id, name: task.customer.name } : null,
     project: task.project ? { id: task.project.id, name: task.project.name } : null,
+    employee: task.employee
+      ? {
+          id: task.employee.id,
+          name: `${task.employee.firstName} ${task.employee.lastName}`.trim(),
+        }
+      : null,
     assignee: miniUser(task.assignee),
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),

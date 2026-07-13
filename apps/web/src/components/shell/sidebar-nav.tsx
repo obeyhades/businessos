@@ -3,7 +3,10 @@
 import { cn } from '@businessos/ui';
 import {
   Briefcase,
+  CalendarClock,
   CircleCheck,
+  ClipboardList,
+  Contact,
   LayoutDashboard,
   ScrollText,
   Settings,
@@ -24,6 +27,9 @@ interface NavItem {
     | 'projects'
     | 'tasks'
     | 'members'
+    | 'personnel'
+    | 'onboarding'
+    | 'absences'
     | 'auditLog'
     | 'settings'
     | 'failedJobs';
@@ -57,6 +63,24 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       visible: can(session, 'tasks.read'),
     },
     { href: '/members', labelKey: 'members', icon: Users, visible: can(session, 'members.read') },
+    {
+      href: '/employees',
+      labelKey: 'personnel',
+      icon: Contact,
+      visible: can(session, 'personnel.read'),
+    },
+    {
+      href: '/onboarding-templates',
+      labelKey: 'onboarding',
+      icon: ClipboardList,
+      visible: can(session, 'personnel.manage'),
+    },
+    {
+      href: '/absences',
+      labelKey: 'absences',
+      icon: CalendarClock,
+      visible: can(session, 'personnel.read'),
+    },
     {
       href: '/audit-log',
       labelKey: 'auditLog',

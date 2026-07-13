@@ -1,7 +1,7 @@
 # Data model
 
 Source of truth: `packages/db/prisma/schema.prisma`. This document describes every table
-in the Phase 1 and Phase 2 schema and the conventions later phases must follow.
+in the Phase 1, Phase 2 and Phase 3 schema and the conventions later phases must follow.
 
 ## Conventions
 
@@ -192,6 +192,119 @@ Append-only **user-facing** timeline, distinct from the security `audit_logs` ta
 - Indexes `(organization_id, customer_id, created_at DESC)`,
   `(organization_id, project_id, created_at DESC)`,
   `(organization_id, task_id, created_at DESC)` — one per timeline scope
+
+## Phase 3 — personnel
+
+Added by migration `20260713114021_phase3_personnel`. Seven new tables (plus `employee_id`
+columns on `tasks` and `activities`); every table carries `organization_id` and
+cascade-deletes with its organization.
+
+The defining concept is **two tiers of employee data**, separated by permission, not by
+table: **directory** fields (`personnel.read`) and **sensitive** personal fields
+(`personnel.read_sensitive`). The tiers live in the same `employees` row — the split is
+enforced in the API's serialization layer (`apps/api/src/lib/mappers-personnel.ts`), which
+attaches the sensitive block only for callers who hold `personnel.read_sensitive`. The
+columns are never hidden at the database level.
+
+Enums:
+
+- `EmploymentStatus` — `ONBOARDING` (default), `ACTIVE`, `ON_LEAVE`, `OFFBOARDING`,
+  `TERMINATED`
+- `EmploymentType` — `FULL_TIME` (default), `PART_TIME`, `CONTRACT`, `INTERN`, `TEMPORARY`
+- `AbsenceType` — `VACATION`, `SICK`, `PARENTAL`, `UNPAID`, `OTHER`
+- `AbsenceStatus` — `PENDING` (default), `APPROVED`, `REJECTED`, `CANCELLED`
+- `EmployeeDocumentCategory` — `CONTRACT`, `IDENTIFICATION`, `CERTIFICATE`, `POLICY`,
+  `OTHER` (default)
+- `ChecklistType` — `ONBOARDING` (default), `OFFBOARDING`
+
+### employees
+
+An employed person. Carries both data tiers.
+
+- **Directory tier** (`personnel.read`): `first_name`, `last_name`, `work_email`,
+  `work_phone`, `job_title`, `department`, `employment_status` (`EmploymentStatus`),
+  `employment_type` (`EmploymentType`), `start_date`, `end_date` (both `@db.Date`)
+- **Sensitive tier** (`personnel.read_sensitive`): `personal_id_number` (personnummer),
+  `date_of_birth` (`@db.Date`), home address (`home_address`, `home_postal_code`,
+  `home_city`), `personal_email`, `personal_phone`, and emergency contact
+  (`emergency_contact_name`, `emergency_contact_phone`, `emergency_contact_relation`)
+- `created_by_id` (SetNull on user deletion)
+- **Self-referential manager relation** — `manager_id` (nullable) FK to `employees`
+  (`EmployeeManager` relation) with **SetNull**: deleting a manager detaches their reports
+  rather than deleting them. A cannot-be-your-own-manager check lives in the service layer.
+- **Optional Employee ↔ User link** — `user_id` is nullable and **`@unique`** (at most one
+  employee per platform user); FK **SetNull**. An employee need not have a login, so this is
+  optional, not a foreign-keyed identity.
+- Indexes `(organization_id, employment_status)`, `(organization_id, last_name)` for the
+  filtered/sorted directory, and `(manager_id)` for the org chart
+
+### employee_notes
+
+Restricted internal notes about an employee — the most sensitive personnel data. Both read
+and write require `personnel.read_sensitive` (enforced in the route layer), stricter than
+directory access.
+
+- `employee_id` (**Cascade**), `author_id` (SetNull), `body`
+- Index `(organization_id, employee_id, created_at DESC)`
+
+### certifications
+
+Employee qualifications and their expiry, for compliance tracking.
+
+- `employee_id` (**Cascade**), `name`, `issuer`, `issued_date`, `expires_at` (both
+  `@db.Date`), `notes`
+- Indexes `(organization_id, expires_at)` — powers the "expiring soon" dashboard query —
+  and `(employee_id)`
+
+### absence_requests
+
+Vacation/sick/parental/other leave with a review workflow.
+
+- `employee_id` (**Cascade**), `type` (`AbsenceType`), `status` (`AbsenceStatus`, default
+  `PENDING`), `start_date`, `end_date` (both `@db.Date`), `reason`
+- Review fields: `reviewed_by_id` (SetNull), `reviewed_at`, `review_note`; `created_by_id`
+  (raw column, no FK relation in the model)
+- Indexes `(organization_id, status)` and `(employee_id)`
+
+### employee_documents
+
+Files for an employee, stored in object storage like Phase 2 attachments but with a
+category and a sensitivity flag.
+
+- `employee_id` (**Cascade**), `uploaded_by_id` (SetNull), `file_name`, `content_type`,
+  `size` (bytes, server-measured), `storage_key` (unique), `category`
+  (`EmployeeDocumentCategory`), `is_sensitive` (default `false`)
+- `is_sensitive = true` documents require `personnel.read_sensitive` to list or download;
+  directory-only viewers are given 404 (existence is not revealed) — see
+  [security.md](security.md#personnel-sensitive-data-handling-phase-3)
+- Index `(organization_id, employee_id)`
+
+### onboarding_templates
+
+Reusable onboarding/offboarding checklist templates. Applying one to an employee generates
+real `tasks` (see [architecture.md](architecture.md#onboarding-automation)).
+
+- `name`, `description`, `type` (`ChecklistType`), `created_by_id` (raw column)
+- Index `(organization_id, type)`
+
+### onboarding_template_items
+
+Ordered checklist items belonging to a template. Cascade-delete with the template.
+
+- `template_id` (**Cascade**), `title`, `description`, `due_offset_days` (task due date =
+  employee start date, or now, plus this many days), `sort_order`
+- Carries `organization_id` for consistency; index `(template_id, sort_order)`
+
+### tasks and activities — Phase 3 additions
+
+Both tables gained a nullable `employee_id` in this migration:
+
+- **`tasks.employee_id`** — links a task to an employee (used by generated onboarding
+  tasks). FK **SetNull**, so deleting an employee detaches their tasks rather than
+  destroying them. Index `(employee_id)`.
+- **`activities.employee_id`** — the denormalized employee scope for the activity timeline,
+  matching the existing customer/project/task chain. FK **Cascade** (an employee's timeline
+  disappears with the employee). Index `(organization_id, employee_id, created_at DESC)`.
 
 ## Tenancy rule for future tables
 

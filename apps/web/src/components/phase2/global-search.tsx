@@ -3,25 +3,27 @@
 import type { SearchResult, SearchResultKind } from '@businessos/types';
 import { Button, Dialog, DialogContent, DialogTitle, Input, Spinner } from '@businessos/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, CircleCheck, Search, Users } from 'lucide-react';
+import { Briefcase, CircleCheck, Contact, Search, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useDebounced } from '@/lib/use-debounced';
 
-const KIND_ORDER: readonly SearchResultKind[] = ['customer', 'project', 'task'];
+const KIND_ORDER: readonly SearchResultKind[] = ['customer', 'project', 'task', 'employee'];
 
 const kindPath: Record<SearchResultKind, string> = {
   customer: '/customers',
   project: '/projects',
   task: '/tasks',
+  employee: '/employees',
 };
 
 const kindIcon: Record<SearchResultKind, typeof Users> = {
   customer: Users,
   project: Briefcase,
   task: CircleCheck,
+  employee: Contact,
 };
 
 export function GlobalSearch() {

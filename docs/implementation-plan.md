@@ -179,6 +179,25 @@ health) and one Playwright e2e covering the main workflow. The api-client decisi
 reflects the implemented approach (shared zod contracts, hand-maintained client, generated
 OpenAPI document via `pnpm generate:openapi`).
 
+## 12. Status (2026-07-13, Phase 3)
+
+Phase 3 (Personnel) is implemented on top of Phase 2: the `employees`, `employee-notes`,
+`certifications`, `absences`, `employee-documents` and `onboarding-templates` API modules,
+backed by seven new models (migration `20260713114021_phase3_personnel`, plus `employee_id`
+added to `tasks` and `activities`) and shared zod contracts in `packages/types`. The defining
+concept is a **two-tier sensitivity model**: employee records separate directory fields
+(`personnel.read`) from sensitive personal data (`personnel.read_sensitive`, OWNER/ADMIN
+only), enforced in the serialization layer (`mappers-personnel.ts`) — the sensitive block is
+attached only for authorized callers, never appears in the list, and every sensitive detail
+read writes an `employee.sensitive_viewed` audit row. Sensitive writes, internal notes and
+sensitive documents carry the same gate; the personal fields are added to pino redaction.
+Onboarding templates generate real, dated, employee-linked tasks in one transaction, and
+personnel events feed the shared `activities` timeline via the denormalized `employee_id`.
+The reviewed permission matrix already carried `personnel.*`, so no matrix change was needed.
+Docs (data-model, api, architecture, security, README, roadmap) are updated to match; the
+stored personal data still requires GDPR/legal review (feeds Phase 9). Phase 4 (Quotes &
+invoicing) is next.
+
 ## 11. Status (2026-07-13, Phase 2)
 
 Phase 2 is implemented on top of the Phase 1 foundation: the `customers`, `contacts`,

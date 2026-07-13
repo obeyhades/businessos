@@ -11,7 +11,6 @@ import { errors } from '../../lib/errors.js';
 import { toEmployeeNoteDto } from '../../lib/mappers-personnel.js';
 import { orgContext, requirePermission } from '../../plugins/auth.js';
 import { auditContext, recordAudit } from '../audit/service.js';
-import { recordActivity } from '../activity/service.js';
 
 async function assertEmployee(
   app: FastifyInstance,
@@ -84,12 +83,9 @@ export function registerEmployeeNoteRoutes(app: FastifyInstance): void {
           entityId: created.id,
           metadata: { employeeId: request.params.employeeId },
         });
-        await recordActivity(tx, {
-          organizationId,
-          actorUserId: request.currentUser?.id ?? null,
-          type: 'note.added',
-          ref: { employeeId: request.params.employeeId },
-        });
+        // Deliberately NOT recorded as a timeline Activity: notes are
+        // read_sensitive-only, so even their existence must not surface to
+        // personnel.read viewers via the employee timeline / activity feed.
         return created;
       });
       return reply.code(201).send(toEmployeeNoteDto(note));

@@ -182,9 +182,83 @@ form-data** streamed through the API; size and content type are validated server
 | GET    | `/v1/activity` | `dashboard.read` | paginated org-wide recent activity (dashboard feed)                            |
 | GET    | `/v1/search`   | session          | `?q=` (1–200 chars), `?limit=` (1–50, default 20); per-type permission scoping |
 
-`/v1/search` returns `{ results: [{ kind, id, title, subtitle }] }` across customers,
-projects and tasks. Each entity type is only queried if the caller holds its `*.read`
-permission, so results never leak data the role cannot otherwise see.
+`/v1/search` returns `{ results: [{ kind, id, title, subtitle }] }`. As of Phase 3 the
+`kind` is one of `customer`, `project`, `task` or **`employee`**. Each entity type is only
+queried if the caller holds its `*.read` permission (`personnel.read` for employees), so
+results never leak data the role cannot otherwise see. Employee hits use directory fields
+only (name as title, job title/department as subtitle) — never sensitive data.
+
+## Phase 3 — personnel
+
+All routes require an active organization and the listed permission. The key rule is the
+**two-tier sensitivity split**: `personnel.read` grants directory data, `personnel.manage`
+grants create/edit/delete, and `personnel.read_sensitive` (OWNER/ADMIN only) grants the
+sensitive personal block, internal notes and sensitive documents. See
+[security.md](security.md#personnel-sensitive-data-handling-phase-3).
+
+### Employees
+
+| Method | Path                                       | Auth               | Notes                                                                                                                                        |
+| ------ | ------------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/employees`                            | `personnel.read`   | paginated; filters `?status=`, `?department=`, `?managerId=`, `?search=`. **Never** returns the sensitive block                              |
+| POST   | `/v1/employees`                            | `personnel.manage` | sensitive fields in the body additionally require `personnel.read_sensitive` (else 403)                                                      |
+| GET    | `/v1/employees/:employeeId`                | `personnel.read`   | detail; includes the `sensitive` object **only** with `personnel.read_sensitive`, and logs an `employee.sensitive_viewed` audit when it does |
+| PATCH  | `/v1/employees/:employeeId`                | `personnel.manage` | partial update; sensitive-field writes require `personnel.read_sensitive`; status change → `employee.status_changed`                         |
+| DELETE | `/v1/employees/:employeeId`                | `personnel.manage` | 204; cascades notes/certs/absences/documents, detaches tasks                                                                                 |
+| POST   | `/v1/employees/:employeeId/apply-template` | `personnel.manage` | onboarding automation: generates dated tasks from a template; returns `{ createdTaskCount }`                                                 |
+| GET    | `/v1/employees/:employeeId/activity`       | `personnel.read`   | paginated employee timeline                                                                                                                  |
+
+### Employee notes (restricted)
+
+Both read and write require `personnel.read_sensitive` — stricter than directory access.
+
+| Method | Path                                      | Auth                       | Notes           |
+| ------ | ----------------------------------------- | -------------------------- | --------------- |
+| GET    | `/v1/employees/:employeeId/notes`         | `personnel.read_sensitive` | newest-first    |
+| POST   | `/v1/employees/:employeeId/notes`         | `personnel.read_sensitive` | body `{ body }` |
+| DELETE | `/v1/employees/:employeeId/notes/:noteId` | `personnel.read_sensitive` | 204             |
+
+### Certifications
+
+| Method | Path                                                        | Auth               | Notes                                                                           |
+| ------ | ----------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------- |
+| GET    | `/v1/employees/:employeeId/certifications`                  | `personnel.read`   | sorted by expiry (nulls last)                                                   |
+| POST   | `/v1/employees/:employeeId/certifications`                  | `personnel.manage` |                                                                                 |
+| PATCH  | `/v1/employees/:employeeId/certifications/:certificationId` | `personnel.manage` | partial update                                                                  |
+| DELETE | `/v1/employees/:employeeId/certifications/:certificationId` | `personnel.manage` | 204                                                                             |
+| GET    | `/v1/certifications/expiring`                               | `personnel.read`   | `?withinDays=` (1–365, default 60); includes already-expired, with employee ref |
+
+### Absence requests
+
+| Method | Path                                         | Auth               | Notes                                                                                                |
+| ------ | -------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/absence-requests`                       | `personnel.read`   | paginated; filters `?status=`, `?employeeId=`                                                        |
+| GET    | `/v1/employees/:employeeId/absence-requests` | `personnel.read`   | one employee's requests, newest-first                                                                |
+| POST   | `/v1/employees/:employeeId/absence-requests` | `personnel.manage` | creates a `PENDING` request                                                                          |
+| POST   | `/v1/absence-requests/:absenceId/review`     | `personnel.manage` | body `{ decision: APPROVED\|REJECTED, reviewNote? }`; only `PENDING` may be reviewed (409 otherwise) |
+| POST   | `/v1/absence-requests/:absenceId/cancel`     | `personnel.manage` | sets `CANCELLED` (409 if already cancelled)                                                          |
+
+### Employee documents
+
+Multipart upload streamed through the API, same size/content-type validation as Phase 2
+attachments (max **25 MB**, allow-list). Downloads are presigned 5-minute GET URLs.
+
+| Method | Path                                                           | Auth               | Notes                                                                                                                                                |
+| ------ | -------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/employees/:employeeId/documents`                          | `personnel.read`   | newest-first; `is_sensitive` docs hidden unless caller has `personnel.read_sensitive`                                                                |
+| POST   | `/v1/employees/:employeeId/documents`                          | `personnel.manage` | multipart; `?category=` (`EmployeeDocumentCategory`, default `OTHER`) and `?sensitive=` (bool). `sensitive=true` requires `personnel.read_sensitive` |
+| GET    | `/v1/employees/:employeeId/documents/:documentId/download-url` | `personnel.read`   | signed 5-min GET; a sensitive doc returns **404** (not 403) to non-sensitive callers                                                                 |
+| DELETE | `/v1/employees/:employeeId/documents/:documentId`              | `personnel.manage` | 204; deletes row + best-effort object                                                                                                                |
+
+### Onboarding templates
+
+| Method | Path                                   | Auth               | Notes                                                                                             |
+| ------ | -------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/onboarding-templates`             | `personnel.read`   | with items                                                                                        |
+| POST   | `/v1/onboarding-templates`             | `personnel.manage` | body includes `type` (`ONBOARDING`/`OFFBOARDING`) + `items[]` (title, description, dueOffsetDays) |
+| GET    | `/v1/onboarding-templates/:templateId` | `personnel.read`   |                                                                                                   |
+| PATCH  | `/v1/onboarding-templates/:templateId` | `personnel.manage` | partial; when `items` is provided it replaces the list wholesale                                  |
+| DELETE | `/v1/onboarding-templates/:templateId` | `personnel.manage` | 204                                                                                               |
 
 ## OpenAPI
 

@@ -4,19 +4,24 @@ Operational platform for small and medium-sized businesses: personnel, bookkeepi
 quotes/invoicing, calendar/tasks, email and voice notes — built as a modular monolith that
 grows module by module.
 
-**Current state (Phase 2):** on top of the Phase 1 foundation (authentication,
-organizations, memberships, roles/permissions, invitations, audit log, dashboard shell),
-Phase 2 ships a **customer registry with contacts, projects, tasks, threaded comments,
-file attachments (MinIO/S3), user-facing activity timelines and org-wide search** — all
-tenant-isolated and permission-scoped. Everything from Phase 3 on is planned, not built —
-see [docs/product-roadmap.md](docs/product-roadmap.md).
+**Current state (Phase 3):** on top of the Phase 1 foundation (authentication,
+organizations, memberships, roles/permissions, invitations, audit log, dashboard shell) and
+the Phase 2 customer/project/task modules, Phase 3 ships **personnel management** — an
+employee directory with a two-tier sensitivity model, certifications, an absence-request
+workflow, categorized employee documents, and onboarding templates that generate real tasks.
+Employee records separate **directory** data (name, work contact, job title, status —
+`personnel.read`) from **sensitive** personal data (personnummer, date of birth, home
+address, emergency contact — `personnel.read_sensitive`): OWNER and ADMIN see the sensitive
+block, MANAGER and READONLY see the directory only, and every sensitive read is audited.
+Everything from Phase 4 on is planned, not built — see
+[docs/product-roadmap.md](docs/product-roadmap.md).
 
 | Phase | Scope                                                                         | Status  |
 | ----- | ----------------------------------------------------------------------------- | ------- |
 | 0–1   | Foundation, auth, orgs, RBAC, audit, dashboard                                | Done    |
 | 2     | Customers, contacts, projects, tasks, comments, attachments, activity, search | Done    |
-| 3     | Personnel                                                                     | Next    |
-| 4     | Quotes & invoicing                                                            | Planned |
+| 3     | Personnel (employees, sensitive tier, certs, absences, docs, onboarding)      | Done    |
+| 4     | Quotes & invoicing                                                            | Next    |
 | 5     | Bookkeeping support                                                           | Planned |
 | 6     | Calendar                                                                      | Planned |
 | 7     | Email module                                                                  | Planned |
@@ -96,6 +101,15 @@ Phase 2 demo data: customers (**Lindqvist Fastigheter AB**, **Berg & Söner Bygg
 **Solgården Restaurang**), their contacts, projects, tasks in various statuses, comments and
 a populated activity feed — enough to exercise the list/detail/timeline/search UI.
 
+Phase 3 demo data adds four employees — **Olivia Ohlsson** (Operations Manager),
+**Erik Eklund** (Carpenter), **Fatima Nilsson** (Electrician, `ON_LEAVE`) and **Johan Berg**
+(Apprentice, `ONBOARDING`) — with a manager hierarchy and populated sensitive fields
+(personnummer etc.). It also seeds one certification expiring in ~25 days (Erik's _Hot Work
+Permit_), a pending vacation absence for Erik, an onboarding template _Field employee
+onboarding_ (4 items) and the onboarding tasks generated for Johan. Sign in as
+`owner@`/`admin@` to see the sensitive block; `MANAGER`/`READONLY` roles see the directory
+only, and `accountant@`/the `EMPLOYEE` accounts have no personnel access at all.
+
 | Email                              | Password             | Role       | Notes               |
 | ---------------------------------- | -------------------- | ---------- | ------------------- |
 | `owner@demo.businessos.local`      | `OwnerDemo123!`      | OWNER      | also platform admin |
@@ -112,7 +126,8 @@ a populated activity feed — enough to exercise the list/detail/timeline/search
 | RabbitMQ management | http://localhost:15672 | `businessos` / `businessos`            |
 | MinIO console       | http://localhost:9001  | `businessos` / `businessos-dev-secret` |
 
-File attachments (Phase 2) use the S3-compatible object store configured via `S3_*` in
+File attachments (Phase 2) and employee documents (Phase 3) use the S3-compatible object
+store configured via `S3_*` in
 `.env` (defaults in `.env.example`): `S3_ENDPOINT` (`http://localhost:9000`),
 `S3_ACCESS_KEY` (`businessos`), `S3_SECRET_KEY` (`businessos-dev-secret`), `S3_BUCKET`
 (`businessos`), `S3_REGION` (`us-east-1`). In production `S3_SECRET_KEY` is a real secret.

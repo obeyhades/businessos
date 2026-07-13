@@ -22,6 +22,7 @@ import { enqueueOutbox } from '../outbox/service.js';
 const taskInclude = {
   customer: { select: { id: true, name: true } },
   project: { select: { id: true, name: true } },
+  employee: { select: { id: true, firstName: true, lastName: true } },
   assignee: { select: { id: true, name: true } },
 } as const;
 
@@ -84,6 +85,7 @@ export function registerTaskRoutes(app: FastifyInstance): void {
         ...(query.priority ? { priority: query.priority } : {}),
         ...(query.projectId ? { projectId: query.projectId } : {}),
         ...(query.customerId ? { customerId: query.customerId } : {}),
+        ...(query.employeeId ? { employeeId: query.employeeId } : {}),
         ...(query.mine
           ? { assigneeId: request.currentUser?.id }
           : query.assigneeId

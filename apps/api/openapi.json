@@ -4183,6 +4183,15 @@
           },
           {
             "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "employeeId",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "boolean"
             },
             "in": "query",
@@ -4288,6 +4297,24 @@
                             "additionalProperties": false,
                             "nullable": true
                           },
+                          "employee": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
                           "assignee": {
                             "type": "object",
                             "properties": {
@@ -4325,6 +4352,7 @@
                           "completedAt",
                           "customer",
                           "project",
+                          "employee",
                           "assignee",
                           "createdAt",
                           "updatedAt"
@@ -4514,6 +4542,24 @@
                       "additionalProperties": false,
                       "nullable": true
                     },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
                     "assignee": {
                       "type": "object",
                       "properties": {
@@ -4551,6 +4597,7 @@
                     "completedAt",
                     "customer",
                     "project",
+                    "employee",
                     "assignee",
                     "createdAt",
                     "updatedAt"
@@ -4663,6 +4710,24 @@
                       "additionalProperties": false,
                       "nullable": true
                     },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
                     "assignee": {
                       "type": "object",
                       "properties": {
@@ -4700,6 +4765,7 @@
                     "completedAt",
                     "customer",
                     "project",
+                    "employee",
                     "assignee",
                     "createdAt",
                     "updatedAt"
@@ -4872,6 +4938,24 @@
                       "additionalProperties": false,
                       "nullable": true
                     },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
                     "assignee": {
                       "type": "object",
                       "properties": {
@@ -4909,6 +4993,7 @@
                     "completedAt",
                     "customer",
                     "project",
+                    "employee",
                     "assignee",
                     "createdAt",
                     "updatedAt"
@@ -9647,8 +9732,7 @@
           },
           {
             "schema": {
-              "type": "boolean",
-              "default": false
+              "type": "boolean"
             },
             "in": "query",
             "name": "sensitive",

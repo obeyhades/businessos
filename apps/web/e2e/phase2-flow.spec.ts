@@ -61,9 +61,11 @@ test('customer, contact, comment, task lifecycle and search', async ({ page }) =
   await expect(page.getByRole('heading', { name: taskTitle })).toBeVisible();
 
   // Mark the task DONE via the status select and confirm it reflects immediately.
+  // The task detail page shows a "Completed" indicator AND an activity-timeline
+  // entry ("completed this task"), so scope to the first match to stay robust.
   await page.getByRole('combobox', { name: 'Status' }).click();
   await page.getByRole('option', { name: 'Done' }).click();
-  await expect(page.getByText('Completed', { exact: false })).toBeVisible();
+  await expect(page.getByText('Completed', { exact: false }).first()).toBeVisible();
 
   // The customer's activity timeline shows the created + completed events.
   await page.goto(customerUrl);

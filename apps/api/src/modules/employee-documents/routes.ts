@@ -1,6 +1,7 @@
 import {
   ALLOWED_ATTACHMENT_TYPES,
   attachmentDownloadDtoSchema,
+  booleanQueryParam,
   employeeDocumentCategorySchema,
   employeeDocumentDtoSchema,
   employeeDocumentIdParamsSchema,
@@ -21,7 +22,8 @@ import { recordActivity } from '../activity/service.js';
 const ALLOWED = new Set<string>(ALLOWED_ATTACHMENT_TYPES);
 const uploadQuerySchema = z.object({
   category: employeeDocumentCategorySchema.default('OTHER'),
-  sensitive: z.coerce.boolean().default(false),
+  // z.coerce.boolean() would treat the string "false" as true — see booleanQueryParam.
+  sensitive: booleanQueryParam(false),
 });
 
 function canReadSensitive(request: FastifyRequest): boolean {
@@ -129,7 +131,9 @@ export function registerEmployeeDocumentRoutes(app: FastifyInstance): void {
             actorUserId: request.currentUser?.id ?? null,
             type: 'document.added',
             ref: { employeeId: request.params.employeeId },
-            metadata: { fileName: created.fileName },
+            // Never expose a sensitive document's name via the timeline; a
+            // directory-only viewer is otherwise 404'd from the file itself.
+            metadata: created.isSensitive ? {} : { fileName: created.fileName },
           });
           return created;
         });

@@ -59,7 +59,10 @@ Defence in depth on top of SameSite=Lax (`apps/api/src/plugins/security.ts`):
 
 Pino structured JSON with redaction (`apps/api/src/lib/logger.ts`): `authorization` and
 `cookie` request headers, `set-cookie` response headers, and any `password`, `token`,
-`tokenHash`, `passwordHash` fields are censored. Request bodies are never logged.
+`tokenHash`, `passwordHash` fields are censored. Request bodies are never logged. Phase 3
+adds the sensitive personnel fields to the redaction paths — `personalIdNumber`,
+`dateOfBirth`, `homeAddress`, `personalEmail`, `personalPhone`, `emergencyContactPhone` —
+so personal identifiers are censored anywhere they appear in a logged object.
 
 ## Audit log
 
@@ -76,6 +79,14 @@ Phase 2 adds: `customer.created`, `customer.updated`, `customer.archived`,
 `project.created`, `project.updated`, `project.archived`, `task.created`, `task.updated`,
 `task.completed`, `task.deleted`, `comment.created`, `comment.deleted`,
 `attachment.uploaded`, `attachment.deleted`.
+
+Phase 3 adds: `employee.created`, `employee.updated`, `employee.status_changed`,
+`employee.deleted`, **`employee.sensitive_viewed`** (the sensitive-read access log),
+`employee_note.created`, `employee_note.deleted`, `certification.created`,
+`certification.updated`, `certification.deleted`, `absence.requested`, `absence.approved`,
+`absence.rejected`, `absence.cancelled`, `employee_document.uploaded`,
+`employee_document.deleted`, `onboarding_template.created`, `onboarding_template.updated`,
+`onboarding_template.deleted`, `onboarding_template.applied`.
 
 Action identifiers are stable and never renamed. The audit log is distinct from the
 Phase 2 user-facing `activities` feed (see
@@ -121,7 +132,68 @@ validates every upload server-side before storing anything:
 `GET /v1/search` requires a session but scopes results by permission: each of customers,
 projects and tasks is queried only when the caller holds its `*.read` permission. Roles
 never see entities they could not read directly — search is not a bypass around the
-permission matrix.
+permission matrix. Phase 3 adds employees to search on the same rule — the employee query
+runs only for callers with `personnel.read`, and it selects **directory fields only** (name,
+work email, job title, department), never sensitive personal data.
+
+## Personnel sensitive-data handling (Phase 3)
+
+Employee records carry two tiers of data separated by permission, enforced in the API's
+serialization and route layers (`apps/api/src/lib/mappers-personnel.ts`,
+`apps/api/src/modules/employees`), not by hiding database columns.
+
+**Two permission tiers:**
+
+- **`personnel.read`** — the **directory**: name, work email/phone, job title, department,
+  employment status/type, start/end date, manager, optional linked user. This is what
+  `MANAGER` and `READONLY` roles see.
+- **`personnel.read_sensitive`** — the extra **sensitive block**: personnummer
+  (`personalIdNumber`), date of birth, home address, personal email/phone and emergency
+  contact. Held **only by `OWNER` and `ADMIN`** in the code-defined matrix (`MANAGER` has
+  `read` + `manage` but **not** `read_sensitive`).
+
+**How the tiers are enforced:**
+
+- **Serialization gate** — `toEmployeeDto` attaches the `sensitive` object **only when the
+  caller holds `personnel.read_sensitive`**; otherwise the key is absent entirely, so the
+  data never leaves the process. The employee **list never includes the sensitive block**,
+  regardless of role (`GET /v1/employees` always serializes with `includeSensitive: false`).
+  It appears only on the **detail** response (`GET /v1/employees/:id`) for authorized
+  callers.
+- **Access logging** — every sensitive read is audited. When a caller with
+  `personnel.read_sensitive` fetches an employee detail, the API records an
+  **`employee.sensitive_viewed`** audit entry (actor, IP, user agent) so sensitive access is
+  attributable after the fact.
+- **Sensitive writes also require `read_sensitive`** — create/update reject any attempt to
+  set a sensitive field by a caller without `personnel.read_sensitive`
+  (`assertSensitiveWriteAllowed` checks the request body against `SENSITIVE_EMPLOYEE_FIELDS`
+  and throws 403), even though the write endpoints themselves are guarded by
+  `personnel.manage`. So a `MANAGER` can edit directory fields but not personnummer.
+- **Internal notes require `read_sensitive`** — `employee_notes` (`/v1/employees/:id/notes`)
+  are the most restricted personnel data: **both reading and writing** require
+  `personnel.read_sensitive`, stricter than the surrounding directory access.
+- **Sensitive documents are hidden from directory viewers** — a document uploaded with
+  `?sensitive=true` (which itself requires `read_sensitive`) is filtered out of the list for
+  directory-only viewers, and a direct download-URL request for one returns **404, not 403**,
+  so the API does not even reveal that a sensitive document exists. Employee documents reuse
+  the Phase 2 object-storage model (private bucket, server-side size/content-type validation,
+  presigned 5-minute downloads, `org/<orgId>/<uuid>/<safe-name>` keys) — see
+  [architecture.md](architecture.md#object-storage-flow) and the S3 configuration below.
+
+**Log redaction** — the pino redaction paths (`apps/api/src/lib/logger.ts`) censor the
+sensitive personnel fields so they never appear in logs even if an object carrying them is
+logged: `personalIdNumber`, `dateOfBirth`, `homeAddress`, `personalEmail`, `personalPhone`,
+`emergencyContactPhone` (in addition to the Phase 1 `password`/`token`/`hash` paths).
+
+**Requires further GDPR/legal review** — these fields are **special-category / sensitive
+personal data** under GDPR (a national identity number, date of birth, home address). The
+current controls (permission tiers, access logging, redaction) are technical safeguards, not
+a compliance sign-off. Before production use the following need legal/DPO review: lawful
+basis and records of processing for each field; **retention** windows (none are enforced
+yet); and **right-to-erasure** — today an employee's personal data is removed only by
+deleting the `employees` row (`DELETE /v1/employees/:id`, which cascades notes,
+certifications, absences and documents and SetNulls their tasks), with no partial-erasure or
+export workflow. See [legal-review-required.md](legal-review-required.md).
 
 ## Secrets and configuration
 
@@ -136,7 +208,7 @@ Object storage (Phase 2) is configured via `S3_*` variables, validated at API st
 | `S3_ENDPOINT`   | `http://localhost:9000` | S3-compatible endpoint (MinIO locally)   |
 | `S3_ACCESS_KEY` | `businessos`            | access key                               |
 | `S3_SECRET_KEY` | `businessos-dev-secret` | secret key — a real secret in production |
-| `S3_BUCKET`     | `businessos`            | bucket for attachments                   |
+| `S3_BUCKET`     | `businessos`            | bucket for attachments + employee docs   |
 | `S3_REGION`     | `us-east-1`             | region (required by the S3 SDK)          |
 
 `S3_SECRET_KEY` is a credential and must be rotated/managed like other secrets in
