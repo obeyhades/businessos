@@ -108,6 +108,12 @@ record, the activity feed is a product timeline.
   caller's tenant — this is the isolation gate for every polymorphic insert. Signed
   download URLs are minted only after the attachment row is confirmed to belong to the
   caller's organization.
+- **Phase 4 resources** — products, quotes, invoices, quote/invoice line items, payments and
+  credit notes all carry `organization_id` and are looked up scoped to the session
+  organization; a payment or credit note is only ever attached to an invoice re-fetched
+  within the caller's tenant, and the invoice PDF's presigned URL is minted only after that
+  ownership check. Document numbers are per-organization (unique `(organization_id, number)`),
+  so tenants never see or collide on each other's invoice numbers.
 
 ## Attachment upload/download (Phase 2)
 
@@ -195,6 +201,33 @@ deleting the `employees` row (`DELETE /v1/employees/:id`, which cascades notes,
 certifications, absences and documents and SetNulls their tasks), with no partial-erasure or
 export workflow. See [legal-review-required.md](legal-review-required.md).
 
+## Financial-operation integrity (Phase 4)
+
+Invoicing touches money, so Phase 4 adds integrity controls beyond ordinary CRUD:
+
+- **Money is never floating point.** All amounts are integer minor units (öre) stored as
+  `BigInt` and computed with decimal.js (HALF_UP at the line level). The UI does no money
+  math; the server is the single source of every total. This eliminates a whole class of
+  rounding/precision defects.
+- **Explicit database transactions** wrap every state-changing financial operation —
+  finalize, send, cancel, payment register/remove, credit-note issue — so number allocation,
+  status recomputation, audit and outbox writes all commit atomically or not at all.
+- **Immutable finalized invoices.** Once finalized (numbered, `finalized_at` set), an
+  invoice and its lines are frozen: edits and deletes are rejected, and corrections are made
+  only through credit notes. This preserves an accurate, non-repudiable record of what was
+  billed.
+- **Concurrency-safe numbering.** `number_sequences` is incremented under a row-level write
+  lock inside the finalize transaction, so concurrent finalizations cannot produce duplicate
+  or gap numbers — a bookkeeping-integrity requirement (see
+  [architecture.md](architecture.md#concurrency-safe-document-numbering)).
+- **Overpayment and over-credit are rejected server-side** (400 `overpayment` /
+  `over_credit`): a payment cannot exceed the amount due, and total credited cannot exceed
+  the invoice total. Clients cannot bypass this — it is enforced in the transaction that
+  recomputes the invoice position.
+- These are technical safeguards. VAT correctness, invoice-content requirements and
+  numbering/immutability against **bokföringslagen** still require professional review before
+  production (see [legal-review-required.md](legal-review-required.md)).
+
 ## Secrets and configuration
 
 Environment is validated with zod at startup in every app (`packages/config`);
@@ -213,6 +246,11 @@ Object storage (Phase 2) is configured via `S3_*` variables, validated at API st
 
 `S3_SECRET_KEY` is a credential and must be rotated/managed like other secrets in
 production; the local value is a development default only.
+
+As of **Phase 4 the worker also requires the same `S3_*` variables** (validated at worker
+startup in `apps/worker/src/env.ts`): the invoice-email consumer fetches the finalized
+invoice PDF from object storage to attach it to outgoing mail. Point the worker at the same
+bucket/endpoint as the API.
 
 ## Not implemented yet (designed, Phase 9)
 

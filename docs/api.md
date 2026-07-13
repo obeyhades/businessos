@@ -260,6 +260,79 @@ attachments (max **25 MB**, allow-list). Downloads are presigned 5-minute GET UR
 | PATCH  | `/v1/onboarding-templates/:templateId` | `personnel.manage` | partial; when `items` is provided it replaces the list wholesale                                  |
 | DELETE | `/v1/onboarding-templates/:templateId` | `personnel.manage` | 204                                                                                               |
 
+## Phase 4 — quotes & invoicing
+
+All routes require an active organization. Two permissions gate everything:
+**`invoices.read`** (list/detail/PDF/activity) and **`invoices.manage`**
+(create/edit/delete and every lifecycle action). OWNER and ACCOUNTANT hold both; READONLY
+holds `invoices.read` only; the EMPLOYEE role has no invoices access.
+
+**Money is always integer minor units** (öre; 100 = 1 SEK) on the wire — request bodies send
+`unitPriceMinor` etc., responses return `*Minor` fields; quantities and percentages are plain
+numbers. The server computes all line and document totals (see
+[architecture.md](architecture.md#deterministic-money-phase-4)). Format for display with
+`formatMinor` from `@businessos/types`.
+
+### Products (catalogue)
+
+| Method | Path                      | Auth              | Notes                                         |
+| ------ | ------------------------- | ----------------- | --------------------------------------------- |
+| GET    | `/v1/products`            | `invoices.read`   | paginated                                     |
+| POST   | `/v1/products`            | `invoices.manage` | `unitPriceMinor`, `taxRatePercent`, `unit`, … |
+| GET    | `/v1/products/:productId` | `invoices.read`   | detail                                        |
+| PATCH  | `/v1/products/:productId` | `invoices.manage` | partial update                                |
+| DELETE | `/v1/products/:productId` | `invoices.manage` | 204                                           |
+
+### Quotes
+
+Editable only while `DRAFT`. Lifecycle: `DRAFT → SENT → ACCEPTED → (convert)`, or `DECLINED`.
+
+| Method | Path                          | Auth              | Notes                                                                       |
+| ------ | ----------------------------- | ----------------- | --------------------------------------------------------------------------- |
+| GET    | `/v1/quotes`                  | `invoices.read`   | paginated; filters by status/customer                                       |
+| POST   | `/v1/quotes`                  | `invoices.manage` | body includes `customerId` + `lineItems[]`; server computes totals          |
+| GET    | `/v1/quotes/:quoteId`         | `invoices.read`   | detail with line items and money snapshot                                   |
+| PATCH  | `/v1/quotes/:quoteId`         | `invoices.manage` | **only while `DRAFT`** (409 `quote_not_draft`/`invalid_transition` else)    |
+| DELETE | `/v1/quotes/:quoteId`         | `invoices.manage` | 204; **only while `DRAFT`**                                                 |
+| POST   | `/v1/quotes/:quoteId/send`    | `invoices.manage` | `DRAFT → SENT`                                                              |
+| POST   | `/v1/quotes/:quoteId/accept`  | `invoices.manage` | `DRAFT`/`SENT → ACCEPTED`; emits `quote.accepted`                           |
+| POST   | `/v1/quotes/:quoteId/decline` | `invoices.manage` | `DRAFT`/`SENT → DECLINED`                                                   |
+| POST   | `/v1/quotes/:quoteId/convert` | `invoices.manage` | 201; creates a new **draft invoice** copying the lines; links back to quote |
+
+### Invoices
+
+Editable only while `DRAFT`. **Finalize makes the invoice immutable** (assigns a number, sets
+`finalizedAt`, generates the PDF); corrections thereafter are credit notes only. The DTO
+exposes derived `isOverdue` and `amountDueMinor` (= total − paid − credited).
+
+| Method | Path                               | Auth              | Notes                                                                                                                                         |
+| ------ | ---------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/invoices`                     | `invoices.read`   | paginated; filters by status/customer                                                                                                         |
+| POST   | `/v1/invoices`                     | `invoices.manage` | body `customerId`, `dueDate`, `lineItems[]`; created as `DRAFT`                                                                               |
+| GET    | `/v1/invoices/:invoiceId`          | `invoices.read`   | detail; `isOverdue`, `amountDueMinor` derived on the DTO                                                                                      |
+| PATCH  | `/v1/invoices/:invoiceId`          | `invoices.manage` | **only while `DRAFT`** (409 once finalized)                                                                                                   |
+| DELETE | `/v1/invoices/:invoiceId`          | `invoices.manage` | 204; **only while `DRAFT`**                                                                                                                   |
+| POST   | `/v1/invoices/:invoiceId/finalize` | `invoices.manage` | `DRAFT → OPEN`; assigns number, freezes the document, generates PDF; emits `invoice.finalized` (409 `already_finalized`, 400 `empty_invoice`) |
+| POST   | `/v1/invoices/:invoiceId/send`     | `invoices.manage` | emails the invoice with the PDF attached; emits `invoice.sent`                                                                                |
+| POST   | `/v1/invoices/:invoiceId/cancel`   | `invoices.manage` | cancels a finalized, unpaid invoice → `CANCELLED`                                                                                             |
+| GET    | `/v1/invoices/:invoiceId/pdf-url`  | `invoices.read`   | `{ url, expiresInSeconds }` — short-lived presigned GET                                                                                       |
+| GET    | `/v1/invoices/:invoiceId/activity` | `invoices.read`   | invoice timeline                                                                                                                              |
+
+### Payments
+
+| Method | Path                                          | Auth              | Notes                                                                                                 |
+| ------ | --------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/invoices/:invoiceId/payments`            | `invoices.read`   | payments recorded against the invoice                                                                 |
+| POST   | `/v1/invoices/:invoiceId/payments`            | `invoices.manage` | `amountMinor`, `method`, `paidOn`, …; **overpayment rejected** (400 `overpayment`); recomputes status |
+| DELETE | `/v1/invoices/:invoiceId/payments/:paymentId` | `invoices.manage` | 204; recomputes status                                                                                |
+
+### Credit notes
+
+| Method | Path                                   | Auth              | Notes                                                                                   |
+| ------ | -------------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/v1/invoices/:invoiceId/credit-notes` | `invoices.read`   | credit notes against the invoice                                                        |
+| POST   | `/v1/invoices/:invoiceId/credit-notes` | `invoices.manage` | full or partial; **over-credit rejected** (400 `over_credit`); full credit → `CREDITED` |
+
 ## OpenAPI
 
 - `GET /docs/json` serves the OpenAPI document in non-production environments.

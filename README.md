@@ -4,16 +4,19 @@ Operational platform for small and medium-sized businesses: personnel, bookkeepi
 quotes/invoicing, calendar/tasks, email and voice notes — built as a modular monolith that
 grows module by module.
 
-**Current state (Phase 3):** on top of the Phase 1 foundation (authentication,
-organizations, memberships, roles/permissions, invitations, audit log, dashboard shell) and
-the Phase 2 customer/project/task modules, Phase 3 ships **personnel management** — an
-employee directory with a two-tier sensitivity model, certifications, an absence-request
-workflow, categorized employee documents, and onboarding templates that generate real tasks.
-Employee records separate **directory** data (name, work contact, job title, status —
-`personnel.read`) from **sensitive** personal data (personnummer, date of birth, home
-address, emergency contact — `personnel.read_sensitive`): OWNER and ADMIN see the sensitive
-block, MANAGER and READONLY see the directory only, and every sensitive read is audited.
-Everything from Phase 4 on is planned, not built — see
+**Current state (Phase 4):** on top of the Phase 1 foundation (authentication,
+organizations, memberships, roles/permissions, invitations, audit log, dashboard shell), the
+Phase 2 customer/project/task modules and the Phase 3 personnel module, Phase 4 ships
+**quotes & invoicing**. A product catalogue feeds quotes and invoices; quotes move
+`DRAFT → SENT → ACCEPTED` and can be **converted** into a draft invoice. Invoices are editable
+only while draft; **finalize** assigns a sequential per-organization number, freezes the
+document (corrections are made via **credit notes**, not edits) and generates a PDF; then you
+can email the invoice with the PDF attached, register **payments** (partial allowed,
+overpayment rejected server-side) or issue **credit notes** (full or partial). An overdue
+sweep flags unpaid past-due invoices. **Money is deterministic**: all amounts are integer
+minor units (öre) computed on the server with decimal.js and HALF_UP line-level rounding —
+never floating point. Everything is gated by `invoices.read` / `invoices.manage`.
+Everything from Phase 5 on is planned, not built — see
 [docs/product-roadmap.md](docs/product-roadmap.md).
 
 | Phase | Scope                                                                         | Status  |
@@ -21,8 +24,8 @@ Everything from Phase 4 on is planned, not built — see
 | 0–1   | Foundation, auth, orgs, RBAC, audit, dashboard                                | Done    |
 | 2     | Customers, contacts, projects, tasks, comments, attachments, activity, search | Done    |
 | 3     | Personnel (employees, sensitive tier, certs, absences, docs, onboarding)      | Done    |
-| 4     | Quotes & invoicing                                                            | Next    |
-| 5     | Bookkeeping support                                                           | Planned |
+| 4     | Quotes & invoicing (products, quotes, invoices, payments, credit notes, PDF)  | Done    |
+| 5     | Bookkeeping support                                                           | Next    |
 | 6     | Calendar                                                                      | Planned |
 | 7     | Email module                                                                  | Planned |
 | 8     | Voice notes                                                                   | Planned |
@@ -110,6 +113,15 @@ onboarding_ (4 items) and the onboarding tasks generated for Johan. Sign in as
 `owner@`/`admin@` to see the sensitive block; `MANAGER`/`READONLY` roles see the directory
 only, and `accountant@`/the `EMPLOYEE` accounts have no personnel access at all.
 
+Phase 4 demo data adds a **product catalogue** — _Consulting hour_ (1 200.00 SEK), _Site
+visit_ (2 500.00 SEK) and _Materials_ (400.00 SEK) — one `DRAFT` quote, and **eight invoices
+spanning every status**: `DRAFT`, `OPEN` (`INV-0001`), `SENT` (`INV-0002`), `PARTIALLY_PAID`
+(`INV-0003`), `PAID` (`INV-0004`), `OVERDUE` (`INV-0005`), `CANCELLED` (`INV-0006`) and
+`CREDITED` (`INV-0007`), with payments and a credit note (`CN-0001`). All amounts are in SEK.
+Invoicing is gated by `invoices.read` / `invoices.manage`: `owner@` and `accountant@` have
+both (full access), while the `EMPLOYEE` accounts have none. Money is shown in major units in
+the UI but stored and sent as integer minor units (öre).
+
 | Email                              | Password             | Role       | Notes               |
 | ---------------------------------- | -------------------- | ---------- | ------------------- |
 | `owner@demo.businessos.local`      | `OwnerDemo123!`      | OWNER      | also platform admin |
@@ -126,11 +138,13 @@ only, and `accountant@`/the `EMPLOYEE` accounts have no personnel access at all.
 | RabbitMQ management | http://localhost:15672 | `businessos` / `businessos`            |
 | MinIO console       | http://localhost:9001  | `businessos` / `businessos-dev-secret` |
 
-File attachments (Phase 2) and employee documents (Phase 3) use the S3-compatible object
-store configured via `S3_*` in
+File attachments (Phase 2), employee documents (Phase 3) and **invoice PDFs (Phase 4)** use
+the S3-compatible object store configured via `S3_*` in
 `.env` (defaults in `.env.example`): `S3_ENDPOINT` (`http://localhost:9000`),
 `S3_ACCESS_KEY` (`businessos`), `S3_SECRET_KEY` (`businessos-dev-secret`), `S3_BUCKET`
 (`businessos`), `S3_REGION` (`us-east-1`). In production `S3_SECRET_KEY` is a real secret.
+The **worker also requires the same `S3_*` variables** as of Phase 4, so it can fetch the
+finalized invoice PDF from storage and attach it to the outgoing email.
 
 ## Testing
 
@@ -142,6 +156,11 @@ pnpm test:e2e             # needs the full stack (db migrated + seeded)
 
 ## Known limitations
 
+- **Invoicing is a technical foundation, NOT verified for compliance.** The Phase 4 money
+  model, VAT lines, rounding and invoice numbering/immutability are engineering foundations
+  only — **not** reviewed against Swedish momslagen/EU VAT rules or bokföringslagen. Do not
+  present output as compliant invoicing until a professional review passes.
+  See [docs/legal-review-required.md](docs/legal-review-required.md).
 - **Bookkeeping is not implemented and NOT legally compliant.** Phase 5 will be a technical
   foundation only; nothing has been reviewed against bokföringslagen, tax law or GAAP.
   See [docs/legal-review-required.md](docs/legal-review-required.md).

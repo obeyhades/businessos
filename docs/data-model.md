@@ -306,6 +306,143 @@ Both tables gained a nullable `employee_id` in this migration:
   matching the existing customer/project/task chain. FK **Cascade** (an employee's timeline
   disappears with the employee). Index `(organization_id, employee_id, created_at DESC)`.
 
+## Phase 4 — quotes & invoicing
+
+Added by migration `20260713153048_phase4_quotes_invoicing`. Nine new tables; every one
+carries `organization_id` for tenant isolation and cascade-deletes with its organization.
+
+### Money representation (read this first)
+
+Phase 4 is the first module that stores money, and it does so with a strict, uniform model:
+
+- **All monetary amounts are integer minor units** (öre for SEK; 1 SEK = 100 minor),
+  stored as **`BigInt`** columns whose names end in `_minor` (`unit_price_minor`,
+  `subtotal_minor`, `tax_minor`, `total_minor`, `amount_paid_minor`, `credited_minor`,
+  `line_net_minor`, `line_tax_minor`, `line_total_minor`, `amount_minor`). **Never floating
+  point.**
+- **Quantities and percentages are `Decimal`**, not money: `quantity` is `Decimal(14,3)`,
+  and `discount_percent` / `tax_rate_percent` are `Decimal(5,2)`.
+- **Per-line computed amounts are stored** (`line_net_minor`, `line_tax_minor`,
+  `line_total_minor`) rather than recomputed on read. Document headers also store their
+  rolled-up `subtotal_minor` / `discount_minor` / `tax_minor` / `total_minor` plus a
+  `tax_lines` JSONB VAT-per-rate breakdown. This makes a finalized document **immutable**:
+  the stored figures are a snapshot, independent of later product-price edits. The server
+  computes these deterministically (decimal.js, HALF_UP rounding at the line level — see
+  [architecture.md](architecture.md#deterministic-money-phase-4)); the UI never does money
+  math.
+- Each document carries its own `currency` (default `SEK`), copied from the organization.
+
+Enums:
+
+- `QuoteStatus` — `DRAFT` (default), `SENT`, `ACCEPTED`, `DECLINED`, `EXPIRED`
+- `InvoiceStatus` — `DRAFT` (default), `OPEN`, `SENT`, `PARTIALLY_PAID`, `PAID`, `OVERDUE`,
+  `CANCELLED`, `CREDITED`
+- `PaymentMethod` — `CASH`, `BANK_TRANSFER` (default), `CARD`, `SWISH`, `OTHER`
+- `CreditNoteStatus` — `DRAFT` (default), `ISSUED`
+- `NumberSequenceKind` — `QUOTE`, `INVOICE`, `CREDIT_NOTE`
+
+### number_sequences
+
+Per-organization, per-document-type monotonic counter — the source of concurrency-safe
+document numbers.
+
+- `kind` (`NumberSequenceKind`), `prefix` (e.g. `INV-`), `padding` (default 4), `next`
+  (default 1)
+- **Unique `(organization_id, kind)`** — exactly one sequence per org per document type
+- **Atomic-increment concurrency pattern**: the row is upserted, then updated with an atomic
+  `{ next: { increment: 1 } }`, which takes a row-level write lock. Two concurrent
+  finalizations for the same org+kind serialize on that lock and receive distinct, gap-free
+  numbers — no duplicates, no gaps. The allocation runs **inside the finalize transaction**
+  (see [architecture.md](architecture.md#concurrency-safe-document-numbering)).
+
+### products
+
+Reusable catalogue item used to prefill quote/invoice lines. Not a document itself.
+
+- `name`, `description`, `sku`, `unit` (default `piece`), `unit_price_minor` (`BigInt`),
+  `currency` (default `SEK`), `tax_rate_percent` (`Decimal(5,2)`, default 25),
+  `is_active` (default true), `created_by_id` (raw column, no relation)
+- Indexes `(organization_id, is_active)` and `(organization_id, name)`
+
+### quotes
+
+Customer quote/estimate. Editable only while `DRAFT`.
+
+- `customer_id`, `number` (nullable — assigned on send/convert), `status` (`QuoteStatus`),
+  `currency`, `issue_date`, `valid_until` (both `@db.Date`), `customer_notes`,
+  `internal_notes`
+- Money snapshot: `subtotal_minor`, `discount_minor`, `tax_minor`, `total_minor`,
+  `tax_lines` (JSONB)
+- Lifecycle timestamps: `accepted_at`, `declined_at`; `converted_invoice_id` (nullable,
+  **`@unique`**) links an accepted quote to the draft invoice it produced
+- `created_by_id` (SetNull)
+- **FK `customer_id` is `onDelete: Restrict`** — a customer with quotes cannot be deleted
+- `convertedInvoice` FK is **SetNull**
+- Unique `(organization_id, number)`; indexes `(organization_id, status)` and `(customer_id)`
+
+### quote_line_items
+
+Ordered lines belonging to a quote. Cascade-delete with the quote.
+
+- `quote_id` (**Cascade**), `product_id` (nullable, raw column — a snapshot, not a live link),
+  `description`, `quantity` (`Decimal(14,3)`), `unit_price_minor` (`BigInt`),
+  `discount_percent` / `tax_rate_percent` (`Decimal(5,2)`), computed
+  `line_net_minor` / `line_tax_minor` / `line_total_minor` (`BigInt`), `sort_order`
+- Index `(quote_id, sort_order)`
+
+### invoices
+
+The billing document. Editable only while `DRAFT`; **immutable once finalized** (number
+assigned, `finalized_at` set) — corrections are made via credit notes, not edits.
+
+- `customer_id`, `number` (nullable until finalize), `status` (`InvoiceStatus`), `currency`,
+  `issue_date`, `due_date` (both `@db.Date`), `customer_notes`, `internal_notes`
+- Money snapshot: `subtotal_minor`, `discount_minor`, `tax_minor`, `total_minor`, plus the
+  live position `amount_paid_minor` and `credited_minor` (used to derive `amountDueMinor` =
+  total − paid − credited and the status). `tax_lines` (JSONB)
+- `pdf_storage_key` — object-storage key of the generated PDF (set at finalize)
+- Lifecycle timestamps: `finalized_at`, `sent_at`, `paid_at`, `cancelled_at`,
+  `last_reminder_at`
+- `created_by_id` (SetNull)
+- **FK `customer_id` is `onDelete: Restrict`** — a customer with invoices cannot be deleted
+- `fromQuote` back-relation exposes the originating quote (if converted)
+- Unique `(organization_id, number)`; indexes `(organization_id, status)`,
+  `(organization_id, due_date)` (overdue sweep) and `(customer_id)`
+
+### invoice_line_items
+
+Same shape as `quote_line_items` but parented to an invoice (`invoice_id`, **Cascade**).
+Once the invoice is finalized these rows are frozen. Index `(invoice_id, sort_order)`.
+
+### payments
+
+A payment recorded against an invoice.
+
+- `invoice_id` (**Cascade**), `amount_minor` (`BigInt`), `method` (`PaymentMethod`),
+  `reference`, `paid_on` (`@db.Date`), `note`, `created_by_id` (SetNull)
+- Registering/removing a payment recomputes the invoice's `amount_paid_minor` and status;
+  **overpayment is rejected server-side** (a payment cannot exceed the amount due)
+- Index `(organization_id, invoice_id)`
+
+### credit_notes
+
+A full or partial credit against a finalized invoice. Fully crediting an invoice moves it to
+`CREDITED`.
+
+- `invoice_id` (**Cascade**), `number` (nullable until issued, `CN-` prefix), `status`
+  (`CreditNoteStatus`), `currency`, `issue_date` (`@db.Date`), `reason`
+- Money snapshot: `subtotal_minor`, `tax_minor`, `total_minor`, `tax_lines` (JSONB),
+  `issued_at`; `created_by_id` (SetNull)
+- Issuing a credit note recomputes the invoice's `credited_minor` and status;
+  **over-crediting is rejected server-side** (total credited cannot exceed the invoice total)
+- Unique `(organization_id, number)`; index `(organization_id, invoice_id)`
+
+### credit_note_line_items
+
+Lines belonging to a credit note (`credit_note_id`, **Cascade**). Same computed-amount
+columns as the other line-item tables (no `discount_percent`). Index
+`(credit_note_id, sort_order)`.
+
 ## Tenancy rule for future tables
 
 Every tenant-owned table added in later phases carries `organization_id` and is queried

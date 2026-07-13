@@ -5,16 +5,23 @@ import type {
   CreateContactBody,
   CreateCustomerBody,
   CreateEmployeeBody,
+  CreateInvoiceBody,
+  CreateProductBody,
   CreateProjectBody,
+  CreateQuoteBody,
   CreateTaskBody,
   CreateTemplateBody,
   CustomerDto,
   EmployeeDto,
   EntityKind,
   InvitationDto,
+  InvoiceDto,
+  LineItemInput,
   OnboardingTemplateDto,
   OrganizationDto,
+  ProductDto,
   ProjectDto,
+  QuoteDto,
   SessionDto,
   TaskDto,
 } from '@businessos/types';
@@ -94,6 +101,18 @@ const ALL_TABLES = [
   'onboarding_template_items',
   'onboarding_templates',
   'employees',
+  // Phase 4 billing tables. Children are listed before parents and the sequence
+  // table is included so document numbers restart from 1 between tests; CASCADE
+  // makes the order redundant but the intent is explicit.
+  'number_sequences',
+  'credit_note_line_items',
+  'credit_notes',
+  'payments',
+  'invoice_line_items',
+  'invoices',
+  'quote_line_items',
+  'quotes',
+  'products',
 ];
 
 export async function truncateAll(prisma: PrismaClient): Promise<void> {
@@ -448,4 +467,67 @@ export async function uploadEmployeeDocumentViaApi(
     remoteAddress: nextIp(),
     payload,
   });
+}
+
+// --- Phase 4 (billing) factories -------------------------------------------
+
+/** A fixed issue/due date pair so document dates are deterministic in specs. */
+export const ISSUE_DATE = '2026-01-15';
+export const DUE_DATE = '2026-02-14';
+
+/** Creates a catalogue product through the API. */
+export async function createProductViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateProductBody> = {},
+): Promise<ProductDto> {
+  const response = await api(ctx.app, 'POST', '/v1/products', {
+    session,
+    body: { name: `Product ${nextSeq()}`, ...overrides },
+  });
+  expectStatus(response, 201, 'create product');
+  return response.json<ProductDto>();
+}
+
+/** Creates a DRAFT quote through the API. */
+export async function createQuoteViaApi(
+  ctx: TestContext,
+  session: Actor,
+  customerId: string,
+  lineItems: LineItemInput[],
+  overrides: Partial<CreateQuoteBody> = {},
+): Promise<QuoteDto> {
+  const response = await api(ctx.app, 'POST', '/v1/quotes', {
+    session,
+    body: { customerId, issueDate: ISSUE_DATE, lineItems, ...overrides },
+  });
+  expectStatus(response, 201, 'create quote');
+  return response.json<QuoteDto>();
+}
+
+/** Creates a DRAFT invoice through the API. */
+export async function createInvoiceViaApi(
+  ctx: TestContext,
+  session: Actor,
+  customerId: string,
+  lineItems: LineItemInput[],
+  overrides: Partial<CreateInvoiceBody> = {},
+): Promise<InvoiceDto> {
+  const response = await api(ctx.app, 'POST', '/v1/invoices', {
+    session,
+    body: { customerId, issueDate: ISSUE_DATE, dueDate: DUE_DATE, lineItems, ...overrides },
+  });
+  expectStatus(response, 201, 'create invoice');
+  return response.json<InvoiceDto>();
+}
+
+/** Finalizes a draft invoice, assigning it a number and freezing it. */
+export async function finalizeInvoiceViaApi(
+  ctx: TestContext,
+  session: Actor,
+  invoiceId: string,
+): Promise<InvoiceDto> {
+  const response = await api(ctx.app, 'POST', `/v1/invoices/${invoiceId}/finalize`, { session });
+  expectStatus(response, 200, 'finalize invoice');
+  return response.json<InvoiceDto>();
 }

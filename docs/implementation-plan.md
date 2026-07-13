@@ -213,3 +213,25 @@ org-wide, permission-scoped search complete the module, and completing a task em
 carried `customers.*`, `projects.*`, `tasks.*`, so no matrix change was needed. Docs
 (data-model, api, architecture, security, README, roadmap) are updated to match; Phase 3
 (Personnel) is next.
+
+## 13. Status (2026-07-13, Phase 4)
+
+Phase 4 (Quotes & invoicing) is implemented on top of Phases 1–3: the `products`, `quotes`,
+`invoices`, `payments` and `credit-notes` API modules, backed by nine new models (migration
+`20260713153048_phase4_quotes_invoicing`) and shared zod contracts in `packages/types`. Money
+is **deterministic and never floating point** — integer minor units (`BigInt`) computed
+server-side with decimal.js and HALF_UP line-level rounding (`apps/api/src/lib/money.ts`).
+Quotes run `DRAFT → SENT → ACCEPTED` and convert into a draft invoice; invoices are editable
+only while draft and become **immutable on finalize**, which allocates a concurrency-safe
+per-organization number under a row lock (`number_sequences`) inside the finalize transaction
+and generates a pdfkit PDF stored via the shared `@businessos/storage` package. Send emails
+the invoice with the PDF attached (worker fetches it from storage — the worker now also needs
+`S3_*`), payments allow partials but reject overpayment, and credit notes (full/partial,
+over-credit rejected) correct finalized invoices; an overdue sweep worker job flags unpaid
+past-due invoices. New outbox events `quote.accepted`, `invoice.finalized` (the Phase 5
+accounting-draft hook), `invoice.sent` and `payment.registered` were added. The reviewed
+permission matrix already carried `invoices.read` / `invoices.manage`, so no matrix change was
+needed. Docs (data-model, api, architecture, security, README, roadmap, legal-review) are
+updated to match. The money/VAT/numbering machinery is a **technical foundation only** and
+still requires professional review against momslagen/EU VAT and bokföringslagen before real
+use. Phase 5 (Bookkeeping support) is next.

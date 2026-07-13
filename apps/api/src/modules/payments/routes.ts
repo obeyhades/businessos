@@ -14,6 +14,7 @@ import { auditContext, recordAudit } from '../audit/service.js';
 import { recordActivity } from '../activity/service.js';
 import { enqueueOutbox } from '../outbox/service.js';
 import { nextInvoiceStatus } from '../invoices/status.js';
+import { lockInvoiceForUpdate } from '../billing/locks.js';
 
 const PAYABLE_STATUSES = new Set(['OPEN', 'SENT', 'PARTIALLY_PAID', 'OVERDUE']);
 
@@ -57,20 +58,27 @@ export function registerPaymentRoutes(app: FastifyInstance): void {
     },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const invoice = await app.prisma.invoice.findFirst({
-        where: { id: request.params.invoiceId, organizationId },
-      });
-      if (!invoice) throw errors.notFound('Invoice');
-      if (!PAYABLE_STATUSES.has(invoice.status)) {
-        throw errors.conflict('not_payable', `A ${invoice.status} invoice cannot receive payments`);
-      }
       const amount = BigInt(request.body.amountMinor);
-      const amountDue = invoice.totalMinor - invoice.amountPaidMinor - invoice.creditedMinor;
-      if (amount > amountDue) {
-        throw errors.badRequest('overpayment', 'Payment exceeds the amount due');
-      }
 
       const payment = await app.prisma.$transaction(async (tx) => {
+        // Lock the invoice, then validate + apply on its fresh state so
+        // concurrent payments serialize (no lost updates, no overpayment slip).
+        await lockInvoiceForUpdate(tx, request.params.invoiceId);
+        const invoice = await tx.invoice.findFirst({
+          where: { id: request.params.invoiceId, organizationId },
+        });
+        if (!invoice) throw errors.notFound('Invoice');
+        if (!PAYABLE_STATUSES.has(invoice.status)) {
+          throw errors.conflict(
+            'not_payable',
+            `A ${invoice.status} invoice cannot receive payments`,
+          );
+        }
+        const amountDue = invoice.totalMinor - invoice.amountPaidMinor - invoice.creditedMinor;
+        if (amount > amountDue) {
+          throw errors.badRequest('overpayment', 'Payment exceeds the amount due');
+        }
+
         const created = await tx.payment.create({
           data: {
             organizationId,
@@ -124,18 +132,18 @@ export function registerPaymentRoutes(app: FastifyInstance): void {
     schema: { tags: ['payments'], params: paymentIdParamsSchema },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const payment = await app.prisma.payment.findFirst({
-        where: {
-          id: request.params.paymentId,
-          organizationId,
-          invoiceId: request.params.invoiceId,
-        },
-        include: { invoice: true },
-      });
-      if (!payment) throw errors.notFound('Payment');
-      const invoice = payment.invoice;
-
       await app.prisma.$transaction(async (tx) => {
+        await lockInvoiceForUpdate(tx, request.params.invoiceId);
+        const payment = await tx.payment.findFirst({
+          where: {
+            id: request.params.paymentId,
+            organizationId,
+            invoiceId: request.params.invoiceId,
+          },
+        });
+        if (!payment) throw errors.notFound('Payment');
+        const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: payment.invoiceId } });
+
         await tx.payment.delete({ where: { id: payment.id } });
         const newPaid = invoice.amountPaidMinor - payment.amountMinor;
         const { status, paidAt } = nextInvoiceStatus(invoice, newPaid, invoice.creditedMinor);

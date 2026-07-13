@@ -15,9 +15,19 @@ import { orgContext, requirePermission } from '../../plugins/auth.js';
 import { auditContext, recordAudit } from '../audit/service.js';
 import { recordActivity } from '../activity/service.js';
 import { allocateNumber } from '../billing/numbering.js';
+import { lockInvoiceForUpdate } from '../billing/locks.js';
 import { nextInvoiceStatus } from '../invoices/status.js';
 
 const creditNoteInclude = { lineItems: true } as const;
+// Credit notes correct an ISSUED invoice; a cancelled/draft invoice cannot be credited.
+const CREDITABLE_STATUSES = new Set([
+  'OPEN',
+  'SENT',
+  'PARTIALLY_PAID',
+  'PAID',
+  'OVERDUE',
+  'CREDITED',
+]);
 
 export function registerCreditNoteRoutes(app: FastifyInstance): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -59,43 +69,47 @@ export function registerCreditNoteRoutes(app: FastifyInstance): void {
     },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const invoice = await app.prisma.invoice.findFirst({
-        where: { id: request.params.invoiceId, organizationId },
-        include: { lineItems: true },
-      });
-      if (!invoice) throw errors.notFound('Invoice');
-      // Credit notes correct FINALIZED invoices only.
-      if (invoice.status === 'DRAFT') {
-        throw errors.conflict('invoice_not_finalized', 'Only finalized invoices can be credited');
-      }
-
-      // Full credit (no lines) mirrors the invoice's net line amounts.
-      const lineInputs: CreditNoteLineInput[] =
-        request.body.lineItems ??
-        invoice.lineItems.map((line) => ({
-          description: line.description,
-          quantity: 1,
-          unitPriceMinor: Number(line.lineNetMinor),
-          taxRatePercent: Number(line.taxRatePercent),
-        }));
-
-      const moneyInputs: LineInput[] = lineInputs.map((line) => ({
-        quantity: line.quantity,
-        unitPriceMinor: line.unitPriceMinor,
-        discountPercent: 0,
-        taxRatePercent: line.taxRatePercent,
-      }));
-      const { lines, totals } = computeDocument(moneyInputs);
-
-      const newCredited = invoice.creditedMinor + BigInt(totals.totalMinor);
-      if (newCredited > invoice.totalMinor) {
-        throw errors.badRequest('over_credit', 'Total credited would exceed the invoice total');
-      }
-
       const now = new Date();
       const issueDate = request.body.issueDate ? new Date(request.body.issueDate) : now;
 
       const creditNote = await app.prisma.$transaction(async (tx) => {
+        // Lock the invoice, then validate + credit on its fresh state so
+        // concurrent credit notes cannot jointly exceed the invoice total.
+        await lockInvoiceForUpdate(tx, request.params.invoiceId);
+        const invoice = await tx.invoice.findFirst({
+          where: { id: request.params.invoiceId, organizationId },
+          include: { lineItems: true },
+        });
+        if (!invoice) throw errors.notFound('Invoice');
+        if (invoice.status === 'DRAFT') {
+          throw errors.conflict('invoice_not_finalized', 'Only finalized invoices can be credited');
+        }
+        if (!CREDITABLE_STATUSES.has(invoice.status)) {
+          throw errors.conflict('not_creditable', `A ${invoice.status} invoice cannot be credited`);
+        }
+
+        // Full credit (no lines) mirrors the invoice's net line amounts.
+        const lineInputs: CreditNoteLineInput[] =
+          request.body.lineItems ??
+          invoice.lineItems.map((line) => ({
+            description: line.description,
+            quantity: 1,
+            unitPriceMinor: Number(line.lineNetMinor),
+            taxRatePercent: Number(line.taxRatePercent),
+          }));
+        const moneyInputs: LineInput[] = lineInputs.map((line) => ({
+          quantity: line.quantity,
+          unitPriceMinor: line.unitPriceMinor,
+          discountPercent: 0,
+          taxRatePercent: line.taxRatePercent,
+        }));
+        const { lines, totals } = computeDocument(moneyInputs);
+
+        const newCredited = invoice.creditedMinor + BigInt(totals.totalMinor);
+        if (newCredited > invoice.totalMinor) {
+          throw errors.badRequest('over_credit', 'Total credited would exceed the invoice total');
+        }
+
         const number = await allocateNumber(tx, organizationId, 'CREDIT_NOTE');
         const created = await tx.creditNote.create({
           data: {

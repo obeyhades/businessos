@@ -18,6 +18,7 @@ packages/
              (request/response schemas shared by api, web and api-client)
   db         Prisma schema, migrations, seed, generated client
   config     zod-validated environment loading (apps refuse to boot on bad config)
+  storage    S3/MinIO object-storage wrapper (attachments, employee + invoice PDFs)
   api-client typed fetch client over the API contracts
   ui         shared React components
   tsconfig   shared strict TypeScript configs
@@ -228,6 +229,86 @@ customer/project/task timelines. Phase 3 activity types: `employee.created`,
 `employee.status_changed`, `employee.onboarding_started`, `certification.added`,
 `absence.requested`, `absence.approved`, `absence.rejected`, `document.added`, `note.added`.
 No new outbox event types were added in Phase 3.
+
+## Quotes & invoicing (Phase 4)
+
+Phase 4 adds the products/quotes/invoices/payments/credit-notes modules. The design centers
+on **deterministic money**, **concurrency-safe numbering** and **immutability after
+finalize**.
+
+### Deterministic money (Phase 4)
+
+All monetary values are integer minor units (öre; 100 minor = 1 SEK) end to end — on the
+wire, in the database (`BigInt`), and in every calculation. The server, never the UI, does
+the arithmetic (`apps/api/src/lib/money.ts`):
+
+- Intermediate math uses **decimal.js**, never IEEE floats.
+- Rounding is **HALF_UP at the line level**: each line's net, discount and tax are rounded
+  to whole minor units, and document totals are the exact sum of the already-rounded line
+  amounts. Totals therefore never drift from what a customer sees per line.
+- `computeLine` produces `line_net_minor` / `line_tax_minor` / `line_total_minor` from
+  quantity × unit price, discount %, then tax %. `computeTotals` sums those and emits a
+  per-rate VAT breakdown (`tax_lines`: `{ ratePercent, baseMinor, taxMinor }[]`).
+- The client formats amounts for display via `formatMinor(amountMinor, currency, locale)`
+  from `@businessos/types` (currency-aware `Intl`), and converts a typed major price to
+  minor (× 100, rounded) before sending `unitPriceMinor`.
+
+### Concurrency-safe document numbering
+
+Quote, invoice and credit-note numbers come from the per-org `number_sequences` table via
+`allocateNumber` (`apps/api/src/modules/billing/numbering.ts`). The sequence row is upserted,
+then updated with an atomic `{ next: { increment: 1 } }` that takes a **row-level write
+lock**. Because allocation runs **inside the finalize transaction**, two concurrent
+finalizations for the same org+kind serialize on that lock and receive distinct, gap-free
+values — no duplicate numbers, no skipped numbers. Numbers are formatted `prefix` +
+zero-padded counter (e.g. `INV-0001`).
+
+### Invoice immutability after finalize
+
+A draft invoice is fully editable. **Finalize** (`POST /v1/invoices/:id/finalize`) runs one
+transaction that: allocates the invoice number, sets `status = OPEN` and `finalized_at`,
+writes an `invoice.finalized` audit + activity, and enqueues the `invoice.finalized` outbox
+event; then, outside the transaction, it renders and stores the PDF. From that point the
+invoice and its line items are **immutable** — the money snapshot columns are frozen, edits
+and deletes are rejected, and the only corrections are **credit notes**. This mirrors the
+bookkeeping-immutability principle (and is why finalize is an explicit, irreversible step).
+
+### Quote → invoice conversion
+
+An accepted quote can be **converted** (`POST /v1/quotes/:id/convert`) into a new **draft**
+invoice that copies its line items; the quote's `converted_invoice_id` links the two. The
+new invoice is an ordinary draft (editable, not yet numbered) until finalized.
+
+### PDF generation and emailing
+
+On finalize the API renders a self-contained invoice PDF with **pdfkit**
+(`apps/api/src/lib/invoice-pdf.ts`) and stores it in object storage through the shared
+`@businessos/storage` wrapper (MinIO locally), recording `pdf_storage_key`. `GET
+/v1/invoices/:id/pdf-url` returns a short-lived presigned URL. **Send**
+(`POST /v1/invoices/:id/send`) emits `invoice.sent` on the outbox; the worker's email
+consumer fetches the PDF from storage and attaches it to the outgoing mail — the same
+outbox → RabbitMQ → email path used since Phase 1, now carrying an attachment.
+
+### Overdue sweep worker job
+
+`apps/worker/src/overdue-sweep.ts` periodically scans issued-but-unpaid invoices
+(`OPEN` / `SENT` / `PARTIALLY_PAID`) past `due_date`, re-checks each inside a transaction,
+and flips still-unpaid ones to `OVERDUE` with an audit + activity row. A later payment or
+credit moves an invoice back out of `OVERDUE` via the API's status recomputation
+(`apps/api/src/modules/invoices/status.ts`). It runs as a single instance, first ~5 s after
+boot then on its configured interval.
+
+### New domain events
+
+Phase 4 adds these outbox event types (published like all others through the transactional
+outbox):
+
+- `quote.accepted` — a quote was accepted
+- `invoice.finalized` — an invoice was numbered and frozen; **this is the accounting-draft
+  hook Phase 5 consumes** to generate journal entries
+- `invoice.sent` — triggers the PDF-attaching email
+- `payment.registered` — a payment was recorded
+- `invoice.overdue` — audit/activity emitted by the sweep (worker-local, not an outbox event)
 
 ## Where future modules attach
 

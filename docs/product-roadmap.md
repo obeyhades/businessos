@@ -1,9 +1,10 @@
 # Product roadmap (Phases 2–9)
 
 Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
-(customers, projects, tasks, comments, attachments, activity, search) and Phase 3
-(personnel) are **done** — see [implementation-plan.md](implementation-plan.md).
-**Phase 4 (Quotes & invoicing) is next.** Everything from Phase 4 on is planned, not built.
+(customers, projects, tasks, comments, attachments, activity, search), Phase 3
+(personnel) and Phase 4 (quotes & invoicing) are **done** — see
+[implementation-plan.md](implementation-plan.md).
+**Phase 5 (Bookkeeping support) is next.** Everything from Phase 5 on is planned, not built.
 Permissions for all of these modules already exist in the reviewed matrix
 (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
@@ -46,23 +47,35 @@ GDPR note: the stored fields are special-category personal data and still **requ
 review** (lawful basis, retention, right-to-erasure) — feeds the Phase 9 retention/export
 work. See [legal-review-required.md](legal-review-required.md).
 
-## Phase 4 — Quotes & invoicing
+## Phase 4 — Quotes & invoicing — **Done**
 
-Definition of done:
+Delivered:
 
-- Quote → invoice lifecycle with sequential per-organization numbering
-- Money as integer minor units + currency per document (convention locked in
-  [data-model.md](data-model.md)); VAT lines modeled
-- PDF generation and delivery via the existing outbox → email path
-- **Professional review of invoice/VAT rules before real use**
-  ([legal-review-required.md](legal-review-required.md))
+- Product catalogue feeding quotes and invoices; quote lifecycle
+  `DRAFT → SENT → ACCEPTED → convert`, and a converted quote produces a new **draft invoice**
+- Invoices editable only while draft; **finalize** assigns a sequential, concurrency-safe
+  per-organization number, freezes the document (**immutable** — corrections via credit
+  notes only) and generates a PDF; then send (email with PDF attached), payments (partial
+  allowed, **overpayment rejected**) and credit notes (full/partial, **over-credit
+  rejected**, full → `CREDITED`)
+- **Deterministic money**: integer minor units + currency per document, decimal.js with
+  HALF_UP line-level rounding, VAT modeled as per-rate `tax_lines` — never floating point
+- PDF (pdfkit → MinIO via `@businessos/storage`) delivered through the existing outbox →
+  email path; an overdue sweep flags unpaid past-due invoices
+- New domain events `quote.accepted`, `invoice.finalized`, `invoice.sent`,
+  `payment.registered`; **`invoice.finalized` is the accounting-draft hook Phase 5 consumes**
+- Permissions `invoices.read` / `invoices.manage` enforced end-to-end
+- **Professional review of invoice/VAT rules still required before real use** — the money/VAT
+  machinery is a technical foundation only ([legal-review-required.md](legal-review-required.md))
 
-## Phase 5 — Bookkeeping support
+## Phase 5 — Bookkeeping support — **Next**
 
 Definition of done:
 
 - Chart of accounts, verifications, append-only posted entries; `accounting.post` as a
   distinct permission
+- Consumes the Phase 4 **`invoice.finalized`** outbox event as the accounting-draft hook —
+  a finalized invoice becomes the source for a journal entry / verification
 - Export formats (e.g. SIE) evaluated
 - **Explicitly labeled non-compliant until legal/accounting review passes**
   ([legal-review-required.md](legal-review-required.md))

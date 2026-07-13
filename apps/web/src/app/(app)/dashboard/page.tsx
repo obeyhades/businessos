@@ -16,19 +16,15 @@ import Link from 'next/link';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/data-states';
 import { ActivityTimeline } from '@/components/phase2/activity-timeline';
 import { TaskPriorityBadge } from '@/components/phase2/badges';
+import { useFormatMoney } from '@/components/phase4/money';
 import { api } from '@/lib/api';
 import { useApiErrorMessage } from '@/lib/errors';
 import { activeMembership, can, useSession } from '@/lib/session';
 
 const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED'] as const;
+const OUTSTANDING_INVOICE_STATUSES = ['OPEN', 'SENT', 'PARTIALLY_PAID', 'OVERDUE'] as const;
 
-const COMING_SOON_MODULES = [
-  'invoicing',
-  'bookkeeping',
-  'calendar',
-  'email',
-  'recordings',
-] as const;
+const COMING_SOON_MODULES = ['bookkeeping', 'calendar', 'email', 'recordings'] as const;
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard');
@@ -36,7 +32,9 @@ export default function DashboardPage() {
   const tRoles = useTranslations('roles');
   const tActions = useTranslations('auditActions');
   const tPersonnel = useTranslations('dashboardPersonnel');
+  const tInvoicing = useTranslations('dashboardInvoicing');
   const format = useFormatter();
+  const formatMoney = useFormatMoney();
   const errorMessage = useApiErrorMessage();
 
   const { data: session } = useSession();
@@ -46,12 +44,29 @@ export default function DashboardPage() {
   const canReadAudit = can(session, 'audit.read');
   const canReadTasks = can(session, 'tasks.read');
   const canReadPersonnel = can(session, 'personnel.read');
+  const canReadInvoices = can(session, 'invoices.read');
 
   const expiringCertsQuery = useQuery({
     queryKey: ['certifications', 'expiring', 60],
     queryFn: () => api.certifications.expiring(60),
     enabled: canReadPersonnel,
   });
+
+  const outstandingInvoicesQuery = useQuery({
+    queryKey: ['invoices', 'outstanding'],
+    queryFn: () => api.invoices.list({ page: 1, pageSize: 100 }),
+    enabled: canReadInvoices,
+  });
+  const outstandingInvoices = (outstandingInvoicesQuery.data?.items ?? []).filter((invoice) =>
+    (OUTSTANDING_INVOICE_STATUSES as readonly string[]).includes(invoice.status),
+  );
+  const outstandingDueMinor = outstandingInvoices.reduce(
+    (sum, invoice) => sum + invoice.amountDueMinor,
+    0,
+  );
+  const overdueCount = outstandingInvoices.filter((invoice) => invoice.isOverdue).length;
+  const outstandingCurrency =
+    outstandingInvoices[0]?.currency ?? membership?.organization.currency ?? 'SEK';
 
   const myTasksQuery = useQuery({
     queryKey: ['tasks', 'mine', 'open'],
@@ -312,6 +327,44 @@ export default function DashboardPage() {
               )}
               <Button asChild variant="outline" size="sm">
                 <Link href="/employees">{tPersonnel('viewAll')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {canReadInvoices ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{tInvoicing('outstandingTitle')}</CardTitle>
+              <CardDescription>{tInvoicing('outstandingDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {outstandingInvoicesQuery.isPending ? (
+                <ListSkeleton rows={3} />
+              ) : outstandingInvoicesQuery.isError ? (
+                <ErrorState
+                  message={errorMessage(outstandingInvoicesQuery.error)}
+                  onRetry={() => void outstandingInvoicesQuery.refetch()}
+                />
+              ) : outstandingInvoices.length === 0 ? (
+                <EmptyState title={tInvoicing('outstandingEmpty')} />
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-3xl font-semibold">
+                    {formatMoney(outstandingDueMinor, outstandingCurrency)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {tInvoicing('outstandingCount', { count: outstandingInvoices.length })}
+                  </p>
+                  {overdueCount > 0 ? (
+                    <Badge variant="destructive">
+                      {tInvoicing('overdueCount', { count: overdueCount })}
+                    </Badge>
+                  ) : null}
+                </div>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link href="/invoices">{tInvoicing('viewAll')}</Link>
               </Button>
             </CardContent>
           </Card>

@@ -18,6 +18,7 @@ import { auditContext, recordAudit } from '../audit/service.js';
 import { recordActivity } from '../activity/service.js';
 import { enqueueOutbox } from '../outbox/service.js';
 import { buildDocument } from '../billing/lines.js';
+import { lockQuoteForUpdate } from '../billing/locks.js';
 
 const quoteInclude = {
   customer: { select: { id: true, name: true } },
@@ -233,17 +234,18 @@ export function registerQuoteRoutes(app: FastifyInstance): void {
       schema: { tags: ['quotes'], params: quoteIdParamsSchema, response: { 200: quoteDtoSchema } },
       handler: async (request, reply) => {
         const { organizationId } = orgContext(request);
-        const existing = await app.prisma.quote.findFirst({
-          where: { id: request.params.quoteId, organizationId },
-        });
-        if (!existing) throw errors.notFound('Quote');
-        if (!from.includes(existing.status)) {
-          throw errors.conflict(
-            'invalid_transition',
-            `A ${existing.status} quote cannot be ${to.toLowerCase()}`,
-          );
-        }
         const updated = await app.prisma.$transaction(async (tx) => {
+          await lockQuoteForUpdate(tx, request.params.quoteId);
+          const existing = await tx.quote.findFirst({
+            where: { id: request.params.quoteId, organizationId },
+          });
+          if (!existing) throw errors.notFound('Quote');
+          if (!from.includes(existing.status)) {
+            throw errors.conflict(
+              'invalid_transition',
+              `A ${existing.status} quote cannot be ${to.toLowerCase()}`,
+            );
+          }
           const result = await tx.quote.update({
             where: { id: existing.id },
             data: {
@@ -292,23 +294,24 @@ export function registerQuoteRoutes(app: FastifyInstance): void {
     schema: { tags: ['quotes'], params: quoteIdParamsSchema, response: { 201: invoiceDtoSchema } },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const quote = await app.prisma.quote.findFirst({
-        where: { id: request.params.quoteId, organizationId },
-        include: { lineItems: true },
-      });
-      if (!quote) throw errors.notFound('Quote');
-      if (quote.status !== 'ACCEPTED') {
-        throw errors.conflict('quote_not_accepted', 'Only accepted quotes can be converted');
-      }
-      if (quote.convertedInvoiceId) {
-        throw errors.conflict('already_converted', 'This quote has already been converted');
-      }
-
       const now = new Date();
       const dueDate = new Date(now);
       dueDate.setUTCDate(dueDate.getUTCDate() + 30);
 
       const invoice = await app.prisma.$transaction(async (tx) => {
+        // Lock + re-check so two concurrent converts cannot each spawn an invoice.
+        await lockQuoteForUpdate(tx, request.params.quoteId);
+        const quote = await tx.quote.findFirst({
+          where: { id: request.params.quoteId, organizationId },
+          include: { lineItems: true },
+        });
+        if (!quote) throw errors.notFound('Quote');
+        if (quote.status !== 'ACCEPTED') {
+          throw errors.conflict('quote_not_accepted', 'Only accepted quotes can be converted');
+        }
+        if (quote.convertedInvoiceId) {
+          throw errors.conflict('already_converted', 'This quote has already been converted');
+        }
         const created = await tx.invoice.create({
           data: {
             organizationId,

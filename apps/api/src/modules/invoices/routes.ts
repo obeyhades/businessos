@@ -24,11 +24,15 @@ import { recordActivity } from '../activity/service.js';
 import { enqueueEmail, enqueueOutbox } from '../outbox/service.js';
 import { buildDocument } from '../billing/lines.js';
 import { allocateNumber } from '../billing/numbering.js';
+import { lockInvoiceForUpdate } from '../billing/locks.js';
 
 const invoiceInclude = {
   customer: { select: { id: true, name: true } },
   lineItems: true,
 } as const;
+
+// Issued + outstanding invoices that may still be emailed.
+const SENDABLE_STATUSES = new Set(['OPEN', 'SENT', 'PARTIALLY_PAID', 'OVERDUE']);
 
 async function assertCustomer(app: FastifyInstance, organizationId: string, customerId: string) {
   const customer = await app.prisma.customer.findFirst({
@@ -212,6 +216,20 @@ export function registerInvoiceRoutes(app: FastifyInstance): void {
       const doc = body.lineItems ? buildDocument(organizationId, body.lineItems) : null;
 
       const updated = await app.prisma.$transaction(async (tx) => {
+        // Re-check DRAFT on the locked row so an edit racing a finalize cannot
+        // mutate an invoice that just became immutable.
+        await lockInvoiceForUpdate(tx, existing.id);
+        const locked = await tx.invoice.findFirst({
+          where: { id: existing.id, organizationId },
+          select: { status: true },
+        });
+        if (!locked) throw errors.notFound('Invoice');
+        if (locked.status !== 'DRAFT') {
+          throw errors.conflict(
+            'invoice_not_draft',
+            'Finalized invoices are immutable; use a credit note',
+          );
+        }
         if (doc) await tx.invoiceLineItem.deleteMany({ where: { invoiceId: existing.id } });
         const result = await tx.invoice.update({
           where: { id: existing.id },
@@ -251,14 +269,20 @@ export function registerInvoiceRoutes(app: FastifyInstance): void {
         where: { id: request.params.invoiceId, organizationId },
       });
       if (!existing) throw errors.notFound('Invoice');
-      // Only drafts may be deleted; finalized invoices are cancelled, never removed.
-      if (existing.status !== 'DRAFT') {
-        throw errors.conflict(
-          'invoice_not_draft',
-          'Finalized invoices cannot be deleted; cancel instead',
-        );
-      }
       await app.prisma.$transaction(async (tx) => {
+        await lockInvoiceForUpdate(tx, existing.id);
+        const locked = await tx.invoice.findFirst({
+          where: { id: existing.id, organizationId },
+          select: { status: true },
+        });
+        if (!locked) throw errors.notFound('Invoice');
+        // Only drafts may be deleted; finalized invoices are cancelled, never removed.
+        if (locked.status !== 'DRAFT') {
+          throw errors.conflict(
+            'invoice_not_draft',
+            'Finalized invoices cannot be deleted; cancel instead',
+          );
+        }
         await tx.invoice.delete({ where: { id: existing.id } });
         await recordAudit(tx, {
           action: 'invoice.updated',
@@ -285,19 +309,22 @@ export function registerInvoiceRoutes(app: FastifyInstance): void {
     },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const existing = await app.prisma.invoice.findFirst({
-        where: { id: request.params.invoiceId, organizationId },
-        include: { lineItems: true },
-      });
-      if (!existing) throw errors.notFound('Invoice');
-      if (existing.status !== 'DRAFT') {
-        throw errors.conflict('already_finalized', 'This invoice is already finalized');
-      }
-      if (existing.lineItems.length === 0) {
-        throw errors.badRequest('empty_invoice', 'Cannot finalize an invoice with no line items');
-      }
 
       const invoice = await app.prisma.$transaction(async (tx) => {
+        // Lock + re-check DRAFT inside the tx so two concurrent finalizes cannot
+        // both proceed (which would burn a number and double-emit the event).
+        await lockInvoiceForUpdate(tx, request.params.invoiceId);
+        const existing = await tx.invoice.findFirst({
+          where: { id: request.params.invoiceId, organizationId },
+          include: { lineItems: true },
+        });
+        if (!existing) throw errors.notFound('Invoice');
+        if (existing.status !== 'DRAFT') {
+          throw errors.conflict('already_finalized', 'This invoice is already finalized');
+        }
+        if (existing.lineItems.length === 0) {
+          throw errors.badRequest('empty_invoice', 'Cannot finalize an invoice with no line items');
+        }
         const number = await allocateNumber(tx, organizationId, 'INVOICE');
         const result = await tx.invoice.update({
           where: { id: existing.id },
@@ -361,18 +388,25 @@ export function registerInvoiceRoutes(app: FastifyInstance): void {
         include: { ...invoiceInclude, customer: true },
       });
       if (!invoice) throw errors.notFound('Invoice');
-      if (invoice.status === 'DRAFT') {
-        throw errors.conflict('not_finalized', 'Finalize the invoice before sending');
+      // Only issued + outstanding invoices are sendable — not draft, paid,
+      // cancelled or fully credited (which would resurrect a closed document).
+      if (!SENDABLE_STATUSES.has(invoice.status)) {
+        throw errors.conflict('not_sendable', `A ${invoice.status} invoice cannot be sent`);
       }
       const recipient = request.body.to ?? invoice.customer.email;
       if (!recipient) {
         throw errors.badRequest('no_recipient', 'The customer has no email; provide a recipient');
       }
+      // Sending only advances OPEN → SENT; a partially-paid/overdue invoice keeps
+      // its payment status (which must not be clobbered back to SENT).
+      const nextStatus = invoice.status === 'OPEN' ? 'SENT' : invoice.status;
+      const amountDue =
+        Number(invoice.totalMinor - invoice.amountPaidMinor - invoice.creditedMinor) / 100;
 
       const updated = await app.prisma.$transaction(async (tx) => {
         const result = await tx.invoice.update({
           where: { id: invoice.id },
-          data: { status: 'SENT', sentAt: invoice.sentAt ?? new Date() },
+          data: { status: nextStatus, sentAt: invoice.sentAt ?? new Date() },
           include: invoiceInclude,
         });
         await enqueueEmail(tx, {
@@ -383,7 +417,7 @@ export function registerInvoiceRoutes(app: FastifyInstance): void {
           text: [
             `Please find invoice ${invoice.number} attached.`,
             '',
-            `Amount due: ${Number(invoice.totalMinor) / 100} ${invoice.currency}`,
+            `Amount due: ${amountDue.toFixed(2)} ${invoice.currency}`,
             `Due date: ${invoice.dueDate.toISOString().slice(0, 10)}`,
           ].join('\n'),
           ...(invoice.pdfStorageKey
@@ -428,20 +462,24 @@ export function registerInvoiceRoutes(app: FastifyInstance): void {
     },
     handler: async (request, reply) => {
       const { organizationId } = orgContext(request);
-      const existing = await app.prisma.invoice.findFirst({
-        where: { id: request.params.invoiceId, organizationId },
-      });
-      if (!existing) throw errors.notFound('Invoice');
-      if (existing.status === 'DRAFT') {
-        throw errors.conflict('is_draft', 'Delete drafts instead of cancelling');
-      }
-      if (['PAID', 'CANCELLED', 'CREDITED'].includes(existing.status)) {
-        throw errors.conflict('cannot_cancel', `A ${existing.status} invoice cannot be cancelled`);
-      }
-      if (existing.amountPaidMinor > 0n) {
-        throw errors.conflict('has_payments', 'Refund and remove payments before cancelling');
-      }
       const updated = await app.prisma.$transaction(async (tx) => {
+        await lockInvoiceForUpdate(tx, request.params.invoiceId);
+        const existing = await tx.invoice.findFirst({
+          where: { id: request.params.invoiceId, organizationId },
+        });
+        if (!existing) throw errors.notFound('Invoice');
+        if (existing.status === 'DRAFT') {
+          throw errors.conflict('is_draft', 'Delete drafts instead of cancelling');
+        }
+        if (['PAID', 'CANCELLED', 'CREDITED'].includes(existing.status)) {
+          throw errors.conflict(
+            'cannot_cancel',
+            `A ${existing.status} invoice cannot be cancelled`,
+          );
+        }
+        if (existing.amountPaidMinor > 0n) {
+          throw errors.conflict('has_payments', 'Refund and remove payments before cancelling');
+        }
         const result = await tx.invoice.update({
           where: { id: existing.id },
           data: { status: 'CANCELLED', cancelledAt: new Date() },

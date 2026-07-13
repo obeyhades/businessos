@@ -7,7 +7,10 @@ import {
   CircleCheck,
   ClipboardList,
   Contact,
+  FileText,
   LayoutDashboard,
+  Package,
+  ReceiptText,
   ScrollText,
   Settings,
   Users,
@@ -30,6 +33,9 @@ interface NavItem {
     | 'personnel'
     | 'onboarding'
     | 'absences'
+    | 'products'
+    | 'quotes'
+    | 'invoices'
     | 'auditLog'
     | 'settings'
     | 'failedJobs';
@@ -80,6 +86,24 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       labelKey: 'absences',
       icon: CalendarClock,
       visible: can(session, 'personnel.read'),
+    },
+    {
+      href: '/products',
+      labelKey: 'products',
+      icon: Package,
+      visible: can(session, 'invoices.read'),
+    },
+    {
+      href: '/quotes',
+      labelKey: 'quotes',
+      icon: FileText,
+      visible: can(session, 'invoices.read'),
+    },
+    {
+      href: '/invoices',
+      labelKey: 'invoices',
+      icon: ReceiptText,
+      visible: can(session, 'invoices.read'),
     },
     {
       href: '/audit-log',
