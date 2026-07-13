@@ -62,6 +62,11 @@ model User {
   postedVouchers             Voucher[]           @relation("VoucherPostedBy")
   uploadedVoucherAttachments VoucherAttachment[] @relation("VoucherAttachmentUploadedBy")
 
+  // Phase 6 back-relations
+  ownedCalendars   Calendar[]      @relation("CalendarOwner")
+  organizedEvents  CalendarEvent[] @relation("EventOrganizer")
+  eventAttendances EventAttendee[]
+
   @@map("users")
 }
 
@@ -110,6 +115,10 @@ model Organization {
   fiscalPeriods  FiscalPeriod[]
   vouchers       Voucher[]
   accountMapping AccountMapping?
+
+  // Phase 6 back-relations
+  calendars      Calendar[]
+  calendarEvents CalendarEvent[]
 
   @@map("organizations")
 }
@@ -308,6 +317,7 @@ model Customer {
   activities   Activity[]
   quotes       Quote[]
   invoices     Invoice[]
+  events       CalendarEvent[]
 
   @@index([organizationId, status])
   @@index([organizationId, name])
@@ -352,6 +362,7 @@ model Project {
   comments     Comment[]
   attachments  FileAttachment[]
   activities   Activity[]
+  events       CalendarEvent[]
 
   @@index([organizationId, status])
   @@index([customerId])
@@ -384,6 +395,7 @@ model Task {
   comments     Comment[]
   attachments  FileAttachment[]
   activities   Activity[]
+  events       CalendarEvent[]
 
   @@index([organizationId, status])
   @@index([organizationId, assigneeId])
@@ -1157,4 +1169,190 @@ model AccountMapping {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("account_mappings")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 — Calendar & tasks. Team + personal calendars; events with
+// attendees/RSVP, reminders, recurrence, per-occurrence exceptions, and links
+// into the business context (customer/project/task). Times are stored as UTC
+// instants (Timestamptz); recurrence is expanded server-side per query.
+// ---------------------------------------------------------------------------
+
+enum CalendarType {
+  TEAM
+  PERSONAL
+}
+
+enum EventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+enum EventVisibility {
+  DEFAULT
+  PRIVATE
+}
+
+enum AttendeeResponse {
+  NEEDS_ACTION
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+enum ReminderMethod {
+  EMAIL
+}
+
+enum RecurrenceFreq {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum ExceptionType {
+  CANCELLED
+  OVERRIDE
+}
+
+model Calendar {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  color          String       @default("#3b82f6")
+  type           CalendarType @default(TEAM)
+  ownerId        String?      @map("owner_id") @db.Uuid
+  isDefault      Boolean      @default(false) @map("is_default")
+  createdById    String?      @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?           @relation("CalendarOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  events       CalendarEvent[]
+
+  @@index([organizationId, type])
+  @@map("calendars")
+}
+
+model CalendarEvent {
+  id                  String          @id @default(uuid()) @db.Uuid
+  organizationId      String          @map("organization_id") @db.Uuid
+  calendarId          String          @map("calendar_id") @db.Uuid
+  title               String
+  description         String?
+  location            String?
+  startsAt            DateTime        @map("starts_at") @db.Timestamptz(6)
+  endsAt              DateTime        @map("ends_at") @db.Timestamptz(6)
+  allDay              Boolean         @default(false) @map("all_day")
+  timezone            String          @default("Europe/Stockholm")
+  status              EventStatus     @default(CONFIRMED)
+  visibility          EventVisibility @default(DEFAULT)
+  organizerId         String?         @map("organizer_id") @db.Uuid
+  // Business context (denormalized, mirrors the activity ref chain).
+  customerId          String?         @map("customer_id") @db.Uuid
+  projectId           String?         @map("project_id") @db.Uuid
+  taskId              String?         @map("task_id") @db.Uuid
+  // Recurrence — null freq means a single (non-recurring) event.
+  recurrenceFreq      RecurrenceFreq? @map("recurrence_freq")
+  recurrenceInterval  Int             @default(1) @map("recurrence_interval")
+  recurrenceByWeekday Int[]           @map("recurrence_by_weekday")
+  recurrenceCount     Int?            @map("recurrence_count")
+  recurrenceUntil     DateTime?       @map("recurrence_until") @db.Timestamptz(6)
+  createdById         String?         @map("created_by_id") @db.Uuid
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendar      Calendar         @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  organizer     User?            @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: SetNull)
+  customer      Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task          Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  attendees     EventAttendee[]
+  reminders     EventReminder[]
+  exceptions    EventException[]
+  sentReminders SentReminder[]
+
+  @@index([organizationId, startsAt])
+  @@index([calendarId, startsAt])
+  @@index([organizationId, customerId])
+  @@map("calendar_events")
+}
+
+model EventAttendee {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  eventId        String           @map("event_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  response       AttendeeResponse @default(NEEDS_ACTION)
+  isOrganizer    Boolean          @default(false) @map("is_organizer")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([organizationId, userId])
+  @@map("event_attendees")
+}
+
+model EventReminder {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  eventId        String         @map("event_id") @db.Uuid
+  minutesBefore  Int            @map("minutes_before")
+  method         ReminderMethod @default(EMAIL)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_reminders")
+}
+
+// A single occurrence of a recurring event that has been cancelled or edited.
+// `occurrenceStart` is the ORIGINAL (rule-generated) UTC start it replaces.
+model EventException {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  eventId         String        @map("event_id") @db.Uuid
+  occurrenceStart DateTime      @map("occurrence_start") @db.Timestamptz(6)
+  type            ExceptionType
+  // Override fields (all null when type = CANCELLED).
+  title           String?
+  description     String?
+  location        String?
+  startsAt        DateTime?     @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime?     @map("ends_at") @db.Timestamptz(6)
+  status          EventStatus?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, occurrenceStart])
+  @@index([organizationId, eventId])
+  @@map("event_exceptions")
+}
+
+// Worker idempotency ledger: one row per (reminder, occurrence) actually sent,
+// so the reminder sweep never double-notifies. The unique constraint is the
+// authoritative guard.
+model SentReminder {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  eventId         String   @map("event_id") @db.Uuid
+  reminderId      String   @map("reminder_id") @db.Uuid
+  occurrenceStart DateTime @map("occurrence_start") @db.Timestamptz(6)
+  sentAt          DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  event CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, occurrenceStart])
+  @@index([organizationId, eventId])
+  @@map("sent_reminders")
 }

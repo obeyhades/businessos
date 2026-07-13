@@ -130,6 +130,7 @@ async function main(): Promise<void> {
   await seedPhase3(org.id, owner.id);
   await seedPhase4(org.id, owner.id);
   await seedPhase5(org.id, owner.id);
+  await seedPhase6(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
 }
@@ -952,6 +953,125 @@ async function seedPhase5(organizationId: string, ownerId: string): Promise<void
 
   console.warn(
     'Seeded 13 accounts, a fiscal year (Jan locked), account mapping, 2 posted vouchers and 1 draft.',
+  );
+}
+
+/**
+ * Calendar: a default team calendar with a single customer meeting (reminder +
+ * two attendees), a weekly Mon/Wed standup that has one occurrence cancelled,
+ * and a private focus block visible only to its owner. All fictional.
+ */
+async function seedPhase6(organizationId: string, ownerId: string): Promise<void> {
+  const already = await prisma.calendar.count({ where: { organizationId } });
+  if (already > 0) return;
+
+  const calendar = await prisma.calendar.create({
+    data: {
+      organizationId,
+      name: 'Team',
+      color: '#3b82f6',
+      type: 'TEAM',
+      isDefault: true,
+      createdById: ownerId,
+    },
+  });
+
+  const [admin, erik] = await Promise.all([
+    prisma.user.findUnique({ where: { email: 'admin@demo.businessos.local' } }),
+    prisma.user.findUnique({ where: { email: 'erik@demo.businessos.local' } }),
+  ]);
+  const customer = await prisma.customer.findFirst({
+    where: { organizationId },
+    select: { id: true },
+  });
+
+  // UTC date `days` from now at hh:mm.
+  const at = (days: number, hour: number, minute = 0): Date => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + days);
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hour, minute));
+  };
+  const addMinutes = (d: Date, m: number): Date => new Date(d.getTime() + m * 60_000);
+  const addDays = (d: Date, days: number): Date => new Date(d.getTime() + days * 86_400_000);
+
+  // 1. Single customer meeting tomorrow 10:00–11:00, reminder 30 min before.
+  await prisma.calendarEvent.create({
+    data: {
+      organizationId,
+      calendarId: calendar.id,
+      title: 'Customer kickoff',
+      location: 'Office',
+      startsAt: at(1, 10),
+      endsAt: at(1, 11),
+      organizerId: ownerId,
+      customerId: customer?.id ?? null,
+      createdById: ownerId,
+      attendees: {
+        create: [
+          { organizationId, userId: ownerId, response: 'ACCEPTED', isOrganizer: true },
+          ...(admin
+            ? [{ organizationId, userId: admin.id, response: 'NEEDS_ACTION' as const }]
+            : []),
+        ],
+      },
+      reminders: { create: [{ organizationId, minutesBefore: 30 }] },
+    },
+  });
+
+  // 2. Weekly Mon/Wed standup, starting the next Monday 09:00; one occurrence
+  //    (two Mondays out) is cancelled.
+  const now = new Date();
+  const daysToMonday = (1 - now.getUTCDay() + 7) % 7 || 7;
+  const standupStart = at(daysToMonday, 9);
+  const standup = await prisma.calendarEvent.create({
+    data: {
+      organizationId,
+      calendarId: calendar.id,
+      title: 'Daily standup',
+      startsAt: standupStart,
+      endsAt: addMinutes(standupStart, 15),
+      organizerId: ownerId,
+      createdById: ownerId,
+      recurrenceFreq: 'WEEKLY',
+      recurrenceInterval: 1,
+      recurrenceByWeekday: [1, 3],
+      attendees: {
+        create: [
+          { organizationId, userId: ownerId, response: 'ACCEPTED', isOrganizer: true },
+          ...(erik ? [{ organizationId, userId: erik.id, response: 'ACCEPTED' as const }] : []),
+        ],
+      },
+      reminders: { create: [{ organizationId, minutesBefore: 10 }] },
+    },
+  });
+  await prisma.eventException.create({
+    data: {
+      organizationId,
+      eventId: standup.id,
+      occurrenceStart: addDays(standupStart, 14),
+      type: 'CANCELLED',
+    },
+  });
+
+  // 3. Private focus block for the owner only.
+  await prisma.calendarEvent.create({
+    data: {
+      organizationId,
+      calendarId: calendar.id,
+      title: 'Focus time',
+      visibility: 'PRIVATE',
+      startsAt: at(2, 13),
+      endsAt: at(2, 15),
+      organizerId: ownerId,
+      createdById: ownerId,
+      attendees: {
+        create: [{ organizationId, userId: ownerId, response: 'ACCEPTED', isOrganizer: true }],
+      },
+    },
+  });
+
+  console.warn(
+    'Seeded a team calendar with 3 events (single, weekly recurring w/ exception, private).',
   );
 }
 

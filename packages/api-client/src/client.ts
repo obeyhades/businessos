@@ -27,6 +27,11 @@ import {
   voucherAttachmentDtoSchema,
   trialBalanceDtoSchema,
   generalLedgerDtoSchema,
+  calendarDtoSchema,
+  eventDtoSchema,
+  occurrenceDtoSchema,
+  agendaItemDtoSchema,
+  freeBusyDtoSchema,
   membershipDtoSchema,
   onboardingTemplateDtoSchema,
   organizationDtoSchema,
@@ -102,6 +107,17 @@ import {
   type UpdateAccountMappingBody,
   type ReportQuery,
   type GeneralLedgerQuery,
+  type CreateCalendarBody,
+  type UpdateCalendarBody,
+  type CreateEventBody,
+  type UpdateEventBody,
+  type EventRangeQuery,
+  type OverrideOccurrenceBody,
+  type CancelOccurrenceBody,
+  type RsvpBody,
+  type AddAttendeeBody,
+  type AgendaQuery,
+  type FreeBusyQuery,
 } from '@businessos/types';
 
 /** Maps an entity kind to its plural REST path segment. */
@@ -628,6 +644,41 @@ export function createApiClient(options: ApiClientOptions) {
         request('GET', '/v1/accounting/reports/trial-balance', trialBalanceDtoSchema, { query }),
       generalLedger: (query?: Partial<GeneralLedgerQuery>) =>
         request('GET', '/v1/accounting/reports/general-ledger', generalLedgerDtoSchema, { query }),
+    },
+    calendar: {
+      listCalendars: () => request('GET', '/v1/calendars', z.array(calendarDtoSchema)),
+      createCalendar: (body: CreateCalendarBody) =>
+        request('POST', '/v1/calendars', calendarDtoSchema, { body }),
+      updateCalendar: (calendarId: string, body: UpdateCalendarBody) =>
+        request('PATCH', `/v1/calendars/${calendarId}`, calendarDtoSchema, { body }),
+      removeCalendar: (calendarId: string) =>
+        request('DELETE', `/v1/calendars/${calendarId}`, emptySchema),
+      // Events — range returns expanded occurrences.
+      listEvents: (query: EventRangeQuery) =>
+        request('GET', '/v1/events', z.array(occurrenceDtoSchema), { query }),
+      getEvent: (eventId: string) => request('GET', `/v1/events/${eventId}`, eventDtoSchema),
+      createEvent: (body: CreateEventBody) =>
+        request('POST', '/v1/events', eventDtoSchema, { body }),
+      updateEvent: (eventId: string, body: UpdateEventBody) =>
+        request('PATCH', `/v1/events/${eventId}`, eventDtoSchema, { body }),
+      removeEvent: (eventId: string) => request('DELETE', `/v1/events/${eventId}`, emptySchema),
+      cancelEvent: (eventId: string) =>
+        request('POST', `/v1/events/${eventId}/cancel`, eventDtoSchema),
+      cancelOccurrence: (eventId: string, body: CancelOccurrenceBody) =>
+        request('POST', `/v1/events/${eventId}/occurrences/cancel`, emptySchema, { body }),
+      overrideOccurrence: (eventId: string, body: OverrideOccurrenceBody) =>
+        request('POST', `/v1/events/${eventId}/occurrences/override`, emptySchema, { body }),
+      addAttendee: (eventId: string, body: AddAttendeeBody) =>
+        request('POST', `/v1/events/${eventId}/attendees`, eventDtoSchema, { body }),
+      removeAttendee: (eventId: string, userId: string) =>
+        request('DELETE', `/v1/events/${eventId}/attendees/${userId}`, eventDtoSchema),
+      rsvp: (eventId: string, body: RsvpBody) =>
+        request('POST', `/v1/events/${eventId}/rsvp`, eventDtoSchema, { body }),
+      // Agenda & free/busy
+      agenda: (query: AgendaQuery) =>
+        request('GET', '/v1/agenda', z.array(agendaItemDtoSchema), { query }),
+      freeBusy: (query: FreeBusyQuery) =>
+        request('GET', '/v1/calendar/free-busy', freeBusyDtoSchema, { query }),
     },
   };
 }

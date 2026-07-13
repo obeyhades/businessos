@@ -18,6 +18,8 @@ export const env = parseEnv({
   S3_REGION: z.string().min(1).default('us-east-1'),
   /** How often to sweep for overdue invoices, in seconds. */
   OVERDUE_SWEEP_SECONDS: z.coerce.number().int().min(30).default(300),
+  /** How often to sweep for due event reminders, in seconds. */
+  REMINDER_SWEEP_SECONDS: z.coerce.number().int().min(15).default(60),
 });
 
 export type WorkerEnv = typeof env;

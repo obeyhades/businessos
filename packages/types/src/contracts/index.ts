@@ -28,3 +28,5 @@ export * from './payments.js';
 export * from './credit-notes.js';
 // Phase 5
 export * from './accounting.js';
+// Phase 6
+export * from './calendar.js';

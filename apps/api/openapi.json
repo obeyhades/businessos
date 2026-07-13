@@ -2077,7 +2077,19 @@
                               "voucher.unreconciled",
                               "voucher_attachment.uploaded",
                               "voucher_attachment.deleted",
-                              "account_mapping.updated"
+                              "account_mapping.updated",
+                              "calendar.created",
+                              "calendar.updated",
+                              "calendar.deleted",
+                              "event.created",
+                              "event.updated",
+                              "event.cancelled",
+                              "event.deleted",
+                              "event.occurrence_overridden",
+                              "event.occurrence_cancelled",
+                              "event_attendee.added",
+                              "event_attendee.removed",
+                              "event_attendee.responded"
                             ]
                           },
                           "entityType": {
@@ -3028,7 +3040,10 @@
                               "invoice.cancelled",
                               "payment.registered",
                               "invoice.credited",
-                              "invoice.accounting_drafted"
+                              "invoice.accounting_drafted",
+                              "event.scheduled",
+                              "event.updated",
+                              "event.cancelled"
                             ]
                           },
                           "actor": {
@@ -4069,7 +4084,10 @@
                               "invoice.cancelled",
                               "payment.registered",
                               "invoice.credited",
-                              "invoice.accounting_drafted"
+                              "invoice.accounting_drafted",
+                              "event.scheduled",
+                              "event.updated",
+                              "event.cancelled"
                             ]
                           },
                           "actor": {
@@ -5182,7 +5200,10 @@
                               "invoice.cancelled",
                               "payment.registered",
                               "invoice.credited",
-                              "invoice.accounting_drafted"
+                              "invoice.accounting_drafted",
+                              "event.scheduled",
+                              "event.updated",
+                              "event.cancelled"
                             ]
                           },
                           "actor": {
@@ -6671,7 +6692,10 @@
                               "invoice.cancelled",
                               "payment.registered",
                               "invoice.credited",
-                              "invoice.accounting_drafted"
+                              "invoice.accounting_drafted",
+                              "event.scheduled",
+                              "event.updated",
+                              "event.cancelled"
                             ]
                           },
                           "actor": {
@@ -8250,7 +8274,10 @@
                               "invoice.cancelled",
                               "payment.registered",
                               "invoice.credited",
-                              "invoice.accounting_drafted"
+                              "invoice.accounting_drafted",
+                              "event.scheduled",
+                              "event.updated",
+                              "event.cancelled"
                             ]
                           },
                           "actor": {
@@ -15322,7 +15349,10 @@
                               "invoice.cancelled",
                               "payment.registered",
                               "invoice.credited",
-                              "invoice.accounting_drafted"
+                              "invoice.accounting_drafted",
+                              "event.scheduled",
+                              "event.updated",
+                              "event.cancelled"
                             ]
                           },
                           "actor": {
@@ -19466,6 +19496,2872 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/calendars": {
+      "get": {
+        "tags": [
+          "calendars"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "color": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "TEAM",
+                          "PERSONAL"
+                        ]
+                      },
+                      "ownerId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "isDefault": {
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "color",
+                      "type",
+                      "ownerId",
+                      "isDefault",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "calendars"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$",
+                    "default": "#3b82f6"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TEAM",
+                      "PERSONAL"
+                    ],
+                    "default": "TEAM"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TEAM",
+                        "PERSONAL"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "isDefault": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "color",
+                    "type",
+                    "ownerId",
+                    "isDefault",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calendars/{calendarId}": {
+      "patch": {
+        "tags": [
+          "calendars"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "calendarId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "TEAM",
+                        "PERSONAL"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "isDefault": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "color",
+                    "type",
+                    "ownerId",
+                    "isDefault",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "calendars"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "calendarId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "calendarId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "customerId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "mine",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "eventId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "calendarId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "occurrenceStart": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "start": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "end": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "allDay": {
+                        "type": "boolean"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "CONFIRMED",
+                          "TENTATIVE",
+                          "CANCELLED"
+                        ]
+                      },
+                      "visibility": {
+                        "type": "string",
+                        "enum": [
+                          "DEFAULT",
+                          "PRIVATE"
+                        ]
+                      },
+                      "isRecurring": {
+                        "type": "boolean"
+                      },
+                      "isException": {
+                        "type": "boolean"
+                      },
+                      "organizerId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "customerId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "taskId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "eventId",
+                      "calendarId",
+                      "occurrenceStart",
+                      "start",
+                      "end",
+                      "title",
+                      "location",
+                      "allDay",
+                      "status",
+                      "visibility",
+                      "isRecurring",
+                      "isException",
+                      "organizerId",
+                      "customerId",
+                      "projectId",
+                      "taskId"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "calendarId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  "location": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "allDay": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "default": "Europe/Stockholm"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "TENTATIVE",
+                      "CANCELLED"
+                    ],
+                    "default": "CONFIRMED"
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "DEFAULT",
+                      "PRIVATE"
+                    ],
+                    "default": "DEFAULT"
+                  },
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "recurrence": {
+                    "type": "object",
+                    "properties": {
+                      "freq": {
+                        "type": "string",
+                        "enum": [
+                          "DAILY",
+                          "WEEKLY",
+                          "MONTHLY",
+                          "YEARLY"
+                        ]
+                      },
+                      "interval": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365,
+                        "default": 1
+                      },
+                      "byWeekday": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "maxItems": 7,
+                        "default": []
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000,
+                        "nullable": true
+                      },
+                      "until": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "freq"
+                    ],
+                    "additionalProperties": false,
+                    "nullable": true
+                  },
+                  "reminders": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "minutesBefore": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 40320
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "EMAIL"
+                          ],
+                          "default": "EMAIL"
+                        }
+                      },
+                      "required": [
+                        "minutesBefore"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 5,
+                    "default": []
+                  },
+                  "attendeeUserIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  }
+                },
+                "required": [
+                  "calendarId",
+                  "title",
+                  "startsAt",
+                  "endsAt"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "calendarId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "location": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "nullable": true
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "allDay": {
+                    "type": "boolean"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "TENTATIVE",
+                      "CANCELLED"
+                    ]
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "DEFAULT",
+                      "PRIVATE"
+                    ]
+                  },
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "recurrence": {
+                    "type": "object",
+                    "properties": {
+                      "freq": {
+                        "type": "string",
+                        "enum": [
+                          "DAILY",
+                          "WEEKLY",
+                          "MONTHLY",
+                          "YEARLY"
+                        ]
+                      },
+                      "interval": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365,
+                        "default": 1
+                      },
+                      "byWeekday": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "maxItems": 7,
+                        "default": []
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000,
+                        "nullable": true
+                      },
+                      "until": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "freq"
+                    ],
+                    "additionalProperties": false,
+                    "nullable": true
+                  },
+                  "reminders": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "minutesBefore": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 40320
+                        },
+                        "method": {
+                          "type": "string",
+                          "enum": [
+                            "EMAIL"
+                          ],
+                          "default": "EMAIL"
+                        }
+                      },
+                      "required": [
+                        "minutesBefore"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 5
+                  },
+                  "attendeeUserIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 200
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}/cancel": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}/occurrences/cancel": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "occurrenceStart": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "occurrenceStart"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}/occurrences/override": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "occurrenceStart": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true
+                  },
+                  "location": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "nullable": true
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRMED",
+                      "TENTATIVE",
+                      "CANCELLED"
+                    ]
+                  }
+                },
+                "required": [
+                  "occurrenceStart"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}/attendees": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "userId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}/attendees/{userId}": {
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events/{eventId}/rsvp": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "response": {
+                    "type": "string",
+                    "enum": [
+                      "NEEDS_ACTION",
+                      "ACCEPTED",
+                      "DECLINED",
+                      "TENTATIVE"
+                    ]
+                  }
+                },
+                "required": [
+                  "response"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "calendarId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "location": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CONFIRMED",
+                        "TENTATIVE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "DEFAULT",
+                        "PRIVATE"
+                      ]
+                    },
+                    "organizerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "recurrence": {
+                      "type": "object",
+                      "properties": {
+                        "freq": {
+                          "type": "string",
+                          "enum": [
+                            "DAILY",
+                            "WEEKLY",
+                            "MONTHLY",
+                            "YEARLY"
+                          ]
+                        },
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "byWeekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer"
+                          }
+                        },
+                        "count": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "freq",
+                        "interval",
+                        "byWeekday",
+                        "count",
+                        "until"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reminders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "minutesBefore": {
+                            "type": "integer"
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "EMAIL"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "minutesBefore",
+                          "method"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string",
+                            "enum": [
+                              "NEEDS_ACTION",
+                              "ACCEPTED",
+                              "DECLINED",
+                              "TENTATIVE"
+                            ]
+                          },
+                          "isOrganizer": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "name",
+                          "email",
+                          "response",
+                          "isOrganizer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "calendarId",
+                    "title",
+                    "description",
+                    "location",
+                    "startsAt",
+                    "endsAt",
+                    "allDay",
+                    "timezone",
+                    "status",
+                    "visibility",
+                    "organizerId",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "recurrence",
+                    "reminders",
+                    "attendees",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agenda": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "event"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "occurrenceStart": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "start": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "end": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CONFIRMED",
+                              "TENTATIVE",
+                              "CANCELLED"
+                            ]
+                          },
+                          "customerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "id",
+                          "occurrenceStart",
+                          "start",
+                          "end",
+                          "title",
+                          "status",
+                          "customerId"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "task"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "start": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "priority": {
+                            "type": "string"
+                          },
+                          "customerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "id",
+                          "start",
+                          "title",
+                          "status",
+                          "priority",
+                          "customerId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calendar/free-busy": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "userId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "busy": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "end": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "start",
+                          "end"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "busy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }

@@ -9,6 +9,7 @@ import { startHealthServer } from './health.js';
 import { buildLogger } from './lib/logger.js';
 import { startOutboxRelay } from './outbox-relay.js';
 import { startOverdueSweep } from './overdue-sweep.js';
+import { startReminderSweep } from './reminder-sweep.js';
 
 async function main(): Promise<void> {
   const logger = buildLogger(env);
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
   await startEmailConsumer({ prisma, channel, transport, storage, from: env.SMTP_FROM, logger });
   await startAccountingConsumer({ prisma, channel, logger });
   const overdueSweep = startOverdueSweep(prisma, env.OVERDUE_SWEEP_SECONDS, logger);
+  const reminderSweep = startReminderSweep(prisma, env.REMINDER_SWEEP_SECONDS, logger);
   const healthServer = startHealthServer(
     env.WORKER_HEALTH_PORT,
     prisma,
@@ -52,6 +54,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, 'shutting down');
     relay.stop();
     overdueSweep.stop();
+    reminderSweep.stop();
     healthServer.close();
     try {
       await channel.close();

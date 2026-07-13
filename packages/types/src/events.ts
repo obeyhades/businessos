@@ -32,7 +32,7 @@ export const emailSendPayloadSchema = z.object({
   /** Plain-text body. HTML email is a later enhancement. */
   text: z.string().min(1),
   /** For correlation in logs/audit without logging the body. */
-  kind: z.enum(['invitation', 'password_reset', 'invoice', 'invoice_reminder']),
+  kind: z.enum(['invitation', 'password_reset', 'invoice', 'invoice_reminder', 'event_reminder']),
   organizationId: z.string().uuid().nullable(),
   attachment: emailAttachmentSchema.optional(),
 });
@@ -57,6 +57,10 @@ export const domainEventTypes = [
   // consumer binds these yet, mirroring how invoice.finalized began).
   'voucher.posted',
   'voucher.reversed',
+  // Phase 6 — calendar integration seam (no internal consumer yet).
+  'calendar.event.created',
+  'calendar.event.updated',
+  'calendar.event.cancelled',
 ] as const;
 export type DomainEventType = (typeof domainEventTypes)[number];
 

@@ -43,6 +43,7 @@ import { registerInvoiceRoutes } from './modules/invoices/routes.js';
 import { registerPaymentRoutes } from './modules/payments/routes.js';
 import { registerCreditNoteRoutes } from './modules/credit-notes/routes.js';
 import { registerAccountingRoutes } from './modules/accounting/index.js';
+import { registerCalendarModuleRoutes } from './modules/calendar/index.js';
 
 export interface BuildAppOptions {
   config: ApiConfig;
@@ -177,6 +178,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerCreditNoteRoutes(app);
   // Phase 5
   registerAccountingRoutes(app);
+  // Phase 6
+  registerCalendarModuleRoutes(app);
 
   app.addHook('onClose', async () => {
     await options.prisma.$disconnect();

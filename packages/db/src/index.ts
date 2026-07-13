@@ -46,6 +46,13 @@ export type {
   VoucherLine,
   VoucherAttachment,
   AccountMapping,
+  // Phase 6
+  Calendar,
+  CalendarEvent,
+  EventAttendee,
+  EventReminder,
+  EventException,
+  SentReminder,
 } from '@prisma/client';
 export {
   CustomerStatus,
@@ -70,6 +77,14 @@ export {
   FiscalPeriodStatus,
   VoucherStatus,
   VoucherSource,
+  // Phase 6
+  CalendarType,
+  EventStatus,
+  EventVisibility,
+  AttendeeResponse,
+  ReminderMethod,
+  RecurrenceFreq,
+  ExceptionType,
 } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {

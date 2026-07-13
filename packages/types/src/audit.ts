@@ -98,6 +98,19 @@ export const AUDIT_ACTIONS = [
   'voucher_attachment.uploaded',
   'voucher_attachment.deleted',
   'account_mapping.updated',
+  // Phase 6
+  'calendar.created',
+  'calendar.updated',
+  'calendar.deleted',
+  'event.created',
+  'event.updated',
+  'event.cancelled',
+  'event.deleted',
+  'event.occurrence_overridden',
+  'event.occurrence_cancelled',
+  'event_attendee.added',
+  'event_attendee.removed',
+  'event_attendee.responded',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
