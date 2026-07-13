@@ -12,6 +12,7 @@ export interface EntityRef {
   customerId: string | null;
   projectId: string | null;
   taskId: string | null;
+  employeeId: string | null;
 }
 
 /**
@@ -31,7 +32,7 @@ export async function resolveEntityRef(
       select: { id: true },
     });
     if (!customer) throw errors.notFound('Customer');
-    return { customerId: id, projectId: null, taskId: null };
+    return { customerId: id, projectId: null, taskId: null, employeeId: null };
   }
   if (kind === 'project') {
     const project = await db.project.findFirst({
@@ -39,7 +40,7 @@ export async function resolveEntityRef(
       select: { id: true, customerId: true },
     });
     if (!project) throw errors.notFound('Project');
-    return { customerId: project.customerId, projectId: id, taskId: null };
+    return { customerId: project.customerId, projectId: id, taskId: null, employeeId: null };
   }
   const task = await db.task.findFirst({
     where: { id, organizationId },
@@ -55,6 +56,7 @@ export async function resolveEntityRef(
     customerId: task.customerId ?? task.project?.customerId ?? null,
     projectId: task.projectId,
     taskId: id,
+    employeeId: null,
   };
 }
 
@@ -79,6 +81,7 @@ export async function recordActivity(db: DbClient, input: ActivityInput): Promis
       customerId: input.ref.customerId ?? null,
       projectId: input.ref.projectId ?? null,
       taskId: input.ref.taskId ?? null,
+      employeeId: input.ref.employeeId ?? null,
       metadata: (input.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
     },
   });

@@ -31,6 +31,12 @@ import { registerCommentRoutes } from './modules/comments/routes.js';
 import { registerAttachmentRoutes } from './modules/attachments/routes.js';
 import { registerActivityRoutes } from './modules/activity/routes.js';
 import { registerSearchRoutes } from './modules/search/routes.js';
+import { registerEmployeeRoutes } from './modules/employees/routes.js';
+import { registerEmployeeNoteRoutes } from './modules/employee-notes/routes.js';
+import { registerCertificationRoutes } from './modules/certifications/routes.js';
+import { registerAbsenceRoutes } from './modules/absences/routes.js';
+import { registerEmployeeDocumentRoutes } from './modules/employee-documents/routes.js';
+import { registerOnboardingTemplateRoutes } from './modules/onboarding-templates/routes.js';
 
 export interface BuildAppOptions {
   config: ApiConfig;
@@ -132,6 +138,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAttachmentRoutes(app);
   registerActivityRoutes(app);
   registerSearchRoutes(app);
+  // Phase 3
+  registerEmployeeRoutes(app);
+  registerEmployeeNoteRoutes(app);
+  registerCertificationRoutes(app);
+  registerAbsenceRoutes(app);
+  registerEmployeeDocumentRoutes(app);
+  registerOnboardingTemplateRoutes(app);
 
   app.addHook('onClose', async () => {
     await options.prisma.$disconnect();

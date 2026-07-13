@@ -2019,7 +2019,27 @@
                               "comment.created",
                               "comment.deleted",
                               "attachment.uploaded",
-                              "attachment.deleted"
+                              "attachment.deleted",
+                              "employee.created",
+                              "employee.updated",
+                              "employee.status_changed",
+                              "employee.deleted",
+                              "employee.sensitive_viewed",
+                              "employee_note.created",
+                              "employee_note.deleted",
+                              "certification.created",
+                              "certification.updated",
+                              "certification.deleted",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "absence.cancelled",
+                              "employee_document.uploaded",
+                              "employee_document.deleted",
+                              "onboarding_template.created",
+                              "onboarding_template.updated",
+                              "onboarding_template.deleted",
+                              "onboarding_template.applied"
                             ]
                           },
                           "entityType": {
@@ -2948,7 +2968,16 @@
                               "task.completed",
                               "task.assigned",
                               "comment.added",
-                              "attachment.added"
+                              "attachment.added",
+                              "employee.created",
+                              "employee.status_changed",
+                              "employee.onboarding_started",
+                              "certification.added",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "document.added",
+                              "note.added"
                             ]
                           },
                           "actor": {
@@ -2984,6 +3013,11 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "employeeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
                           "metadata": {
                             "type": "object",
                             "additionalProperties": {},
@@ -3001,6 +3035,7 @@
                           "customerId",
                           "projectId",
                           "taskId",
+                          "employeeId",
                           "metadata",
                           "createdAt"
                         ],
@@ -3961,7 +3996,16 @@
                               "task.completed",
                               "task.assigned",
                               "comment.added",
-                              "attachment.added"
+                              "attachment.added",
+                              "employee.created",
+                              "employee.status_changed",
+                              "employee.onboarding_started",
+                              "certification.added",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "document.added",
+                              "note.added"
                             ]
                           },
                           "actor": {
@@ -3997,6 +4041,11 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "employeeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
                           "metadata": {
                             "type": "object",
                             "additionalProperties": {},
@@ -4014,6 +4063,7 @@
                           "customerId",
                           "projectId",
                           "taskId",
+                          "employeeId",
                           "metadata",
                           "createdAt"
                         ],
@@ -4961,7 +5011,16 @@
                               "task.completed",
                               "task.assigned",
                               "comment.added",
-                              "attachment.added"
+                              "attachment.added",
+                              "employee.created",
+                              "employee.status_changed",
+                              "employee.onboarding_started",
+                              "certification.added",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "document.added",
+                              "note.added"
                             ]
                           },
                           "actor": {
@@ -4997,6 +5056,11 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "employeeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
                           "metadata": {
                             "type": "object",
                             "additionalProperties": {},
@@ -5014,6 +5078,7 @@
                           "customerId",
                           "projectId",
                           "taskId",
+                          "employeeId",
                           "metadata",
                           "createdAt"
                         ],
@@ -6422,7 +6487,16 @@
                               "task.completed",
                               "task.assigned",
                               "comment.added",
-                              "attachment.added"
+                              "attachment.added",
+                              "employee.created",
+                              "employee.status_changed",
+                              "employee.onboarding_started",
+                              "certification.added",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "document.added",
+                              "note.added"
                             ]
                           },
                           "actor": {
@@ -6458,6 +6532,11 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "employeeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
                           "metadata": {
                             "type": "object",
                             "additionalProperties": {},
@@ -6475,6 +6554,7 @@
                           "customerId",
                           "projectId",
                           "taskId",
+                          "employeeId",
                           "metadata",
                           "createdAt"
                         ],
@@ -6555,7 +6635,8 @@
                             "enum": [
                               "customer",
                               "project",
-                              "task"
+                              "task",
+                              "employee"
                             ]
                           },
                           "id": {
@@ -6587,6 +6668,3683 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/employees": {
+      "get": {
+        "tags": [
+          "employees"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ONBOARDING",
+                "ACTIVE",
+                "ON_LEAVE",
+                "OFFBOARDING",
+                "TERMINATED"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "in": "query",
+            "name": "department",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "managerId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "workEmail": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "workPhone": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "jobTitle": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "department": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "employmentStatus": {
+                            "type": "string",
+                            "enum": [
+                              "ONBOARDING",
+                              "ACTIVE",
+                              "ON_LEAVE",
+                              "OFFBOARDING",
+                              "TERMINATED"
+                            ]
+                          },
+                          "employmentType": {
+                            "type": "string",
+                            "enum": [
+                              "FULL_TIME",
+                              "PART_TIME",
+                              "CONTRACT",
+                              "INTERN",
+                              "TEMPORARY"
+                            ]
+                          },
+                          "startDate": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "endDate": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "manager": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "user": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "sensitive": {
+                            "type": "object",
+                            "properties": {
+                              "personalIdNumber": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "dateOfBirth": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "homeAddress": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "homePostalCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "homeCity": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "personalEmail": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "personalPhone": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "emergencyContactName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "emergencyContactPhone": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "emergencyContactRelation": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "personalIdNumber",
+                              "dateOfBirth",
+                              "homeAddress",
+                              "homePostalCode",
+                              "homeCity",
+                              "personalEmail",
+                              "personalPhone",
+                              "emergencyContactName",
+                              "emergencyContactPhone",
+                              "emergencyContactRelation"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "firstName",
+                          "lastName",
+                          "workEmail",
+                          "workPhone",
+                          "jobTitle",
+                          "department",
+                          "employmentStatus",
+                          "employmentType",
+                          "startDate",
+                          "endDate",
+                          "manager",
+                          "user",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "employees"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "workEmail": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          ""
+                        ]
+                      }
+                    ]
+                  },
+                  "workPhone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "jobTitle": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "nullable": true
+                  },
+                  "department": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "nullable": true
+                  },
+                  "employmentStatus": {
+                    "type": "string",
+                    "enum": [
+                      "ONBOARDING",
+                      "ACTIVE",
+                      "ON_LEAVE",
+                      "OFFBOARDING",
+                      "TERMINATED"
+                    ],
+                    "default": "ONBOARDING"
+                  },
+                  "employmentType": {
+                    "type": "string",
+                    "enum": [
+                      "FULL_TIME",
+                      "PART_TIME",
+                      "CONTRACT",
+                      "INTERN",
+                      "TEMPORARY"
+                    ],
+                    "default": "FULL_TIME"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "managerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "personalIdNumber": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "dateOfBirth": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "homeAddress": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "nullable": true
+                  },
+                  "homePostalCode": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "nullable": true
+                  },
+                  "homeCity": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "nullable": true
+                  },
+                  "personalEmail": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          ""
+                        ]
+                      }
+                    ]
+                  },
+                  "personalPhone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "emergencyContactName": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "emergencyContactPhone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "emergencyContactRelation": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "firstName",
+                  "lastName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "workEmail": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "workPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "jobTitle": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "department": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "employmentStatus": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "ON_LEAVE",
+                        "OFFBOARDING",
+                        "TERMINATED"
+                      ]
+                    },
+                    "employmentType": {
+                      "type": "string",
+                      "enum": [
+                        "FULL_TIME",
+                        "PART_TIME",
+                        "CONTRACT",
+                        "INTERN",
+                        "TEMPORARY"
+                      ]
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "manager": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "maxLength": 254
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "email"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sensitive": {
+                      "type": "object",
+                      "properties": {
+                        "personalIdNumber": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homeAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homePostalCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homeCity": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "personalEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "personalPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactRelation": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "personalIdNumber",
+                        "dateOfBirth",
+                        "homeAddress",
+                        "homePostalCode",
+                        "homeCity",
+                        "personalEmail",
+                        "personalPhone",
+                        "emergencyContactName",
+                        "emergencyContactPhone",
+                        "emergencyContactRelation"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "workEmail",
+                    "workPhone",
+                    "jobTitle",
+                    "department",
+                    "employmentStatus",
+                    "employmentType",
+                    "startDate",
+                    "endDate",
+                    "manager",
+                    "user",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}": {
+      "get": {
+        "tags": [
+          "employees"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "workEmail": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "workPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "jobTitle": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "department": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "employmentStatus": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "ON_LEAVE",
+                        "OFFBOARDING",
+                        "TERMINATED"
+                      ]
+                    },
+                    "employmentType": {
+                      "type": "string",
+                      "enum": [
+                        "FULL_TIME",
+                        "PART_TIME",
+                        "CONTRACT",
+                        "INTERN",
+                        "TEMPORARY"
+                      ]
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "manager": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "maxLength": 254
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "email"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sensitive": {
+                      "type": "object",
+                      "properties": {
+                        "personalIdNumber": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homeAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homePostalCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homeCity": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "personalEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "personalPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactRelation": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "personalIdNumber",
+                        "dateOfBirth",
+                        "homeAddress",
+                        "homePostalCode",
+                        "homeCity",
+                        "personalEmail",
+                        "personalPhone",
+                        "emergencyContactName",
+                        "emergencyContactPhone",
+                        "emergencyContactRelation"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "workEmail",
+                    "workPhone",
+                    "jobTitle",
+                    "department",
+                    "employmentStatus",
+                    "employmentType",
+                    "startDate",
+                    "endDate",
+                    "manager",
+                    "user",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "employees"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "workEmail": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          ""
+                        ]
+                      }
+                    ]
+                  },
+                  "workPhone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "jobTitle": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "nullable": true
+                  },
+                  "department": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "nullable": true
+                  },
+                  "employmentStatus": {
+                    "type": "string",
+                    "enum": [
+                      "ONBOARDING",
+                      "ACTIVE",
+                      "ON_LEAVE",
+                      "OFFBOARDING",
+                      "TERMINATED"
+                    ]
+                  },
+                  "employmentType": {
+                    "type": "string",
+                    "enum": [
+                      "FULL_TIME",
+                      "PART_TIME",
+                      "CONTRACT",
+                      "INTERN",
+                      "TEMPORARY"
+                    ]
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "managerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "personalIdNumber": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "dateOfBirth": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "homeAddress": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "nullable": true
+                  },
+                  "homePostalCode": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "nullable": true
+                  },
+                  "homeCity": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "nullable": true
+                  },
+                  "personalEmail": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          ""
+                        ]
+                      }
+                    ]
+                  },
+                  "personalPhone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "emergencyContactName": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "emergencyContactPhone": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "nullable": true
+                  },
+                  "emergencyContactRelation": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "workEmail": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "workPhone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "jobTitle": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "department": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "employmentStatus": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "ACTIVE",
+                        "ON_LEAVE",
+                        "OFFBOARDING",
+                        "TERMINATED"
+                      ]
+                    },
+                    "employmentType": {
+                      "type": "string",
+                      "enum": [
+                        "FULL_TIME",
+                        "PART_TIME",
+                        "CONTRACT",
+                        "INTERN",
+                        "TEMPORARY"
+                      ]
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "manager": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "maxLength": 254
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "email"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sensitive": {
+                      "type": "object",
+                      "properties": {
+                        "personalIdNumber": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dateOfBirth": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homeAddress": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homePostalCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "homeCity": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "personalEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "personalPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactPhone": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "emergencyContactRelation": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "personalIdNumber",
+                        "dateOfBirth",
+                        "homeAddress",
+                        "homePostalCode",
+                        "homeCity",
+                        "personalEmail",
+                        "personalPhone",
+                        "emergencyContactName",
+                        "emergencyContactPhone",
+                        "emergencyContactRelation"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "firstName",
+                    "lastName",
+                    "workEmail",
+                    "workPhone",
+                    "jobTitle",
+                    "department",
+                    "employmentStatus",
+                    "employmentType",
+                    "startDate",
+                    "endDate",
+                    "manager",
+                    "user",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "employees"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/apply-template": {
+      "post": {
+        "tags": [
+          "employees"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "templateId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "assigneeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "templateId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "createdTaskCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "createdTaskCount"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/activity": {
+      "get": {
+        "tags": [
+          "employees"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "customer.created",
+                              "customer.updated",
+                              "customer.archived",
+                              "contact.added",
+                              "project.created",
+                              "project.updated",
+                              "project.status_changed",
+                              "task.created",
+                              "task.status_changed",
+                              "task.completed",
+                              "task.assigned",
+                              "comment.added",
+                              "attachment.added",
+                              "employee.created",
+                              "employee.status_changed",
+                              "employee.onboarding_started",
+                              "certification.added",
+                              "absence.requested",
+                              "absence.approved",
+                              "absence.rejected",
+                              "document.added",
+                              "note.added"
+                            ]
+                          },
+                          "actor": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "customerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "taskId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "employeeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "metadata": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "actor",
+                          "customerId",
+                          "projectId",
+                          "taskId",
+                          "employeeId",
+                          "metadata",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/notes": {
+      "get": {
+        "tags": [
+          "employee-notes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "body": {
+                        "type": "string"
+                      },
+                      "author": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false,
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "body",
+                      "author",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "employee-notes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "body",
+                    "author",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/notes/{noteId}": {
+      "delete": {
+        "tags": [
+          "employee-notes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "noteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/certifications": {
+      "get": {
+        "tags": [
+          "certifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "issuer": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "issuedDate": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "expiresAt": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "notes": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "issuer",
+                      "issuedDate",
+                      "expiresAt",
+                      "notes",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "certifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "issuer": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "issuedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "issuedDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "issuer",
+                    "issuedDate",
+                    "expiresAt",
+                    "notes",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/certifications/{certificationId}": {
+      "patch": {
+        "tags": [
+          "certifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "issuer": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "issuedDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "certificationId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "issuedDate": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "issuer",
+                    "issuedDate",
+                    "expiresAt",
+                    "notes",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "certifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "certificationId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/certifications/expiring": {
+      "get": {
+        "tags": [
+          "certifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 60
+            },
+            "in": "query",
+            "name": "withinDays",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "issuer": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "issuedDate": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "expiresAt": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "notes": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "employee": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "issuer",
+                      "issuedDate",
+                      "expiresAt",
+                      "notes",
+                      "createdAt",
+                      "employee"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/absence-requests": {
+      "get": {
+        "tags": [
+          "absences"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "CANCELLED"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "employeeId",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "employee": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "VACATION",
+                              "SICK",
+                              "PARENTAL",
+                              "UNPAID",
+                              "OTHER"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "REJECTED",
+                              "CANCELLED"
+                            ]
+                          },
+                          "startDate": {
+                            "type": "string"
+                          },
+                          "endDate": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "reviewedBy": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "reviewedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "reviewNote": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "employee",
+                          "type",
+                          "status",
+                          "startDate",
+                          "endDate",
+                          "reason",
+                          "reviewedBy",
+                          "reviewedAt",
+                          "reviewNote",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/absence-requests": {
+      "get": {
+        "tags": [
+          "absences"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "employee": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "VACATION",
+                          "SICK",
+                          "PARENTAL",
+                          "UNPAID",
+                          "OTHER"
+                        ]
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "PENDING",
+                          "APPROVED",
+                          "REJECTED",
+                          "CANCELLED"
+                        ]
+                      },
+                      "startDate": {
+                        "type": "string"
+                      },
+                      "endDate": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "reviewedBy": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false,
+                        "nullable": true
+                      },
+                      "reviewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      },
+                      "reviewNote": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "employee",
+                      "type",
+                      "status",
+                      "startDate",
+                      "endDate",
+                      "reason",
+                      "reviewedBy",
+                      "reviewedAt",
+                      "reviewNote",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "absences"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "VACATION",
+                      "SICK",
+                      "PARENTAL",
+                      "UNPAID",
+                      "OTHER"
+                    ]
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "type",
+                  "startDate",
+                  "endDate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "VACATION",
+                        "SICK",
+                        "PARENTAL",
+                        "UNPAID",
+                        "OTHER"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED",
+                        "CANCELLED"
+                      ]
+                    },
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reviewedBy": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reviewedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "reviewNote": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "employee",
+                    "type",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "reason",
+                    "reviewedBy",
+                    "reviewedAt",
+                    "reviewNote",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/absence-requests/{absenceId}/review": {
+      "post": {
+        "tags": [
+          "absences"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "APPROVED",
+                      "REJECTED"
+                    ]
+                  },
+                  "reviewNote": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "absenceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "VACATION",
+                        "SICK",
+                        "PARENTAL",
+                        "UNPAID",
+                        "OTHER"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED",
+                        "CANCELLED"
+                      ]
+                    },
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reviewedBy": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reviewedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "reviewNote": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "employee",
+                    "type",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "reason",
+                    "reviewedBy",
+                    "reviewedAt",
+                    "reviewNote",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/absence-requests/{absenceId}/cancel": {
+      "post": {
+        "tags": [
+          "absences"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "absenceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "VACATION",
+                        "SICK",
+                        "PARENTAL",
+                        "UNPAID",
+                        "OTHER"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED",
+                        "CANCELLED"
+                      ]
+                    },
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "reviewedBy": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "reviewedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "reviewNote": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "employee",
+                    "type",
+                    "status",
+                    "startDate",
+                    "endDate",
+                    "reason",
+                    "reviewedBy",
+                    "reviewedAt",
+                    "reviewNote",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/documents": {
+      "get": {
+        "tags": [
+          "employee-documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "fileName": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer"
+                      },
+                      "category": {
+                        "type": "string",
+                        "enum": [
+                          "CONTRACT",
+                          "IDENTIFICATION",
+                          "CERTIFICATE",
+                          "POLICY",
+                          "OTHER"
+                        ]
+                      },
+                      "isSensitive": {
+                        "type": "boolean"
+                      },
+                      "uploadedBy": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false,
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fileName",
+                      "contentType",
+                      "size",
+                      "category",
+                      "isSensitive",
+                      "uploadedBy",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "employee-documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CONTRACT",
+                "IDENTIFICATION",
+                "CERTIFICATE",
+                "POLICY",
+                "OTHER"
+              ],
+              "default": "OTHER"
+            },
+            "in": "query",
+            "name": "category",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "in": "query",
+            "name": "sensitive",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "fileName": {
+                      "type": "string"
+                    },
+                    "contentType": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "integer"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "CONTRACT",
+                        "IDENTIFICATION",
+                        "CERTIFICATE",
+                        "POLICY",
+                        "OTHER"
+                      ]
+                    },
+                    "isSensitive": {
+                      "type": "boolean"
+                    },
+                    "uploadedBy": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "fileName",
+                    "contentType",
+                    "size",
+                    "category",
+                    "isSensitive",
+                    "uploadedBy",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/documents/{documentId}/download-url": {
+      "get": {
+        "tags": [
+          "employee-documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "documentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expiresInSeconds": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "expiresInSeconds"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/employees/{employeeId}/documents/{documentId}": {
+      "delete": {
+        "tags": [
+          "employee-documents"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "employeeId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "documentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/onboarding-templates": {
+      "get": {
+        "tags": [
+          "onboarding-templates"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "ONBOARDING",
+                          "OFFBOARDING"
+                        ]
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "dueOffsetDays": {
+                              "type": "integer"
+                            },
+                            "sortOrder": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title",
+                            "description",
+                            "dueOffsetDays",
+                            "sortOrder"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "description",
+                      "type",
+                      "items",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "onboarding-templates"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "ONBOARDING",
+                      "OFFBOARDING"
+                    ],
+                    "default": "ONBOARDING"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "nullable": true
+                        },
+                        "dueOffsetDays": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3650,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "title"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 100,
+                    "default": []
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "OFFBOARDING"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dueOffsetDays": {
+                            "type": "integer"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "dueOffsetDays",
+                          "sortOrder"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "type",
+                    "items",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding-templates/{templateId}": {
+      "get": {
+        "tags": [
+          "onboarding-templates"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "templateId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "OFFBOARDING"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dueOffsetDays": {
+                            "type": "integer"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "dueOffsetDays",
+                          "sortOrder"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "type",
+                    "items",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "onboarding-templates"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "nullable": true
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "ONBOARDING",
+                      "OFFBOARDING"
+                    ]
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "nullable": true
+                        },
+                        "dueOffsetDays": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3650,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "title"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 100
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "templateId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "ONBOARDING",
+                        "OFFBOARDING"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dueOffsetDays": {
+                            "type": "integer"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "description",
+                          "dueOffsetDays",
+                          "sortOrder"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "type",
+                    "items",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "onboarding-templates"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "templateId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

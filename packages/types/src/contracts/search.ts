@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { uuidSchema } from './common.js';
 
-export const SEARCH_RESULT_KINDS = ['customer', 'project', 'task'] as const;
+export const SEARCH_RESULT_KINDS = ['customer', 'project', 'task', 'employee'] as const;
 export const searchResultKindSchema = z.enum(SEARCH_RESULT_KINDS);
 export type SearchResultKind = (typeof SEARCH_RESULT_KINDS)[number];
 

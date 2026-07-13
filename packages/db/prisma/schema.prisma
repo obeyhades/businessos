@@ -45,6 +45,12 @@ model User {
   uploadedAttachments FileAttachment[] @relation("FileAttachmentUploadedBy")
   activities          Activity[]       @relation("ActivityActor")
 
+  // Phase 3 back-relations
+  employeeProfile           Employee?          @relation("EmployeeUser")
+  authoredEmployeeNotes     EmployeeNote[]     @relation("EmployeeNoteAuthor")
+  uploadedEmployeeDocuments EmployeeDocument[] @relation("EmployeeDocumentUploadedBy")
+  reviewedAbsences          AbsenceRequest[]   @relation("AbsenceReviewedBy")
+
   @@map("users")
 }
 
@@ -70,6 +76,14 @@ model Organization {
   comments         Comment[]
   fileAttachments  FileAttachment[]
   activities       Activity[]
+
+  // Phase 3 back-relations
+  employees           Employee[]
+  employeeNotes       EmployeeNote[]
+  certifications      Certification[]
+  absenceRequests     AbsenceRequest[]
+  employeeDocuments   EmployeeDocument[]
+  onboardingTemplates OnboardingTemplate[]
 
   @@map("organizations")
 }
@@ -326,6 +340,7 @@ model Task {
   dueDate        DateTime?    @map("due_date") @db.Timestamptz(6)
   customerId     String?      @map("customer_id") @db.Uuid
   projectId      String?      @map("project_id") @db.Uuid
+  employeeId     String?      @map("employee_id") @db.Uuid
   assigneeId     String?      @map("assignee_id") @db.Uuid
   createdById    String?      @map("created_by_id") @db.Uuid
   completedAt    DateTime?    @map("completed_at") @db.Timestamptz(6)
@@ -335,6 +350,7 @@ model Task {
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer     Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
   project      Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  employee     Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   assignee     User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy    User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   comments     Comment[]
@@ -345,6 +361,7 @@ model Task {
   @@index([organizationId, assigneeId])
   @@index([projectId])
   @@index([customerId])
+  @@index([employeeId])
   @@map("tasks")
 }
 
@@ -411,6 +428,7 @@ model Activity {
   customerId     String?  @map("customer_id") @db.Uuid
   projectId      String?  @map("project_id") @db.Uuid
   taskId         String?  @map("task_id") @db.Uuid
+  employeeId     String?  @map("employee_id") @db.Uuid
   metadata       Json?
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -419,9 +437,237 @@ model Activity {
   customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
   project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employee     Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, customerId, createdAt(sort: Desc)])
   @@index([organizationId, projectId, createdAt(sort: Desc)])
   @@index([organizationId, taskId, createdAt(sort: Desc)])
+  @@index([organizationId, employeeId, createdAt(sort: Desc)])
   @@map("activities")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Personnel management. Employee records carry two tiers of data:
+// directory fields (personnel.read) and sensitive personal fields
+// (personnel.read_sensitive). The tier split is enforced in the API's
+// serialization layer, never by hiding columns here.
+// ---------------------------------------------------------------------------
+
+enum EmploymentStatus {
+  ONBOARDING
+  ACTIVE
+  ON_LEAVE
+  OFFBOARDING
+  TERMINATED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  TEMPORARY
+}
+
+enum AbsenceType {
+  VACATION
+  SICK
+  PARENTAL
+  UNPAID
+  OTHER
+}
+
+enum AbsenceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum EmployeeDocumentCategory {
+  CONTRACT
+  IDENTIFICATION
+  CERTIFICATE
+  POLICY
+  OTHER
+}
+
+enum ChecklistType {
+  ONBOARDING
+  OFFBOARDING
+}
+
+model Employee {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  // Optional link to a platform user (an employee need not have a login).
+  userId         String? @unique @map("user_id") @db.Uuid
+  managerId      String? @map("manager_id") @db.Uuid
+
+  // --- Directory tier (personnel.read) ---
+  firstName        String           @map("first_name")
+  lastName         String           @map("last_name")
+  workEmail        String?          @map("work_email")
+  workPhone        String?          @map("work_phone")
+  jobTitle         String?          @map("job_title")
+  department       String?
+  employmentStatus EmploymentStatus @default(ONBOARDING) @map("employment_status")
+  employmentType   EmploymentType   @default(FULL_TIME) @map("employment_type")
+  startDate        DateTime?        @map("start_date") @db.Date
+  endDate          DateTime?        @map("end_date") @db.Date
+
+  // --- Sensitive tier (personnel.read_sensitive) ---
+  personalIdNumber         String?   @map("personal_id_number")
+  dateOfBirth              DateTime? @map("date_of_birth") @db.Date
+  homeAddress              String?   @map("home_address")
+  homePostalCode           String?   @map("home_postal_code")
+  homeCity                 String?   @map("home_city")
+  personalEmail            String?   @map("personal_email")
+  personalPhone            String?   @map("personal_phone")
+  emergencyContactName     String?   @map("emergency_contact_name")
+  emergencyContactPhone    String?   @map("emergency_contact_phone")
+  emergencyContactRelation String?   @map("emergency_contact_relation")
+
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?              @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
+  manager        Employee?          @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports        Employee[]         @relation("EmployeeManager")
+  notes          EmployeeNote[]
+  certifications Certification[]
+  absences       AbsenceRequest[]
+  documents      EmployeeDocument[]
+  tasks          Task[]
+  activities     Activity[]
+
+  @@index([organizationId, employmentStatus])
+  @@index([organizationId, lastName])
+  @@index([managerId])
+  @@map("employees")
+}
+
+// Restricted internal notes — read/write require personnel.read_sensitive-level
+// access (enforced in the route layer), stricter than directory data.
+model EmployeeNote {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  authorId       String?  @map("author_id") @db.Uuid
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  author       User?        @relation("EmployeeNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, employeeId, createdAt(sort: Desc)])
+  @@map("employee_notes")
+}
+
+model Certification {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  employeeId     String    @map("employee_id") @db.Uuid
+  name           String
+  issuer         String?
+  issuedDate     DateTime? @map("issued_date") @db.Date
+  expiresAt      DateTime? @map("expires_at") @db.Date
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, expiresAt])
+  @@index([employeeId])
+  @@map("certifications")
+}
+
+model AbsenceRequest {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  employeeId     String        @map("employee_id") @db.Uuid
+  type           AbsenceType
+  status         AbsenceStatus @default(PENDING)
+  startDate      DateTime      @map("start_date") @db.Date
+  endDate        DateTime      @map("end_date") @db.Date
+  reason         String?
+  reviewedById   String?       @map("reviewed_by_id") @db.Uuid
+  reviewedAt     DateTime?     @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote     String?       @map("review_note")
+  createdById    String?       @map("created_by_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("AbsenceReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([employeeId])
+  @@map("absence_requests")
+}
+
+// Employee documents live in object storage like other attachments, but
+// carry a category and a sensitivity flag; sensitive documents require
+// personnel.read_sensitive to list or download.
+model EmployeeDocument {
+  id             String                   @id @default(uuid()) @db.Uuid
+  organizationId String                   @map("organization_id") @db.Uuid
+  employeeId     String                   @map("employee_id") @db.Uuid
+  uploadedById   String?                  @map("uploaded_by_id") @db.Uuid
+  fileName       String                   @map("file_name")
+  contentType    String                   @map("content_type")
+  size           Int
+  storageKey     String                   @unique @map("storage_key")
+  category       EmployeeDocumentCategory @default(OTHER)
+  isSensitive    Boolean                  @default(false) @map("is_sensitive")
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation("EmployeeDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, employeeId])
+  @@map("employee_documents")
+}
+
+// Reusable onboarding/offboarding checklist templates. Applying a template to
+// an employee generates real Tasks (linked via task.employeeId).
+model OnboardingTemplate {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+  type           ChecklistType @default(ONBOARDING)
+  createdById    String?       @map("created_by_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        OnboardingTemplateItem[]
+
+  @@index([organizationId, type])
+  @@map("onboarding_templates")
+}
+
+model OnboardingTemplateItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  templateId     String  @map("template_id") @db.Uuid
+  title          String
+  description    String?
+  // Task due date = employee start date (or now) + this many days.
+  dueOffsetDays  Int     @default(0) @map("due_offset_days")
+  sortOrder      Int     @default(0) @map("sort_order")
+
+  template OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, sortOrder])
+  @@map("onboarding_template_items")
 }

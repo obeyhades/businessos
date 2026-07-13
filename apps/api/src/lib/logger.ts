@@ -17,6 +17,13 @@ export function buildLoggerOptions(config: ApiConfig): FastifyServerOptions['log
         '*.token',
         '*.tokenHash',
         '*.passwordHash',
+        // Sensitive personnel fields (Phase 3) — never log personal identifiers.
+        '*.personalIdNumber',
+        '*.dateOfBirth',
+        '*.homeAddress',
+        '*.personalEmail',
+        '*.personalPhone',
+        '*.emergencyContactPhone',
       ],
       censor: '[redacted]',
     },

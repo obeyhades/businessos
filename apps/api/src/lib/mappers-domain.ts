@@ -125,6 +125,7 @@ export function toActivityDto(activity: Activity & { actor: MiniUser | null }): 
     customerId: activity.customerId,
     projectId: activity.projectId,
     taskId: activity.taskId,
+    employeeId: activity.employeeId,
     metadata: (activity.metadata as Record<string, unknown> | null) ?? null,
     createdAt: activity.createdAt.toISOString(),
   };

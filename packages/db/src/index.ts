@@ -20,8 +20,28 @@ export type {
   Comment,
   FileAttachment,
   Activity,
+  // Phase 3
+  Employee,
+  EmployeeNote,
+  Certification,
+  AbsenceRequest,
+  EmployeeDocument,
+  OnboardingTemplate,
+  OnboardingTemplateItem,
 } from '@prisma/client';
-export { CustomerStatus, ProjectStatus, TaskStatus, TaskPriority } from '@prisma/client';
+export {
+  CustomerStatus,
+  ProjectStatus,
+  TaskStatus,
+  TaskPriority,
+  // Phase 3
+  EmploymentStatus,
+  EmploymentType,
+  AbsenceType,
+  AbsenceStatus,
+  EmployeeDocumentCategory,
+  ChecklistType,
+} from '@prisma/client';
 
 export interface CreatePrismaClientOptions {
   databaseUrl: string;

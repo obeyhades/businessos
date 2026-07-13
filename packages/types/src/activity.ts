@@ -16,6 +16,16 @@ export const ACTIVITY_TYPES = [
   'task.assigned',
   'comment.added',
   'attachment.added',
+  // Phase 3
+  'employee.created',
+  'employee.status_changed',
+  'employee.onboarding_started',
+  'certification.added',
+  'absence.requested',
+  'absence.approved',
+  'absence.rejected',
+  'document.added',
+  'note.added',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

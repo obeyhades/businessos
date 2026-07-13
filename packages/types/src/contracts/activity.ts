@@ -9,6 +9,7 @@ export const activityDtoSchema = z.object({
   customerId: uuidSchema.nullable(),
   projectId: uuidSchema.nullable(),
   taskId: uuidSchema.nullable(),
+  employeeId: uuidSchema.nullable(),
   metadata: z.record(z.unknown()).nullable(),
   createdAt: timestampSchema,
 });

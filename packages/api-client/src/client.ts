@@ -1,17 +1,24 @@
 import { z } from 'zod';
 import {
+  absenceRequestDtoSchema,
   activityDtoSchema,
   attachmentDownloadDtoSchema,
   attachmentDtoSchema,
   auditLogDtoSchema,
+  certificationDtoSchema,
   commentDtoSchema,
   contactDtoSchema,
   customerDtoSchema,
+  employeeDocumentDtoSchema,
+  employeeDtoSchema,
+  employeeNoteDtoSchema,
+  expiringCertificationDtoSchema,
   failedJobDtoSchema,
   invitationDtoSchema,
   invitationPreviewDtoSchema,
   memberDtoSchema,
   membershipDtoSchema,
+  onboardingTemplateDtoSchema,
   organizationDtoSchema,
   paginatedSchema,
   projectDtoSchema,
@@ -19,14 +26,23 @@ import {
   sessionDtoSchema,
   taskDtoSchema,
   userDtoSchema,
+  type AbsenceListQuery,
+  type ApplyTemplateBody,
   type ChangePasswordBody,
+  type CreateAbsenceRequestBody,
+  type CreateCertificationBody,
   type CreateContactBody,
   type CreateCustomerBody,
+  type CreateEmployeeBody,
+  type CreateEmployeeNoteBody,
   type CreateInvitationBody,
   type CreateOrganizationBody,
   type CreateProjectBody,
   type CreateTaskBody,
+  type CreateTemplateBody,
   type CustomerListQuery,
+  type EmployeeDocumentCategory,
+  type EmployeeListQuery,
   type EntityKind,
   type ForgotPasswordBody,
   type LoginBody,
@@ -34,15 +50,19 @@ import {
   type ProjectListQuery,
   type RegisterBody,
   type ResetPasswordBody,
+  type ReviewAbsenceBody,
   type SwitchOrganizationBody,
   type TaskListQuery,
+  type UpdateCertificationBody,
   type UpdateContactBody,
   type UpdateCustomerBody,
+  type UpdateEmployeeBody,
   type UpdateMemberRoleBody,
   type UpdateOrganizationBody,
   type UpdateProfileBody,
   type UpdateProjectBody,
   type UpdateTaskBody,
+  type UpdateTemplateBody,
 } from '@businessos/types';
 
 /** Maps an entity kind to its plural REST path segment. */
@@ -311,6 +331,124 @@ export function createApiClient(options: ApiClientOptions) {
     search: {
       query: (q: string, limit?: number) =>
         request('GET', '/v1/search', searchResponseSchema, { query: { q, limit } }),
+    },
+    employees: {
+      list: (query?: Partial<EmployeeListQuery>) =>
+        request('GET', '/v1/employees', paginatedSchema(employeeDtoSchema), { query }),
+      get: (employeeId: string) => request('GET', `/v1/employees/${employeeId}`, employeeDtoSchema),
+      create: (body: CreateEmployeeBody) =>
+        request('POST', '/v1/employees', employeeDtoSchema, { body }),
+      update: (employeeId: string, body: UpdateEmployeeBody) =>
+        request('PATCH', `/v1/employees/${employeeId}`, employeeDtoSchema, { body }),
+      remove: (employeeId: string) => request('DELETE', `/v1/employees/${employeeId}`, emptySchema),
+      activity: (employeeId: string, query?: Partial<PaginationQuery>) =>
+        request('GET', `/v1/employees/${employeeId}/activity`, paginatedSchema(activityDtoSchema), {
+          query,
+        }),
+      applyTemplate: (employeeId: string, body: ApplyTemplateBody) =>
+        request(
+          'POST',
+          `/v1/employees/${employeeId}/apply-template`,
+          z.object({ createdTaskCount: z.number().int() }),
+          { body },
+        ),
+    },
+    employeeNotes: {
+      list: (employeeId: string) =>
+        request('GET', `/v1/employees/${employeeId}/notes`, z.array(employeeNoteDtoSchema)),
+      create: (employeeId: string, body: CreateEmployeeNoteBody) =>
+        request('POST', `/v1/employees/${employeeId}/notes`, employeeNoteDtoSchema, { body }),
+      remove: (employeeId: string, noteId: string) =>
+        request('DELETE', `/v1/employees/${employeeId}/notes/${noteId}`, emptySchema),
+    },
+    certifications: {
+      list: (employeeId: string) =>
+        request(
+          'GET',
+          `/v1/employees/${employeeId}/certifications`,
+          z.array(certificationDtoSchema),
+        ),
+      create: (employeeId: string, body: CreateCertificationBody) =>
+        request('POST', `/v1/employees/${employeeId}/certifications`, certificationDtoSchema, {
+          body,
+        }),
+      update: (employeeId: string, certificationId: string, body: UpdateCertificationBody) =>
+        request(
+          'PATCH',
+          `/v1/employees/${employeeId}/certifications/${certificationId}`,
+          certificationDtoSchema,
+          { body },
+        ),
+      remove: (employeeId: string, certificationId: string) =>
+        request(
+          'DELETE',
+          `/v1/employees/${employeeId}/certifications/${certificationId}`,
+          emptySchema,
+        ),
+      expiring: (withinDays?: number) =>
+        request('GET', '/v1/certifications/expiring', z.array(expiringCertificationDtoSchema), {
+          query: { withinDays },
+        }),
+    },
+    absences: {
+      list: (query?: Partial<AbsenceListQuery>) =>
+        request('GET', '/v1/absence-requests', paginatedSchema(absenceRequestDtoSchema), { query }),
+      listForEmployee: (employeeId: string) =>
+        request(
+          'GET',
+          `/v1/employees/${employeeId}/absence-requests`,
+          z.array(absenceRequestDtoSchema),
+        ),
+      create: (employeeId: string, body: CreateAbsenceRequestBody) =>
+        request('POST', `/v1/employees/${employeeId}/absence-requests`, absenceRequestDtoSchema, {
+          body,
+        }),
+      review: (absenceId: string, body: ReviewAbsenceBody) =>
+        request('POST', `/v1/absence-requests/${absenceId}/review`, absenceRequestDtoSchema, {
+          body,
+        }),
+      cancel: (absenceId: string) =>
+        request('POST', `/v1/absence-requests/${absenceId}/cancel`, absenceRequestDtoSchema),
+    },
+    employeeDocuments: {
+      list: (employeeId: string) =>
+        request('GET', `/v1/employees/${employeeId}/documents`, z.array(employeeDocumentDtoSchema)),
+      upload: (
+        employeeId: string,
+        file: File,
+        options?: { category?: EmployeeDocumentCategory; sensitive?: boolean },
+      ) => {
+        const params = new URLSearchParams();
+        if (options?.category) params.set('category', options.category);
+        if (options?.sensitive) params.set('sensitive', 'true');
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        return upload(
+          `/v1/employees/${employeeId}/documents${suffix}`,
+          file,
+          employeeDocumentDtoSchema,
+        );
+      },
+      downloadUrl: (employeeId: string, documentId: string) =>
+        request(
+          'GET',
+          `/v1/employees/${employeeId}/documents/${documentId}/download-url`,
+          attachmentDownloadDtoSchema,
+        ),
+      remove: (employeeId: string, documentId: string) =>
+        request('DELETE', `/v1/employees/${employeeId}/documents/${documentId}`, emptySchema),
+    },
+    onboardingTemplates: {
+      list: () => request('GET', '/v1/onboarding-templates', z.array(onboardingTemplateDtoSchema)),
+      get: (templateId: string) =>
+        request('GET', `/v1/onboarding-templates/${templateId}`, onboardingTemplateDtoSchema),
+      create: (body: CreateTemplateBody) =>
+        request('POST', '/v1/onboarding-templates', onboardingTemplateDtoSchema, { body }),
+      update: (templateId: string, body: UpdateTemplateBody) =>
+        request('PATCH', `/v1/onboarding-templates/${templateId}`, onboardingTemplateDtoSchema, {
+          body,
+        }),
+      remove: (templateId: string) =>
+        request('DELETE', `/v1/onboarding-templates/${templateId}`, emptySchema),
     },
   };
 }

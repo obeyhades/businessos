@@ -37,6 +37,27 @@ export const AUDIT_ACTIONS = [
   'comment.deleted',
   'attachment.uploaded',
   'attachment.deleted',
+  // Phase 3
+  'employee.created',
+  'employee.updated',
+  'employee.status_changed',
+  'employee.deleted',
+  'employee.sensitive_viewed',
+  'employee_note.created',
+  'employee_note.deleted',
+  'certification.created',
+  'certification.updated',
+  'certification.deleted',
+  'absence.requested',
+  'absence.approved',
+  'absence.rejected',
+  'absence.cancelled',
+  'employee_document.uploaded',
+  'employee_document.deleted',
+  'onboarding_template.created',
+  'onboarding_template.updated',
+  'onboarding_template.deleted',
+  'onboarding_template.applied',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

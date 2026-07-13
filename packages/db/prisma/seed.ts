@@ -121,8 +121,198 @@ async function main(): Promise<void> {
   }
 
   await seedPhase2(org.id, owner.id);
+  await seedPhase3(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
+}
+
+/** Days offset helper for date-only fields. */
+function daysFromNow(days: number): Date {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return new Date(d.toISOString().slice(0, 10));
+}
+
+/**
+ * Personnel: employees (with sensitive fields + a manager hierarchy, some
+ * linked to demo users), a certification expiring soon, an absence request,
+ * an onboarding template, and one employee onboarded from it (generating tasks).
+ * All fictional data.
+ */
+async function seedPhase3(organizationId: string, ownerId: string): Promise<void> {
+  const alreadySeeded = await prisma.employee.count({ where: { organizationId } });
+  if (alreadySeeded > 0) return;
+
+  const findUser = (email: string) => prisma.user.findUnique({ where: { email } });
+  const [ownerUser, adminUser, erikUser, fatimaUser] = await Promise.all([
+    findUser('owner@demo.businessos.local'),
+    findUser('admin@demo.businessos.local'),
+    findUser('erik@demo.businessos.local'),
+    findUser('fatima@demo.businessos.local'),
+  ]);
+
+  // Manager first, so reports can reference it.
+  const manager = await prisma.employee.create({
+    data: {
+      organizationId,
+      firstName: 'Olivia',
+      lastName: 'Ohlsson',
+      workEmail: 'olivia@demo.businessos.local',
+      jobTitle: 'Operations Manager',
+      department: 'Operations',
+      employmentStatus: 'ACTIVE',
+      employmentType: 'FULL_TIME',
+      startDate: daysFromNow(-800),
+      userId: ownerUser?.id ?? null,
+      personalIdNumber: '19850101-1234',
+      homeCity: 'Goteborg',
+      emergencyContactName: 'Anders Ohlsson',
+      emergencyContactPhone: '+46 70 111 22 33',
+      emergencyContactRelation: 'Spouse',
+      createdById: ownerId,
+    },
+  });
+
+  const staff = await prisma.employee.createManyAndReturn({
+    data: [
+      {
+        organizationId,
+        firstName: 'Erik',
+        lastName: 'Eklund',
+        workEmail: 'erik@demo.businessos.local',
+        jobTitle: 'Carpenter',
+        department: 'Field',
+        employmentStatus: 'ACTIVE',
+        employmentType: 'FULL_TIME',
+        startDate: daysFromNow(-400),
+        managerId: manager.id,
+        userId: erikUser?.id ?? null,
+        personalIdNumber: '19900615-5678',
+        homeCity: 'Molndal',
+        createdById: ownerId,
+      },
+      {
+        organizationId,
+        firstName: 'Fatima',
+        lastName: 'Nilsson',
+        workEmail: 'fatima@demo.businessos.local',
+        jobTitle: 'Electrician',
+        department: 'Field',
+        employmentStatus: 'ON_LEAVE',
+        employmentType: 'PART_TIME',
+        startDate: daysFromNow(-200),
+        managerId: manager.id,
+        userId: fatimaUser?.id ?? null,
+        personalIdNumber: '19920820-9012',
+        homeCity: 'Goteborg',
+        createdById: ownerId,
+      },
+    ],
+  });
+  const erik = staff[0];
+
+  // A certification expiring within 30 days → surfaces on the dashboard.
+  if (erik) {
+    await prisma.certification.create({
+      data: {
+        organizationId,
+        employeeId: erik.id,
+        name: 'Hot Work Permit',
+        issuer: 'Swedish Fire Protection Association',
+        issuedDate: daysFromNow(-700),
+        expiresAt: daysFromNow(25),
+      },
+    });
+    await prisma.absenceRequest.create({
+      data: {
+        organizationId,
+        employeeId: erik.id,
+        type: 'VACATION',
+        status: 'PENDING',
+        startDate: daysFromNow(30),
+        endDate: daysFromNow(44),
+        reason: 'Summer holiday',
+        createdById: ownerId,
+      },
+    });
+  }
+
+  // Reusable onboarding template.
+  const template = await prisma.onboardingTemplate.create({
+    data: {
+      organizationId,
+      name: 'Field employee onboarding',
+      description: 'Standard checklist for new field staff.',
+      type: 'ONBOARDING',
+      createdById: ownerId,
+      items: {
+        create: [
+          { organizationId, title: 'Sign employment contract', dueOffsetDays: 0, sortOrder: 0 },
+          { organizationId, title: 'Issue safety equipment', dueOffsetDays: 1, sortOrder: 1 },
+          { organizationId, title: 'Complete safety training', dueOffsetDays: 7, sortOrder: 2 },
+          { organizationId, title: 'Assign first project', dueOffsetDays: 14, sortOrder: 3 },
+        ],
+      },
+    },
+    include: { items: true },
+  });
+
+  // A new hire onboarded from the template (generates dated tasks).
+  const newHire = await prisma.employee.create({
+    data: {
+      organizationId,
+      firstName: 'Johan',
+      lastName: 'Berg',
+      workEmail: 'johan@demo.businessos.local',
+      jobTitle: 'Apprentice Carpenter',
+      department: 'Field',
+      employmentStatus: 'ONBOARDING',
+      employmentType: 'FULL_TIME',
+      startDate: daysFromNow(3),
+      managerId: manager.id,
+      createdById: ownerId,
+    },
+  });
+
+  const assigneeId = adminUser?.id ?? ownerUser?.id ?? ownerId;
+  const base = newHire.startDate ?? new Date();
+  for (const item of template.items) {
+    const due = new Date(base);
+    due.setUTCDate(due.getUTCDate() + item.dueOffsetDays);
+    await prisma.task.create({
+      data: {
+        organizationId,
+        title: item.title,
+        status: 'TODO',
+        priority: 'MEDIUM',
+        dueDate: due,
+        employeeId: newHire.id,
+        assigneeId,
+        createdById: ownerId,
+      },
+    });
+  }
+
+  await prisma.activity.createMany({
+    data: [
+      {
+        organizationId,
+        actorUserId: ownerId,
+        type: 'employee.created',
+        employeeId: manager.id,
+        metadata: { name: 'Olivia Ohlsson', seeded: true },
+      },
+      {
+        organizationId,
+        actorUserId: ownerId,
+        type: 'employee.onboarding_started',
+        employeeId: newHire.id,
+        metadata: { template: template.name, taskCount: template.items.length, seeded: true },
+      },
+    ],
+  });
+
+  console.warn(`Seeded ${2 + staff.length} employees, 1 template and onboarding tasks.`);
 }
 
 /** Customers, contacts, projects, tasks, comments and a matching activity feed. */

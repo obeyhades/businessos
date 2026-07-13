@@ -28,7 +28,7 @@ export function registerSearchRoutes(app: FastifyInstance): void {
       const { organizationId } = orgContext(request);
       const { q, limit } = request.query;
       const contains = { contains: q, mode: 'insensitive' as const };
-      const perType = Math.max(1, Math.ceil(limit / 3));
+      const perType = Math.max(1, Math.ceil(limit / 4));
       const results: SearchResult[] = [];
 
       if (hasPermission(membership.role, 'customers.read')) {
@@ -70,6 +70,31 @@ export function registerSearchRoutes(app: FastifyInstance): void {
         });
         for (const t of tasks) {
           results.push({ kind: 'task', id: t.id, title: t.title, subtitle: t.status });
+        }
+      }
+
+      if (hasPermission(membership.role, 'personnel.read')) {
+        // Directory fields only — never sensitive personal data.
+        const employees = await app.prisma.employee.findMany({
+          where: {
+            organizationId,
+            OR: [
+              { firstName: contains },
+              { lastName: contains },
+              { workEmail: contains },
+              { jobTitle: contains },
+            ],
+          },
+          orderBy: [{ lastName: 'asc' }],
+          take: perType,
+        });
+        for (const e of employees) {
+          results.push({
+            kind: 'employee',
+            id: e.id,
+            title: `${e.firstName} ${e.lastName}`.trim(),
+            subtitle: e.jobTitle ?? e.department,
+          });
         }
       }
 

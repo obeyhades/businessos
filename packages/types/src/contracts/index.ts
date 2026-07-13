@@ -15,3 +15,7 @@ export * from './comments.js';
 export * from './attachments.js';
 export * from './activity.js';
 export * from './search.js';
+// Phase 3
+export * from './employees.js';
+export * from './personnel.js';
+export * from './onboarding.js';
