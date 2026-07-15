@@ -104,6 +104,14 @@ Phase 6 adds the calendar actions: `calendar.created`, `calendar.updated`, `cale
 per-occurrence cancel/override and each attendee change and RSVP — is recorded with actor, IP and
 user agent inside the same transaction as the change.
 
+Phase 7 adds the email actions: `email_account.created`, `email_account.updated`,
+`email_account.deleted`, `email.composed`, `email.sent`, `email.received`,
+`email_thread.moved`, `email_thread.linked`, `email_thread.labeled`,
+`email.converted_to_task`, `email_label.created`, `email_label.deleted` (plus a reserved
+`email.send_failed` — today a failed send is recorded on the message row's `status`/`error`
+by the worker). Inbound-webhook receipts are audited as `email.received` with a null actor,
+since the provider acts without a user.
+
 Action identifiers are stable and never renamed. The audit log is distinct from the
 Phase 2 user-facing `activities` feed (see
 [architecture.md](architecture.md#activity-timeline)): the audit log is the security
@@ -144,6 +152,14 @@ record, the activity feed is a product timeline.
   through an `organizationMember` row in the caller's org, so a caller can never link, invite or
   query across tenants. The worker reminder sweep scopes every claim row and email to the
   event's `organizationId`.
+- **Phase 7 resources** — email accounts, threads, messages, labels and thread-label rows all
+  carry `organization_id` and are looked up scoped to the session organization. Thread
+  link targets (customer/project/task) and task assignees are re-validated within the tenant
+  before a write, and a message can only be composed into a thread re-fetched for the same
+  mailbox and organization. The **inbound webhook derives its tenant from the destination
+  mailbox row** — the caller never supplies an organization id — and its idempotency check,
+  reference-chain threading and customer auto-link are all scoped to that derived
+  organization. The worker's send-status callback updates a message by its unique id only.
 
 ## Attachment upload/download (Phase 2)
 
@@ -318,6 +334,45 @@ deliberately **minimal cross-member view**.
 - **Tenant isolation and audit** — every calendar action is org-scoped and audited (see the
   [tenant isolation](#tenant-isolation) and [audit log](#audit-log) sections above).
 
+## Email privacy and inbound-webhook authentication (Phase 7)
+
+The email module adds two access concerns: **per-mailbox privacy** and a **cookie-less,
+secret-authenticated ingestion endpoint**.
+
+- **Two-tier RBAC.** `email.read` (view mailboxes, threads and labels) and `email.send`
+  (compose/send plus **every thread mutation** — read/star/move/link/labels/email→task — and
+  mailbox/label management). In the code-defined matrix (`packages/types/src/permissions.ts`)
+  OWNER, ADMIN and **MANAGER** hold both; READONLY holds `email.read` only; **EMPLOYEE and
+  ACCOUNTANT have no email access at all**.
+- **Personal-mailbox scoping.** A `SHARED` mailbox is visible to every email reader; a
+  `PERSONAL` mailbox **only to its owner**. This is enforced at the data layer, not the UI:
+  `accountVisibilityWhere` narrows the account and thread list queries in the database, and a
+  direct GET on a personal mailbox or any of its threads returns **404 (not 403)** to a
+  non-owner — the API does not reveal that the mailbox exists (the same existence-hiding
+  pattern as private events and sensitive employee documents).
+- **Inbound webhook auth model.** `POST /v1/email/inbound` is authenticated by a **shared
+  secret** in the `x-inbound-secret` header, compared with a **timing-safe** equality check
+  (`crypto.timingSafeEqual` after a length check — no timing side channel) against
+  `INBOUND_EMAIL_SECRET`. It is deliberately **not** session-authenticated: the caller is a
+  mail provider's server, not a browser. Because the CSRF hook only guards cookie-bearing
+  state changes, it is **skipped by design** here — there is no cookie whose ambient
+  authority could be ridden, which is the attack CSRF protection exists for.
+- **Tenant derivation instead of caller-supplied tenancy.** The webhook never accepts an
+  organization id. The destination address is resolved to an active mailbox row and the
+  tenant comes from that row, so even a caller holding the secret can only ever **write an
+  inbound message into the mailbox it addresses** — it cannot read anything back (the
+  response carries only status and ids) and cannot target an arbitrary tenant. Idempotency by
+  RFC Message-ID (partial-unique backstop) additionally caps replay: redelivering a captured
+  payload is answered `duplicate` without a second write.
+- **Untrusted content and header safety.** An inbound `bodyHtml` is stored verbatim and is
+  **untrusted input** — the web client must render it sandboxed/sanitized (never as trusted
+  markup in the app origin). Outbound header injection is prevented by validation: every
+  recipient must parse as an email address (trimmed, lower-cased, max 320 chars — no CRLF can
+  survive), recipient lists are capped (50), and subjects/bodies are length-capped; the
+  worker passes them to nodemailer as structured fields, never by concatenating raw headers.
+- `INBOUND_EMAIL_SECRET` ships with a development default (`dev-inbound-secret`) and **must
+  be set to a real secret in production** and rotated like other credentials (see below).
+
 ## Secrets and configuration
 
 Environment is validated with zod at startup in every app (`packages/config`);
@@ -341,6 +396,11 @@ As of **Phase 4 the worker also requires the same `S3_*` variables** (validated 
 startup in `apps/worker/src/env.ts`): the invoice-email consumer fetches the finalized
 invoice PDF from object storage to attach it to outgoing mail. Point the worker at the same
 bucket/endpoint as the API.
+
+Phase 7 adds **`INBOUND_EMAIL_SECRET`** (API, validated at startup; local default
+`dev-inbound-secret`) — the shared secret the inbound-email webhook requires in the
+`x-inbound-secret` header. In production it must be a long random value known only to the
+mail provider's webhook configuration, managed and rotated like `S3_SECRET_KEY`.
 
 ## Not implemented yet (designed, Phase 9)
 

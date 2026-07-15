@@ -22,6 +22,10 @@ import {
 } from './service.js';
 
 const messageInclude = { attachments: true } as const;
+/** Pulls the owning mailbox's visibility fields for the PERSONAL-mailbox check. */
+const accountSelect = { select: { type: true, ownerId: true } } as const;
+/** Email bodies can be large (long HTML mail); above the 1 MiB global limit. */
+const EMAIL_BODY_LIMIT = 4 * 1024 * 1024;
 
 export function registerEmailMessageRoutes(app: FastifyInstance): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -31,6 +35,7 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
     method: 'POST',
     url: '/v1/email/messages',
     preHandler: [requirePermission('email.send')],
+    bodyLimit: EMAIL_BODY_LIMIT,
     schema: {
       tags: ['email'],
       body: createMessageBodySchema,
@@ -128,6 +133,7 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
     method: 'PATCH',
     url: '/v1/email/messages/:messageId',
     preHandler: [requirePermission('email.send')],
+    bodyLimit: EMAIL_BODY_LIMIT,
     schema: {
       tags: ['email'],
       params: messageIdParamsSchema,
@@ -139,9 +145,11 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
       const body = request.body;
       const existing = await app.prisma.emailMessage.findFirst({
         where: { id: request.params.messageId, organizationId },
-        select: { id: true, status: true, threadId: true },
+        select: { id: true, status: true, threadId: true, account: accountSelect },
       });
-      if (!existing) throw errors.notFound('Message');
+      if (!existing || !canSeeAccount(existing.account, request.currentUser?.id)) {
+        throw errors.notFound('Message');
+      }
       if (existing.status !== 'DRAFT') {
         throw errors.conflict('not_a_draft', 'Only draft messages can be edited');
       }
@@ -174,9 +182,11 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
       const { organizationId } = orgContext(request);
       const existing = await app.prisma.emailMessage.findFirst({
         where: { id: request.params.messageId, organizationId },
-        select: { id: true, status: true, threadId: true },
+        select: { id: true, status: true, threadId: true, account: accountSelect },
       });
-      if (!existing) throw errors.notFound('Message');
+      if (!existing || !canSeeAccount(existing.account, request.currentUser?.id)) {
+        throw errors.notFound('Message');
+      }
       if (existing.status !== 'DRAFT') {
         throw errors.conflict('not_a_draft', 'Only draft messages can be deleted');
       }
@@ -217,9 +227,14 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
           subject: true,
           bodyText: true,
           bodyHtml: true,
+          inReplyTo: true,
+          references: true,
+          account: accountSelect,
         },
       });
-      if (!draft) throw errors.notFound('Message');
+      if (!draft || !canSeeAccount(draft.account, request.currentUser?.id)) {
+        throw errors.notFound('Message');
+      }
       if (draft.status !== 'DRAFT') {
         throw errors.conflict('already_sent', `Message is ${draft.status}, not a draft`);
       }
@@ -229,10 +244,14 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
 
       const rfcId = generateRfcMessageId(draft.fromAddress);
       const detail = await app.prisma.$transaction(async (tx) => {
-        await tx.emailMessage.update({
-          where: { id: draft.id },
-          data: { status: 'QUEUED', messageId: rfcId, sentAt: new Date() },
+        // Atomic DRAFT → QUEUED so two concurrent sends can't both dispatch.
+        const claimed = await tx.emailMessage.updateMany({
+          where: { id: draft.id, status: 'DRAFT' },
+          data: { status: 'QUEUED', messageId: rfcId },
         });
+        if (claimed.count !== 1) {
+          throw errors.conflict('already_sent', 'Message was already sent');
+        }
         await recomputeThread(tx, draft.threadId);
         const thread = await tx.emailThread.findUniqueOrThrow({
           where: { id: draft.threadId },
@@ -260,13 +279,19 @@ export function registerEmailMessageRoutes(app: FastifyInstance): void {
             metadata: { subject: draft.subject },
           });
         }
-        // Hand off to the shared email pipeline; the worker marks it SENT/FAILED.
+        // Hand off to the shared email pipeline; the worker marks it SENT/FAILED
+        // and stamps sentAt. Carry the From (mailbox address) + RFC threading
+        // headers so replies chain at the recipient.
         await enqueueOutbox(tx, 'email.send', {
+          from: draft.fromAddress,
           to: draft.toAddresses.join(', '),
           cc: draft.ccAddresses,
           subject: draft.subject,
           text: draft.bodyText || '(no content)',
           html: draft.bodyHtml ?? undefined,
+          messageId: rfcId,
+          inReplyTo: draft.inReplyTo ?? undefined,
+          references: draft.references,
           kind: 'email',
           organizationId,
           emailMessageId: draft.id,

@@ -57,6 +57,16 @@ export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void>
           where: { messageId_consumer: { messageId: envelope.id, consumer: CONSUMER_NAME } },
         });
         if (alreadyProcessed) {
+          // The send already happened; still ensure the mailbox row reflects it
+          // (a crash between ledger-write and the SENT flip must not strand it).
+          if (emailMessageId) {
+            await prisma.emailMessage
+              .updateMany({
+                where: { id: emailMessageId, status: 'QUEUED' },
+                data: { status: 'SENT', sentAt: new Date() },
+              })
+              .catch((err) => logger.error({ err, emailMessageId }, 'failed to mark email SENT'));
+          }
           logger.info({ messageId: envelope.id }, 'duplicate message skipped');
           channel.ack(message);
           return;
@@ -78,7 +88,7 @@ export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void>
           await prisma.emailMessage
             .updateMany({
               where: { id: emailMessageId, status: 'QUEUED' },
-              data: { status: 'SENT' },
+              data: { status: 'SENT', sentAt: new Date() },
             })
             .catch((err) => logger.error({ err, emailMessageId }, 'failed to mark email SENT'));
         }

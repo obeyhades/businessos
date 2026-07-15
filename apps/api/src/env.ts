@@ -16,8 +16,9 @@ export const env = parseEnv({
   S3_SECRET_KEY: z.string().min(1),
   S3_BUCKET: z.string().min(1),
   S3_REGION: z.string().min(1).default('us-east-1'),
-  /** Shared secret the inbound-email provider webhook must present. */
-  INBOUND_EMAIL_SECRET: z.string().min(1).default('dev-inbound-secret'),
+  /** Shared secret the inbound-email provider webhook must present. Required
+   *  (no default) so a misconfigured deploy can't accept forged inbound mail. */
+  INBOUND_EMAIL_SECRET: z.string().min(16, 'INBOUND_EMAIL_SECRET must be at least 16 characters'),
 });
 
 export type ApiEnv = typeof env;

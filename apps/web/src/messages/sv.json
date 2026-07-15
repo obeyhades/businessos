@@ -81,7 +81,8 @@
     "accountingAccounts": "Kontoplan",
     "accountingPeriods": "Räkenskapsår",
     "accountingReports": "Rapporter",
-    "calendar": "Kalender"
+    "calendar": "Kalender",
+    "email": "E-post"
   },
   "auth": {
     "login": {
@@ -1321,6 +1322,132 @@
     "errors": {
       "calendarRequired": "Välj en kalender.",
       "titleRequired": "Ange en titel."
+    }
+  },
+  "email": {
+    "title": "E-post",
+    "restricted": "Du har inte behörighet att se e-post.",
+    "compose": "Skriv nytt",
+    "folders": {
+      "heading": "Mappar",
+      "INBOX": "Inkorg",
+      "SENT": "Skickat",
+      "DRAFTS": "Utkast",
+      "ARCHIVE": "Arkiv",
+      "TRASH": "Papperskorg"
+    },
+    "accounts": {
+      "heading": "Brevlådor",
+      "all": "Alla brevlådor",
+      "manage": "Hantera brevlådor",
+      "manageDescription": "Skapa delade eller personliga brevlådor för din organisation.",
+      "new": "Ny brevlåda",
+      "create": "Skapa brevlåda",
+      "empty": "Inga brevlådor än.",
+      "address": "Adress",
+      "displayName": "Visningsnamn",
+      "type": "Typ",
+      "invalidAddress": "Ange en giltig e-postadress.",
+      "created": "Brevlådan skapades",
+      "deleted": "Brevlådan togs bort",
+      "delete": "Ta bort brevlåda",
+      "deleteConfirm": "Ta bort brevlådan \"{address}\"? Dess konversationer blir inte längre åtkomliga.",
+      "inactive": "Inaktiv"
+    },
+    "accountType": {
+      "SHARED": "Delad",
+      "PERSONAL": "Personlig"
+    },
+    "labels": {
+      "heading": "Etiketter",
+      "manage": "Hantera etiketter",
+      "manageDescription": "Skapa etiketter för att organisera konversationer.",
+      "new": "Ny etikett",
+      "create": "Skapa etikett",
+      "empty": "Inga etiketter än.",
+      "name": "Namn",
+      "color": "Färg",
+      "nameRequired": "Ange ett namn.",
+      "created": "Etiketten skapades",
+      "deleted": "Etiketten togs bort",
+      "delete": "Ta bort etikett",
+      "deleteConfirm": "Ta bort etiketten \"{name}\"? Den tas bort från alla konversationer.",
+      "removeLabel": "Ta bort etiketten {name}"
+    },
+    "list": {
+      "searchPlaceholder": "Sök i e-post",
+      "empty": "Inga konversationer här.",
+      "emptyDescription": "Meddelanden du tar emot visas här.",
+      "unread": "Oläst"
+    },
+    "thread": {
+      "select": "Välj en konversation för att läsa den.",
+      "reply": "Svara",
+      "markRead": "Markera som läst",
+      "markUnread": "Markera som oläst",
+      "star": "Stjärnmärk",
+      "unstar": "Ta bort stjärna",
+      "move": "Flytta",
+      "moveToInbox": "Flytta till inkorgen",
+      "archive": "Arkivera",
+      "moveToTrash": "Flytta till papperskorgen",
+      "moved": "Konversationen flyttades",
+      "labels": "Etiketter",
+      "link": "Koppla",
+      "linkTitle": "Koppla konversation",
+      "linkDescription": "Koppla den här konversationen till en kund, ett projekt eller en uppgift.",
+      "linked": "Konversationen kopplades",
+      "toTask": "Gör till uppgift",
+      "linkedCustomer": "Kund",
+      "linkedProject": "Projekt",
+      "linkedTask": "Uppgift"
+    },
+    "message": {
+      "to": "Till",
+      "cc": "Kopia",
+      "editDraft": "Redigera utkast",
+      "deleteDraft": "Ta bort utkast",
+      "deleteDraftConfirm": "Ta bort det här utkastet? Detta kan inte ångras."
+    },
+    "status": {
+      "DRAFT": "Utkast",
+      "QUEUED": "Skickar…",
+      "SENT": "Skickat",
+      "FAILED": "Misslyckades",
+      "RECEIVED": "Mottaget"
+    },
+    "composeDialog": {
+      "title": "Nytt meddelande",
+      "replyTitle": "Svara",
+      "editDraftTitle": "Redigera utkast",
+      "from": "Från",
+      "to": "Till",
+      "cc": "Kopia",
+      "subject": "Ämne",
+      "body": "Meddelande",
+      "addressPlaceholder": "Skriv en adress och tryck på Enter",
+      "removeAddress": "Ta bort {address}",
+      "invalidAddress": "\"{address}\" är inte en giltig e-postadress.",
+      "accountRequired": "Välj en brevlåda att skicka från.",
+      "toRequired": "Lägg till minst en mottagare.",
+      "subjectRequired": "Ange ett ämne.",
+      "saveDraft": "Spara utkast",
+      "send": "Skicka",
+      "draftSaved": "Utkastet sparades",
+      "draftDeleted": "Utkastet togs bort",
+      "deleteDraft": "Ta bort utkast",
+      "sent": "Meddelandet skickades"
+    },
+    "toTaskDialog": {
+      "title": "Gör till uppgift",
+      "description": "Skapa en uppgift från den här konversationen.",
+      "taskTitle": "Titel",
+      "assignee": "Ansvarig",
+      "unassigned": "Ej tilldelad",
+      "dueDate": "Förfallodatum",
+      "create": "Skapa uppgift",
+      "created": "Uppgiften skapades",
+      "viewTask": "Visa uppgift"
     }
   }
 }

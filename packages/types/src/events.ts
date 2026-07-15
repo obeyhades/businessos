@@ -35,6 +35,12 @@ export const emailSendPayloadSchema = z.object({
   text: z.string().min(1),
   /** Optional HTML body (Phase 7 mail module). */
   html: z.string().optional(),
+  /** Override the default SMTP From (Phase 7: send from the mailbox address). */
+  from: z.string().optional(),
+  /** RFC 5322 threading headers so replies chain correctly at the provider. */
+  messageId: z.string().optional(),
+  inReplyTo: z.string().optional(),
+  references: z.array(z.string()).optional(),
   /** For correlation in logs/audit without logging the body. */
   kind: z.enum([
     'invitation',

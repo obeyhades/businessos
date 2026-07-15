@@ -43,6 +43,8 @@ export function registerEmailInboundRoutes(app: FastifyInstance): void {
     method: 'POST',
     url: '/v1/email/inbound',
     // No requirePermission — authenticated by the shared secret below.
+    // Inbound mail (with HTML bodies) can exceed the 1 MiB global body limit.
+    bodyLimit: 4 * 1024 * 1024,
     schema: {
       tags: ['email'],
       body: inboundEmailBodySchema,
@@ -133,12 +135,18 @@ export function registerEmailInboundRoutes(app: FastifyInstance): void {
           await recomputeThread(tx, threadId);
 
           // Auto-link the thread to a matching customer (once) + timeline it.
+          // A new inbound message also un-archives the thread (Gmail-style);
+          // trashed threads stay trashed.
           const thread = await tx.emailThread.findUniqueOrThrow({
             where: { id: threadId },
-            select: { customerId: true },
+            select: { customerId: true, customerLinkLocked: true, folder: true },
           });
+          if (thread.folder === 'ARCHIVE') {
+            await tx.emailThread.update({ where: { id: threadId }, data: { folder: 'INBOX' } });
+          }
           let linkedCustomerId = thread.customerId;
-          if (!linkedCustomerId) {
+          // Never override a link a human set/cleared (customerLinkLocked).
+          if (!linkedCustomerId && !thread.customerLinkLocked) {
             linkedCustomerId = await findCustomerByAddress(tx, organizationId, body.from);
             if (linkedCustomerId) {
               await tx.emailThread.update({

@@ -38,16 +38,23 @@ export function generateRfcMessageId(fromAddress: string): string {
 export function folderViewWhere(view: FolderView): Prisma.EmailThreadWhereInput {
   switch (view) {
     case 'SENT':
-      return { messages: { some: { direction: 'OUTBOUND', status: 'SENT' } } };
+      // A message counts as "sent" from queue time onward; the worker later
+      // flips QUEUED → SENT. Exclude trashed threads.
+      return {
+        folder: { not: 'TRASH' },
+        messages: { some: { direction: 'OUTBOUND', status: { in: ['QUEUED', 'SENT'] } } },
+      };
     case 'DRAFTS':
-      return { messages: { some: { status: 'DRAFT' } } };
+      return { folder: { not: 'TRASH' }, messages: { some: { status: 'DRAFT' } } };
     case 'ARCHIVE':
       return { folder: 'ARCHIVE' };
     case 'TRASH':
       return { folder: 'TRASH' };
     case 'INBOX':
     default:
-      return { folder: 'INBOX', messages: { some: { status: { not: 'DRAFT' } } } };
+      // Inbox is inbound mail only — outbound-only (composed/sent) threads live
+      // in the SENT view, not here.
+      return { folder: 'INBOX', messages: { some: { direction: 'INBOUND' } } };
   }
 }
 
@@ -60,22 +67,25 @@ export async function recomputeThread(tx: Tx, threadId: string): Promise<void> {
     where: { threadId },
     select: {
       direction: true,
-      status: true,
       isRead: true,
       bodyText: true,
-      subject: true,
+      sentAt: true,
+      receivedAt: true,
       createdAt: true,
     },
-    orderBy: { createdAt: 'asc' },
   });
   if (messages.length === 0) return;
-  const last = messages[messages.length - 1]!;
+  // Rank by effective activity time — a sent draft counts as recent activity
+  // (Gmail-style), even though it was composed earlier.
+  const effective = (m: (typeof messages)[number]): number =>
+    (m.sentAt ?? m.receivedAt ?? m.createdAt).getTime();
+  const last = messages.reduce((a, b) => (effective(b) >= effective(a) ? b : a));
   const unread = messages.some((m) => m.direction === 'INBOUND' && !m.isRead);
   await tx.emailThread.update({
     where: { id: threadId },
     data: {
       messageCount: messages.length,
-      lastMessageAt: last.createdAt,
+      lastMessageAt: new Date(effective(last)),
       snippet: makeSnippet(last.bodyText),
       unread,
     },
@@ -105,20 +115,27 @@ export function canSeeAccount(
   return account.type === 'SHARED' || (!!userId && account.ownerId === userId);
 }
 
-/** Finds the customer an address belongs to (direct or via a contact). */
+/** Finds the customer an address belongs to (direct or via a contact). Returns
+ *  null when the match is AMBIGUOUS (a shared/generic address maps to more than
+ *  one customer) — better to leave it for manual linking than misattribute. */
 export async function findCustomerByAddress(
   tx: Tx,
   organizationId: string,
   address: string,
 ): Promise<string | null> {
-  const customer = await tx.customer.findFirst({
+  const customers = await tx.customer.findMany({
     where: { organizationId, email: { equals: address, mode: 'insensitive' } },
     select: { id: true },
+    take: 2,
   });
-  if (customer) return customer.id;
-  const contact = await tx.customerContact.findFirst({
+  if (customers.length === 1) return customers[0]!.id;
+  if (customers.length > 1) return null; // ambiguous → skip auto-link
+
+  const contacts = await tx.customerContact.findMany({
     where: { organizationId, email: { equals: address, mode: 'insensitive' } },
     select: { customerId: true },
+    take: 5,
   });
-  return contact?.customerId ?? null;
+  const distinct = [...new Set(contacts.map((c) => c.customerId))];
+  return distinct.length === 1 ? distinct[0]! : null;
 }

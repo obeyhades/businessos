@@ -14,6 +14,7 @@ import {
   Contact,
   FileText,
   LayoutDashboard,
+  Mail,
   Package,
   ReceiptText,
   ScrollText,
@@ -35,6 +36,7 @@ interface NavItem {
     | 'projects'
     | 'tasks'
     | 'calendar'
+    | 'email'
     | 'members'
     | 'personnel'
     | 'onboarding'
@@ -105,6 +107,12 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       labelKey: 'calendar',
       icon: CalendarDays,
       visible: can(session, 'calendar.read'),
+    },
+    {
+      href: '/mail',
+      labelKey: 'email',
+      icon: Mail,
+      visible: can(session, 'email.read'),
     },
     { href: '/members', labelKey: 'members', icon: Users, visible: can(session, 'members.read') },
     {

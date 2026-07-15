@@ -12,7 +12,7 @@ import { errors } from '../../lib/errors.js';
 import { orgContext, requirePermission } from '../../plugins/auth.js';
 import { auditContext, recordAudit } from '../audit/service.js';
 import { toEmailAccountDto } from './mappers.js';
-import { accountVisibilityWhere } from './service.js';
+import { accountVisibilityWhere, canSeeAccount } from './service.js';
 
 function isUniqueViolation(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -53,7 +53,8 @@ export function registerEmailAccountRoutes(app: FastifyInstance): void {
           const created = await tx.emailAccount.create({
             data: {
               organizationId,
-              address: body.address,
+              // Store lowercased so the global-unique index + routing are stable.
+              address: body.address.toLowerCase(),
               displayName: body.displayName ?? null,
               type: body.type,
               ownerId: body.type === 'PERSONAL' ? (request.currentUser?.id ?? null) : null,
@@ -95,7 +96,9 @@ export function registerEmailAccountRoutes(app: FastifyInstance): void {
       const existing = await app.prisma.emailAccount.findFirst({
         where: { id: request.params.accountId, organizationId },
       });
-      if (!existing) throw errors.notFound('Mailbox');
+      if (!existing || !canSeeAccount(existing, request.currentUser?.id)) {
+        throw errors.notFound('Mailbox');
+      }
       const body = request.body;
       const updated = await app.prisma.$transaction(async (tx) => {
         const result = await tx.emailAccount.update({
@@ -129,7 +132,9 @@ export function registerEmailAccountRoutes(app: FastifyInstance): void {
       const existing = await app.prisma.emailAccount.findFirst({
         where: { id: request.params.accountId, organizationId },
       });
-      if (!existing) throw errors.notFound('Mailbox');
+      if (!existing || !canSeeAccount(existing, request.currentUser?.id)) {
+        throw errors.notFound('Mailbox');
+      }
       const threadCount = await app.prisma.emailThread.count({
         where: { accountId: existing.id, organizationId },
       });

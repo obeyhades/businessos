@@ -482,6 +482,106 @@ list, single GET (404 to others) and the agenda.
 `unknown_project` / `unknown_task` / `unknown_attendee` (400), `cannot_remove_organizer` (409),
 `calendar_is_default` (409), `calendar_in_use` (409).
 
+## Phase 7 — email
+
+All routes are under `/v1/email` and — except the inbound webhook — require an active
+organization. Two permissions gate the module: **`email.read`** (list/view mailboxes, threads
+and labels) and **`email.send`** (compose/edit/send messages, every thread mutation —
+read/star/move/link/labels/email→task — and mailbox/label management). OWNER, ADMIN and
+MANAGER hold both; READONLY holds `email.read` only; **EMPLOYEE and ACCOUNTANT have no email
+access**.
+
+A **`SHARED` mailbox is visible to every email reader; a `PERSONAL` mailbox only to its
+owner** — other users get **404** (not 403) on the mailbox and on all of its threads, so its
+existence is never revealed. Thread lists use the standard pagination envelope (default page
+size 25, max 100).
+
+### Mailboxes (accounts)
+
+| Method | Path                            | Auth         | Notes                                                                                                                 |
+| ------ | ------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/email/accounts`            | `email.read` | shared mailboxes + the caller's own personal ones                                                                     |
+| POST   | `/v1/email/accounts`            | `email.send` | `address`, `displayName?`, `type` (`SHARED` default / `PERSONAL` — owned by the creator); **409 `duplicate_address`** |
+| PATCH  | `/v1/email/accounts/:accountId` | `email.send` | `displayName` / `isActive`                                                                                            |
+| DELETE | `/v1/email/accounts/:accountId` | `email.send` | 204; **409 `account_in_use`** if the mailbox has any threads (deactivate instead)                                     |
+
+### Labels
+
+| Method | Path                        | Auth         | Notes                                                    |
+| ------ | --------------------------- | ------------ | -------------------------------------------------------- |
+| GET    | `/v1/email/labels`          | `email.read` | sorted by name                                           |
+| POST   | `/v1/email/labels`          | `email.send` | `name`, `color` (hex); **409 `duplicate_label`**         |
+| DELETE | `/v1/email/labels/:labelId` | `email.send` | 204; detaches the label from all threads (join cascades) |
+
+### Threads
+
+The list's `?folder=` accepts the **five folder views**: the physical `INBOX` / `ARCHIVE` /
+`TRASH` plus the computed `SENT` (thread has an outbound `SENT` message) and `DRAFTS` (thread
+has a `DRAFT`). `INBOX` (the default) excludes draft-only threads. Threads are sorted by
+`lastMessageAt` descending.
+
+| Method | Path                                          | Auth         | Notes                                                                                                                                                                                                     |
+| ------ | --------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/email/threads`                           | `email.read` | paginated; filters `?folder=`, `?accountId=`, `?labelId=`, `?customerId=`, `?unread=`, `?starred=`, `?search=` (subject/snippet/body/from)                                                                |
+| GET    | `/v1/email/threads/:threadId`                 | `email.read` | detail with all messages (oldest-first) and labels                                                                                                                                                        |
+| POST   | `/v1/email/threads/:threadId/read`            | `email.send` | body `{ read }`; marks every inbound message read/unread                                                                                                                                                  |
+| POST   | `/v1/email/threads/:threadId/star`            | `email.send` | body `{ starred }`                                                                                                                                                                                        |
+| POST   | `/v1/email/threads/:threadId/move`            | `email.send` | body `{ folder: INBOX\|ARCHIVE\|TRASH }` (physical folders only)                                                                                                                                          |
+| PATCH  | `/v1/email/threads/:threadId/link`            | `email.send` | link/unlink `customerId`/`projectId`/`taskId` (nullable); each id validated in-org (**400 `unknown_customer`/`unknown_project`/`unknown_task`**)                                                          |
+| POST   | `/v1/email/threads/:threadId/labels`          | `email.send` | body `{ labelId }`; idempotent upsert; **400 `unknown_label`**                                                                                                                                            |
+| DELETE | `/v1/email/threads/:threadId/labels/:labelId` | `email.send` | detach                                                                                                                                                                                                    |
+| POST   | `/v1/email/threads/:threadId/task`            | `email.send` | 201 **email → task**: creates a Task (`title` defaults to the subject, description = last-message snippet) carrying the thread's customer/project, back-links `thread.taskId`; **400 `unknown_assignee`** |
+
+### Messages (compose / reply / send)
+
+Compose creates an **outbound `DRAFT`** — a new thread, or a reply appended to an existing
+thread when `threadId` is set (the reply's `In-Reply-To`/`References` are chained from the
+thread's most recent message that has a Message-ID). Only drafts can be edited, deleted or
+sent. **Send** assigns an RFC 5322 Message-ID, flips the draft to `QUEUED` and hands off to
+the shared worker email pipeline, which later marks it **`SENT`** on delivery or **`FAILED`**
+(with `error`) after retries exhaust — see
+[architecture.md](architecture.md#outbound-send-path-phase-7).
+
+| Method | Path                                 | Auth         | Notes                                                                                                                                                           |
+| ------ | ------------------------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/v1/email/messages`                 | `email.send` | 201; `accountId`, `threadId?` (reply), `to[]` (1–50), `cc[]`, `subject`, `bodyText`, `bodyHtml?`; **400 `unknown_account`/`inactive_account`/`unknown_thread`** |
+| PATCH  | `/v1/email/messages/:messageId`      | `email.send` | edit a draft (to/cc/subject/bodies); **409 `not_a_draft`** otherwise                                                                                            |
+| DELETE | `/v1/email/messages/:messageId`      | `email.send` | 204; drafts only (**409 `not_a_draft`**); deletes the thread too if it becomes empty                                                                            |
+| POST   | `/v1/email/messages/:messageId/send` | `email.send` | queues the draft; returns the updated thread detail; **409 `already_sent`** if not a draft, **400 `no_recipient`** if `to` is empty                             |
+
+### Inbound webhook (provider integration seam)
+
+`POST /v1/email/inbound` is the ingestion endpoint a mail provider's inbound-parse webhook
+(SendGrid/Mailgun/Postmark, or curl locally) POSTs a parsed message to. It is **not
+session-authenticated**: the caller must send the shared secret in the **`x-inbound-secret`
+header** (compared timing-safely against `INBOUND_EMAIL_SECRET`; 401 otherwise). Because no
+cookie is involved, the CSRF hook does not apply — by design (see
+[security.md](security.md#email-privacy-and-inbound-webhook-authentication-phase-7)).
+
+| Method | Path                | Auth                             | Notes                                                                                                                         |
+| ------ | ------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/v1/email/inbound` | `x-inbound-secret` shared secret | body `to`, `from`, `fromName?`, `cc[]`, `subject`, `text`, `html?`, `messageId?`, `inReplyTo?`, `references[]`, `receivedAt?` |
+
+The response is always **200** with `{ status, threadId, messageId }` where `status` is one
+of:
+
+- **`created`** — the message was stored (new thread, or appended to the thread matched via
+  `References`/`In-Reply-To`)
+- **`duplicate`** — a message with this RFC `messageId` already exists in the organization
+  (idempotent redelivery; the existing thread/message ids are returned)
+- **`unknown_account`** — no active mailbox matches `to` (200, not 404, so providers do not
+  retry)
+
+Tenancy is **derived from the destination mailbox** — the caller is never trusted for an
+organization id.
+
+### Notable email error codes
+
+`duplicate_address` (409), `account_in_use` (409), `duplicate_label` (409), `not_a_draft`
+(409), `already_sent` (409), `no_recipient` (400), `inactive_account` (400),
+`unknown_account` / `unknown_thread` / `unknown_customer` / `unknown_project` /
+`unknown_task` / `unknown_label` / `unknown_assignee` (400).
+
 ## OpenAPI
 
 - `GET /docs/json` serves the OpenAPI document in non-production environments.

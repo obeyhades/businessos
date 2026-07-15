@@ -81,7 +81,8 @@
     "accountingAccounts": "Chart of accounts",
     "accountingPeriods": "Fiscal periods",
     "accountingReports": "Reports",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "email": "Mail"
   },
   "auth": {
     "login": {
@@ -1321,6 +1322,132 @@
     "errors": {
       "calendarRequired": "Please choose a calendar.",
       "titleRequired": "Please enter a title."
+    }
+  },
+  "email": {
+    "title": "Mail",
+    "restricted": "You do not have permission to view email.",
+    "compose": "Compose",
+    "folders": {
+      "heading": "Folders",
+      "INBOX": "Inbox",
+      "SENT": "Sent",
+      "DRAFTS": "Drafts",
+      "ARCHIVE": "Archive",
+      "TRASH": "Trash"
+    },
+    "accounts": {
+      "heading": "Mailboxes",
+      "all": "All mailboxes",
+      "manage": "Manage mailboxes",
+      "manageDescription": "Create shared or personal mailboxes for your organization.",
+      "new": "New mailbox",
+      "create": "Create mailbox",
+      "empty": "No mailboxes yet.",
+      "address": "Address",
+      "displayName": "Display name",
+      "type": "Type",
+      "invalidAddress": "Please enter a valid email address.",
+      "created": "Mailbox created",
+      "deleted": "Mailbox deleted",
+      "delete": "Delete mailbox",
+      "deleteConfirm": "Delete the mailbox \"{address}\"? Its conversations will no longer be accessible.",
+      "inactive": "Inactive"
+    },
+    "accountType": {
+      "SHARED": "Shared",
+      "PERSONAL": "Personal"
+    },
+    "labels": {
+      "heading": "Labels",
+      "manage": "Manage labels",
+      "manageDescription": "Create labels to organize conversations.",
+      "new": "New label",
+      "create": "Create label",
+      "empty": "No labels yet.",
+      "name": "Name",
+      "color": "Color",
+      "nameRequired": "Please enter a name.",
+      "created": "Label created",
+      "deleted": "Label deleted",
+      "delete": "Delete label",
+      "deleteConfirm": "Delete the label \"{name}\"? It will be removed from all conversations.",
+      "removeLabel": "Remove label {name}"
+    },
+    "list": {
+      "searchPlaceholder": "Search mail",
+      "empty": "No conversations here.",
+      "emptyDescription": "Messages you receive will show up here.",
+      "unread": "Unread"
+    },
+    "thread": {
+      "select": "Select a conversation to read it.",
+      "reply": "Reply",
+      "markRead": "Mark as read",
+      "markUnread": "Mark as unread",
+      "star": "Star",
+      "unstar": "Remove star",
+      "move": "Move",
+      "moveToInbox": "Move to inbox",
+      "archive": "Archive",
+      "moveToTrash": "Move to trash",
+      "moved": "Conversation moved",
+      "labels": "Labels",
+      "link": "Link",
+      "linkTitle": "Link conversation",
+      "linkDescription": "Connect this conversation to a customer, project or task.",
+      "linked": "Conversation linked",
+      "toTask": "Convert to task",
+      "linkedCustomer": "Customer",
+      "linkedProject": "Project",
+      "linkedTask": "Task"
+    },
+    "message": {
+      "to": "To",
+      "cc": "Cc",
+      "editDraft": "Edit draft",
+      "deleteDraft": "Delete draft",
+      "deleteDraftConfirm": "Delete this draft? This cannot be undone."
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "QUEUED": "Sending…",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "RECEIVED": "Received"
+    },
+    "composeDialog": {
+      "title": "New message",
+      "replyTitle": "Reply",
+      "editDraftTitle": "Edit draft",
+      "from": "From",
+      "to": "To",
+      "cc": "Cc",
+      "subject": "Subject",
+      "body": "Message",
+      "addressPlaceholder": "Type an address and press Enter",
+      "removeAddress": "Remove {address}",
+      "invalidAddress": "\"{address}\" is not a valid email address.",
+      "accountRequired": "Choose a mailbox to send from.",
+      "toRequired": "Add at least one recipient.",
+      "subjectRequired": "Please enter a subject.",
+      "saveDraft": "Save draft",
+      "send": "Send",
+      "draftSaved": "Draft saved",
+      "draftDeleted": "Draft deleted",
+      "deleteDraft": "Delete draft",
+      "sent": "Message sent"
+    },
+    "toTaskDialog": {
+      "title": "Convert to task",
+      "description": "Create a task from this conversation.",
+      "taskTitle": "Title",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "dueDate": "Due date",
+      "create": "Create task",
+      "created": "Task created",
+      "viewTask": "View task"
     }
   }
 }

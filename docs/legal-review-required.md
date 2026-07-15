@@ -67,6 +67,17 @@ personal data, and they fold into the existing **GDPR** items below (retention, 
 records of processing) exactly like other tenant data. No calendar-specific legal review is
 required beyond that.
 
+## Email (Phase 7) — correspondence is personal data
+
+Phase 7 (mailboxes, threaded conversations, inbound webhook, outbound send) has **no
+bookkeeping, invoicing, VAT or tax compliance surface**. Its compliance dimension is data
+protection: email bodies, addresses and names are personal data about customers, contacts and
+arbitrary third-party senders — and inbound mail can contain **anything a sender chooses to
+write**, including sensitive categories, with no schema to gate it. Email content therefore
+folds into the existing **GDPR** items below (retention, export/erasure, records of
+processing) like other tenant data, and a production inbound/outbound **email provider is a
+subprocessor requiring a DPA**. No email-specific legal review is required beyond that.
+
 ## GDPR
 
 Designed but **not implemented** (tracked for Phase 9) or not yet done at all:
@@ -83,4 +94,4 @@ Designed but **not implemented** (tracked for Phase 9) or not yet done at all:
 ## Status
 
 No legal, accounting or tax professional has reviewed any part of this codebase as of
-2026-07-13.
+2026-07-15.

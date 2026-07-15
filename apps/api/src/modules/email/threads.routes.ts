@@ -294,6 +294,9 @@ export function registerEmailThreadRoutes(app: FastifyInstance): void {
           data: {
             ...(body.customerId !== undefined ? { customerId: body.customerId } : {}),
             ...(body.projectId !== undefined ? { projectId: body.projectId } : {}),
+            // A human touching the customer link pins it — auto-link (inbound)
+            // must never resurrect a link the user deliberately cleared.
+            ...(body.customerId !== undefined ? { customerLinkLocked: true } : {}),
             ...(body.taskId !== undefined ? { taskId: body.taskId } : {}),
           },
           include: threadInclude,

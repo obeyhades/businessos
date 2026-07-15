@@ -657,6 +657,103 @@ reminder sweep never double-fires.
   [architecture.md](architecture.md#reminder-sweep-worker-job-phase-6)). Index
   `(organization_id, event_id)`
 
+## Phase 7 — email
+
+Added by migrations `20260715174559_phase7_email` and `20260715175000_phase7_email_constraints`
+(the latter is raw SQL for a partial-unique index Prisma cannot express). Six new tables; every
+one carries `organization_id` for tenant isolation and cascade-deletes with its organization.
+This is **not** a full IMAP/SMTP client: outbound rides the existing worker email pipeline and
+inbound arrives through the authenticated ingestion webhook (see
+[architecture.md](architecture.md#email-phase-7)).
+
+Enums:
+
+- `EmailAccountType` — `SHARED` (default; visible to every email reader) or `PERSONAL`
+  (owner-only)
+- `EmailDirection` — `INBOUND`, `OUTBOUND`
+- `EmailMessageStatus` — `DRAFT`, `QUEUED`, `SENT`, `FAILED`, `RECEIVED` (default)
+- `EmailFolder` — `INBOX`, `ARCHIVE`, `TRASH` — the **physical** folder of a thread.
+  **`SENT` and `DRAFTS` are computed views**, not stored values: `SENT` = the thread has an
+  outbound `SENT` message, `DRAFTS` = it has a `DRAFT`, and the `INBOX` view excludes
+  draft-only threads (see [architecture.md](architecture.md#folders-and-thread-aggregates-phase-7))
+
+### email_accounts
+
+A mailbox — one row per (organization, address).
+
+- `address` (normalized lower-case), `display_name`, `type` (`EmailAccountType`),
+  `provider` (default `manual` — reserved for future connected providers), `is_active`
+  (default true), `created_by_id` (raw column)
+- `owner_id` (nullable) FK to `users` (`EmailAccountOwner` relation, **SetNull**) — set only
+  for `PERSONAL` mailboxes (the creator); null for `SHARED`
+- **Unique `(organization_id, address)`** — one mailbox per address per tenant; index
+  `(organization_id, type)`
+- Deleting is rejected while the mailbox has threads (409 `account_in_use`) — deactivate
+  instead
+
+### email_threads
+
+A conversation in a mailbox, carrying denormalized aggregates and the business-context links.
+
+- `account_id` (**Cascade**), `subject` (**normalized** — reply/forward prefixes `Re:`,
+  `Fwd:`, `Sv:`, … stripped; messages keep their raw subject), `snippet` (one-line preview of
+  the last message), `folder` (`EmailFolder`, default `INBOX`), `is_starred`, `unread`,
+  `message_count`, `last_message_at`
+- `unread`/`message_count`/`last_message_at`/`snippet` are **recomputed from the messages in
+  the same transaction** as any message write (`recomputeThread`); `unread` = any inbound
+  message not yet read
+- **Business context** `customer_id`, `project_id`, `task_id` — all nullable, all FK
+  **SetNull**, mirroring the Phase 2/6 denormalized ref chain. `customer_id` is set by the
+  inbound **auto-link** (sender matches a customer or contact email) or manually via the link
+  endpoint; `task_id` is back-filled by **email → task**
+- Indexes `(organization_id, account_id, folder, last_message_at)` — the folder list — and
+  `(organization_id, customer_id)` — the per-customer lookup
+
+### email_messages
+
+A single email inside a thread.
+
+- `thread_id` (**Cascade**), `account_id` (**Cascade**), `direction` (`EmailDirection`),
+  `status` (`EmailMessageStatus`, default `RECEIVED`)
+- Addressing: `from_address`, `from_name`, `to_addresses` (text[]), `cc_addresses` (text[]),
+  `subject`, `body_text`, `body_html` (nullable — untrusted for inbound, see
+  [security.md](security.md#email-privacy-and-inbound-webhook-authentication-phase-7))
+- **RFC 5322 threading headers**: `message_id` (nullable — assigned on send for outbound,
+  supplied by the provider for inbound; null on drafts), `in_reply_to`, `references` (text[])
+- `is_read`, `sent_at`, `received_at`, `error` (the failure message when the worker marks a
+  send `FAILED`), `created_by_id` (FK to `users`, **SetNull**, `EmailMessageCreatedBy`)
+- Indexes `(organization_id, thread_id, created_at)`, `(organization_id, message_id)`,
+  `(organization_id, status)`
+- **Inbound idempotency backstop** — a **partial unique index**
+  `(organization_id, message_id) WHERE message_id IS NOT NULL`
+  (`email_messages_org_message_id_unique`, raw SQL in the `phase7_email_constraints`
+  migration): at most one message per (organization, RFC Message-ID), making the inbound
+  webhook's dedup race-proof while leaving drafts (null `message_id`) exempt
+
+### email_attachments
+
+Metadata for a file attached to a message, stored in object storage like the Phase 2
+attachments (`storage_key` unique). Cascade-deletes with the message.
+
+- `message_id` (**Cascade**), `file_name`, `content_type`, `size`, `storage_key` (unique)
+- Index `(organization_id, message_id)`
+- The table (and the DTO) exist, but **attachment upload/download UI is a documented future
+  enhancement** — the demo does not send multi-attachment mail
+
+### email_labels
+
+Per-organization tags for threads.
+
+- `name`, `color` (hex, default `#64748b`)
+- **Unique `(organization_id, name)`** (409 `duplicate_label`)
+
+### email_thread_labels
+
+Thread ↔ label join table. Carries `organization_id` for consistency.
+
+- Composite PK `(thread_id, label_id)` — attaching a label is an idempotent upsert
+- Both FKs **Cascade**; index `(label_id)`
+
 ## Tenancy rule for future tables
 
 Every tenant-owned table added in later phases carries `organization_id` and is queried

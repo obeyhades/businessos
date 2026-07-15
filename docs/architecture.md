@@ -50,6 +50,7 @@ helpers:
 - `onboarding-templates` — reusable onboarding/offboarding checklists that generate tasks (Phase 3)
 - `products` / `quotes` / `invoices` / `payments` / `credit-notes` (`billing`) — catalogue, quote/invoice lifecycle, deterministic money, numbering (Phase 4)
 - `accounting` — chart of accounts, fiscal years/periods, vouchers (journal entries), voucher attachments and reports (Phase 5)
+- `email` — shared/personal mailboxes, threaded conversations, compose/send through the worker email pipeline, labels, the inbound-ingestion webhook and email → task (Phase 7)
 
 Hard rules enforced by structure:
 
@@ -492,6 +493,106 @@ consumer binds them yet** — exactly like `invoice.finalized` before Phase 5 an
 integrations** (Google Calendar, Microsoft 365): a downstream consumer binds its own queue to
 these routing keys on `businessos.events` without the calendar module knowing about it.
 
+## Email (Phase 7)
+
+Phase 7 adds the `email` module (`apps/api/src/modules/email/`: `accounts.routes`,
+`labels.routes`, `threads.routes`, `messages.routes`, `inbound.routes` plus a shared
+`service.ts` and `mappers.ts`). It is **not** a full IMAP/SMTP client: outbound reuses the
+worker email pipeline that has existed since Phase 1, and inbound arrives through an
+authenticated webhook — the designed seam for provider integrations. Two permissions gate
+everything — `email.read` and `email.send`.
+
+### Folders and thread aggregates (Phase 7)
+
+A thread's **physical folder** is only ever `INBOX`/`ARCHIVE`/`TRASH` (the move endpoint).
+**`SENT` and `DRAFTS` are computed views**, translated into where-fragments by
+`folderViewWhere`: `SENT` = the thread has an outbound `SENT` message, `DRAFTS` = it has a
+`DRAFT`, and the `INBOX` view **excludes draft-only threads** — so a freshly composed draft
+appears under Drafts, not Inbox, without any folder bookkeeping. The thread's denormalized
+aggregates (`messageCount`, `lastMessageAt`, `snippet`, `unread` = any unread inbound message)
+are recomputed from the messages by `recomputeThread` in the same transaction as every message
+write.
+
+### Outbound send path (Phase 7)
+
+Compose/reply creates an **outbound `DRAFT`** (a reply chains `In-Reply-To`/`References` from
+the thread's most recent message that has a Message-ID). **Send** runs one transaction that
+assigns an RFC 5322 Message-ID, flips the draft to `QUEUED`, writes the `email.sent` audit
+(+ an `email.sent` activity when the thread is linked to a customer/project/task) and enqueues
+two outbox messages: the `email.send` **command** for the worker and the `email.sent` **domain
+event** (integration seam). Delivery is the same outbox → RabbitMQ → SMTP path used by
+invitations and invoices since Phase 1 — Phase 7 extends its payload with `cc`, `html` and an
+**`emailMessageId` correlation id**, which the worker uses to reflect real delivery back onto
+the mailbox:
+
+```
+POST /v1/email/messages/:id/send (one tx): DRAFT → QUEUED + Message-ID
+        + outbox email.send { to, cc, subject, text, html, emailMessageId }
+        + outbox email.sent (domain event, no consumer yet)
+                     │  worker outbox relay → businessos.events → email.send queue
+                     ▼
+        email consumer ──▶ SMTP (Mailpit) ── delivered ──▶ EmailMessage QUEUED → SENT
+                     │ failure: TTL-backoff retries (unchanged)
+                     │ after MAX_JOB_ATTEMPTS → DLQ + failed_jobs row
+                     ▼
+        EmailMessage QUEUED → FAILED (+ error message on the row)
+```
+
+The status callback (`apps/worker/src/consumers/email.ts`) is deliberately narrow: it updates
+only messages still in `QUEUED`, and a callback failure is logged without failing the job —
+mail delivery never depends on the mailbox bookkeeping.
+
+### Inbound ingestion webhook (Phase 7) — the provider seam
+
+`POST /v1/email/inbound` (`apps/api/src/modules/email/inbound.routes.ts`) is where inbound
+mail enters the system — the interface a provider's **inbound-parse webhook**
+(SendGrid/Mailgun/Postmark) will plug into by mapping its payload onto the endpoint's schema.
+Its design rules:
+
+- **Shared-secret auth, not a session.** The caller sends `x-inbound-secret`, compared
+  **timing-safely** against `INBOUND_EMAIL_SECRET`. There is no cookie, so the CSRF hook
+  (which only guards cookie-bearing requests) is skipped **by design** — see
+  [security.md](security.md#email-privacy-and-inbound-webhook-authentication-phase-7).
+- **Tenancy is derived from the destination mailbox.** The `to` address is resolved to an
+  active `EmailAccount` and the organization comes from that row — the caller is **never**
+  trusted for an org id. An unmatched address returns 200 `unknown_account` (not 404), so
+  providers do not retry.
+- **Idempotent by RFC Message-ID.** A pre-check answers `duplicate` fast, and the
+  partial-unique index `(organization_id, message_id) WHERE message_id IS NOT NULL` is the
+  race-proof backstop — a concurrent redelivery hits the unique violation and is answered
+  `duplicate` too.
+- **Threads strictly by `References`/`In-Reply-To`** — the reference ids are matched against
+  prior messages' Message-IDs **within the same mailbox**; subject matching is deliberately
+  not used (it falsely merges unrelated "Invoice" threads). No match ⇒ a new `INBOX` thread
+  with the normalized subject.
+
+Thread creation (if needed), the `RECEIVED` message, the aggregate recompute, the customer
+auto-link, the `email.received` activity/audit rows and the `email.received` outbox event are
+all written in **one transaction**.
+
+### Auto-link and email → task (Phase 7)
+
+Two flows connect email to the rest of the platform:
+
+- **Inbound auto-link** — when an inbound message arrives on a thread that has no customer
+  yet, the sender address is matched (case-insensitively) against customer emails and
+  customer-contact emails (`findCustomerByAddress`); a hit sets `thread.customerId` **once**
+  and records an **`email.received` activity on that customer's timeline** — reception shows
+  up next to the customer's tasks, invoices and events with no manual filing.
+- **Email → task** — `POST /v1/email/threads/:id/task` creates a real `Task` (title defaults
+  to the thread subject, description to the last message's snippet) that **carries the
+  thread's `customerId`/`projectId`**, and back-links the thread via `thread.taskId` — so "a
+  customer emailed, now someone must act" becomes an ordinary assignable, due-dated task.
+
+### Integration seam: `email.received` / `email.sent`
+
+Receiving and sending emit `email.received` and `email.sent` to the transactional outbox.
+**No internal consumer binds them yet** — the same pattern as `voucher.posted` and
+`calendar.event.*`. They are the designed interface for future consumers (notification rules,
+CRM automations, analytics): a downstream consumer binds its own queue to these routing keys
+on `businessos.events` without the email module knowing about it. See
+[ADR-0008](decisions/adr-0008-inbound-email-webhook-seam.md) for the inbound-seam decision.
+
 ## Where future modules attach
 
 Each later phase adds a module directory under `apps/api/src/modules/`, tables with
@@ -513,7 +614,11 @@ Each later phase adds a module directory under `apps/api/src/modules/`, tables w
   recurrence expanded server-side, per-occurrence exceptions and a reminder-sweep worker job;
   emits `calendar.event.*` as a seam for future external calendar-sync integrations (see the
   [Phase 6 section above](#calendar--tasks-phase-6)).
-- **Email module (7), voice notes (8)** — voice notes store audio in MinIO
+- **Email (7, done)** — shared/personal mailboxes and threaded conversations; outbound rides
+  the existing worker email pipeline (with a SENT/FAILED status callback), inbound arrives
+  through the authenticated webhook seam future providers plug into, and `email.received` /
+  `email.sent` are emitted for future consumers (see the [Phase 7 section above](#email-phase-7)).
+- **Voice notes (8)** — voice notes store audio in MinIO
   and process transcriptions as queued jobs.
 - **Integrations (9)** — outbound webhooks are natural consumers of the existing topic
   exchange.

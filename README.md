@@ -4,37 +4,41 @@ Operational platform for small and medium-sized businesses: personnel, bookkeepi
 quotes/invoicing, calendar/tasks, email and voice notes — built as a modular monolith that
 grows module by module.
 
-**Current state (Phase 6):** on top of the Phase 1 foundation (authentication,
+**Current state (Phase 7):** on top of the Phase 1 foundation (authentication,
 organizations, memberships, roles/permissions, invitations, audit log, dashboard shell), the
 Phase 2 customer/project/task modules, the Phase 3 personnel module, the Phase 4
-quotes & invoicing module and the Phase 5 bookkeeping ledger, Phase 6 ships **calendar & tasks**.
-It adds **team (shared) and personal (owner-only) calendars** and **events** with attendees and
-RSVP, reminders, business-context links (customer/project/task), and `DEFAULT`/`PRIVATE`
-visibility (a private event is visible only to its organizer and attendees). **Recurrence** is
-stored as a rule on the event and **expanded server-side per query** by a pure, bounded expander
-over UTC calendar units, with **per-occurrence exceptions** to cancel or move a single
-occurrence. A **worker reminder-sweep** emails attendees before an occurrence — idempotently, via
-a `sent_reminders` ledger — and an **agenda** view merges a user's events with their due tasks
-while **free/busy** exposes busy blocks (times only) for any member. `calendar.event.*` events
-are emitted as a seam for future external calendar-sync. Everything is gated by `calendar.read` /
-`calendar.manage`. (Recurrence is UTC-exact; **DST-correct local recurrence** and external
-calendar sync are noted future work.)
+quotes & invoicing module, the Phase 5 bookkeeping ledger and the Phase 6 calendar, Phase 7
+ships **email**. It adds **shared (team) and personal (owner-only) mailboxes** — one per
+(org, address); a personal mailbox and its threads are invisible to everyone but the owner —
+and **threaded conversations**: messages with a direction (`INBOUND`/`OUTBOUND`), a status
+(`DRAFT`/`QUEUED`/`SENT`/`FAILED`/`RECEIVED`) and RFC 5322 headers
+(Message-ID/In-Reply-To/References), physical folders `INBOX`/`ARCHIVE`/`TRASH` on the thread
+with **`SENT`/`DRAFTS` as computed views**, plus star, read/unread, per-org labels and search.
+**Outbound** compose/reply drafts send through the **existing outbox → RabbitMQ → SMTP
+pipeline**; the worker marks the message `SENT` on delivery or `FAILED` on dead-letter.
+**Inbound** mail arrives through an authenticated webhook (`POST /v1/email/inbound`, shared
+secret `INBOUND_EMAIL_SECRET`) that **derives the tenant from the destination mailbox**,
+dedupes by RFC Message-ID and **threads strictly by References/In-Reply-To** — the seam
+future provider inbound-parse adapters (SendGrid/Mailgun/Postmark) plug into. Inbound threads
+**auto-link to a matching customer** (recording `email.received` on the customer's timeline)
+and **email → task** turns a conversation into a task linked back to the thread;
+`email.received`/`email.sent` events are emitted as an integration seam. Everything is gated
+by `email.read` / `email.send`. (This is **not** a full IMAP/SMTP client — attachment
+upload/download UI and real IMAP/OAuth mailbox connect are noted future work.)
 
-The earlier **Phase 5 bookkeeping support** — a **double-entry ledger** — remains.
-It adds a typed **chart of accounts**, **fiscal years and periods** (`OPEN`/`LOCKED`/`CLOSED`),
-and **vouchers** (verifikationer): journal entries with ≥2 debit/credit lines. A voucher starts
-as an editable `DRAFT` (may be unbalanced); **posting** it requires balance (Σ debit = Σ credit),
-≥2 lines, a non-zero amount and a covering `OPEN` period, assigns a concurrency-safe
-per-organization number and makes the entry **immutable** — corrections are made only by a
-**reversing voucher**, never by editing posted entries. The worker turns finalized invoices and
-registered payments into **DRAFT vouchers** (via a configurable account mapping) that an
-accountant reviews and posts — **never auto-posted**. **Reports** cover trial balance and general
-ledger with **CSV exports**, and `voucher.posted` / `voucher.reversed` events are emitted as a
-seam for future accounting-system integrations. Money stays integer minor units (öre), like
-invoicing. Everything is gated by `accounting.read` / `accounting.manage` / `accounting.post`.
-**Bookkeeping is _support_, not a certified accounting product** — not reviewed against
-bokföringslagen, VAT reporting, SIE export or tax law. Everything from Phase 7 on is planned, not
-built — see [docs/product-roadmap.md](docs/product-roadmap.md).
+The earlier **Phase 6 calendar & tasks** module remains: **team and personal calendars** and
+**events** with attendees/RSVP, reminders, business-context links and `DEFAULT`/`PRIVATE`
+visibility; **recurrence** stored as a rule and **expanded server-side per query**, with
+**per-occurrence exceptions**; a **worker reminder-sweep** that emails attendees idempotently;
+and **agenda** and **free/busy** (busy blocks, times only) views — all gated by
+`calendar.read` / `calendar.manage`. The **Phase 5 bookkeeping support** — a double-entry
+ledger with chart of accounts, fiscal periods, balanced immutable posted vouchers,
+reversal-only correction, auto-drafts from invoices/payments (never auto-posted), trial
+balance / general ledger and CSV exports — also remains, gated by `accounting.read` /
+`accounting.manage` / `accounting.post`. **Bookkeeping is _support_, not a certified
+accounting product** — not reviewed against bokföringslagen, VAT reporting, SIE export or tax
+law. Everything from Phase 8 on is planned, not built — see
+[docs/product-roadmap.md](docs/product-roadmap.md).
 
 | Phase | Scope                                                                             | Status  |
 | ----- | --------------------------------------------------------------------------------- | ------- |
@@ -44,8 +48,8 @@ built — see [docs/product-roadmap.md](docs/product-roadmap.md).
 | 4     | Quotes & invoicing (products, quotes, invoices, payments, credit notes, PDF)      | Done    |
 | 5     | Bookkeeping support (accounts, fiscal periods, vouchers, reports, CSV export)     | Done    |
 | 6     | Calendar & tasks (team/personal calendars, events, recurrence, reminders, agenda) | Done    |
-| 7     | Email module                                                                      | Next    |
-| 8     | Voice notes                                                                       | Planned |
+| 7     | Email (mailboxes, threads, send pipeline, inbound webhook, labels, email → task)  | Done    |
+| 8     | Voice notes                                                                       | Next    |
 | 9     | External integrations, data retention, org export                                 | Planned |
 
 ## Architecture
@@ -161,6 +165,16 @@ the private event only as an anonymous busy block in free/busy. Calendar is gate
 `calendar.read` / `calendar.manage` — `owner@`/`admin@` manage, the `EMPLOYEE` accounts read and
 RSVP, and `accountant@` has no calendar access.
 
+Phase 7 demo data seeds a **shared mailbox** `info@demo.businessos.local` ("Demo Hantverk
+Support"), two labels (**Sales**, **Support**) and **three conversations** exercising the
+mailbox surface: an **unread inbound customer question** ("Question about my quote",
+auto-linked to a demo customer), a **sent** welcome mail, and a **draft** follow-up — the
+draft-only thread appears under **Drafts**, not Inbox (computed folder views). Email is gated
+by `email.read` / `email.send`: `owner@`/`admin@` have both, `READONLY` reads only, and the
+`EMPLOYEE` accounts and `accountant@` have **no email access**. The inbound webhook can be
+exercised locally with curl against `POST /v1/email/inbound` using the `x-inbound-secret`
+header (`INBOUND_EMAIL_SECRET`, default `dev-inbound-secret`).
+
 | Email                              | Password             | Role       | Notes               |
 | ---------------------------------- | -------------------- | ---------- | ------------------- |
 | `owner@demo.businessos.local`      | `OwnerDemo123!`      | OWNER      | also platform admin |
@@ -184,7 +198,9 @@ the S3-compatible object store configured via `S3_*` in
 `S3_ACCESS_KEY` (`businessos`), `S3_SECRET_KEY` (`businessos-dev-secret`), `S3_BUCKET`
 (`businessos`), `S3_REGION` (`us-east-1`). In production `S3_SECRET_KEY` is a real secret.
 The **worker also requires the same `S3_*` variables** as of Phase 4, so it can fetch the
-finalized invoice PDF from storage and attach it to the outgoing email.
+finalized invoice PDF from storage and attach it to the outgoing email. Phase 7 adds
+**`INBOUND_EMAIL_SECRET`** (default `dev-inbound-secret`) — the shared secret the
+inbound-email webhook requires in its `x-inbound-secret` header; a real secret in production.
 
 ## Testing
 
@@ -209,7 +225,11 @@ pnpm test:e2e             # needs the full stack (db migrated + seeded)
 - **Single-worker outbox.** The outbox relay assumes exactly one worker instance; running
   more than one can double-publish. Upgrade path documented in
   [ADR-0005](docs/decisions/adr-0005-transactional-outbox.md).
-- **Email is local-only.** All email goes to Mailpit; no production SMTP provider is wired up.
+- **Email delivery is local-only.** All outgoing mail — including the Phase 7 mailbox
+  module's — goes to Mailpit; no production SMTP provider is wired up (planned with the
+  Phase 9 provider swap, along with SPF/DKIM deliverability). Inbound mail only enters via
+  the authenticated webhook (`POST /v1/email/inbound`) — there is no IMAP/OAuth mailbox
+  connection, and no provider inbound adapter is configured yet.
 - **Web runs on port 3100.** The dev server is pinned to `3100` (via the `apps/web` `dev`
   script) to avoid the common port-3000 conflict. If you change the web port, keep
   `WEB_ORIGIN` and `APP_BASE_URL` in `.env` on the same port — the API's CORS/origin

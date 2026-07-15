@@ -30,12 +30,19 @@ export async function sendEmail(
     : undefined;
 
   await transport.sendMail({
-    from,
+    // Phase 7: send from the mailbox address when provided (falls back to the
+    // global SMTP From for system mail like invitations/invoices).
+    from: payload.from ?? from,
     to: payload.to,
     cc: payload.cc && payload.cc.length > 0 ? payload.cc : undefined,
     subject: payload.subject,
     text: payload.text,
     html: payload.html,
+    // RFC 5322 threading headers so replies chain at the receiving client.
+    messageId: payload.messageId,
+    inReplyTo: payload.inReplyTo,
+    references:
+      payload.references && payload.references.length > 0 ? payload.references : undefined,
     attachments,
   });
 }

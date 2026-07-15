@@ -1426,22 +1426,24 @@ model EmailAccount {
 }
 
 model EmailThread {
-  id             String      @id @default(uuid()) @db.Uuid
-  organizationId String      @map("organization_id") @db.Uuid
-  accountId      String      @map("account_id") @db.Uuid
-  subject        String
-  snippet        String?
-  folder         EmailFolder @default(INBOX)
-  isStarred      Boolean     @default(false) @map("is_starred")
-  unread         Boolean     @default(false)
-  messageCount   Int         @default(0) @map("message_count")
-  lastMessageAt  DateTime    @map("last_message_at") @db.Timestamptz(6)
+  id                 String      @id @default(uuid()) @db.Uuid
+  organizationId     String      @map("organization_id") @db.Uuid
+  accountId          String      @map("account_id") @db.Uuid
+  subject            String
+  snippet            String?
+  folder             EmailFolder @default(INBOX)
+  isStarred          Boolean     @default(false) @map("is_starred")
+  unread             Boolean     @default(false)
+  messageCount       Int         @default(0) @map("message_count")
+  lastMessageAt      DateTime    @map("last_message_at") @db.Timestamptz(6)
   // Business context (denormalized, mirrors the activity ref chain).
-  customerId     String?     @map("customer_id") @db.Uuid
-  projectId      String?     @map("project_id") @db.Uuid
-  taskId         String?     @map("task_id") @db.Uuid
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customerId         String?     @map("customer_id") @db.Uuid
+  projectId          String?     @map("project_id") @db.Uuid
+  taskId             String?     @map("task_id") @db.Uuid
+  // True once a human sets/clears the customer link; auto-link never overrides it.
+  customerLinkLocked Boolean     @default(false) @map("customer_link_locked")
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   account      EmailAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)

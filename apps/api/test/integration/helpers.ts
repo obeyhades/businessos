@@ -11,12 +11,19 @@ import type {
   CreateEmployeeBody,
   CreateFiscalYearBody,
   CreateInvoiceBody,
+  CreateEmailAccountBody,
+  CreateEmailLabelBody,
+  CreateMessageBody,
   CreateProductBody,
   CreateProjectBody,
   CreateQuoteBody,
   CreateTaskBody,
   CreateTemplateBody,
   CustomerDto,
+  EmailAccountDto,
+  EmailLabelDto,
+  EmailMessageDto,
+  EmailThreadDetailDto,
   EmployeeDto,
   EntityKind,
   EventDto,
@@ -714,4 +721,114 @@ export async function createEventViaApi(
   });
   expectStatus(response, 201, 'create event');
   return response.json<EventDto>();
+}
+
+// --- Phase 7 (email) factories ----------------------------------------------
+
+/** The shared secret the inbound webhook expects (mirrors testConfig). */
+export const INBOUND_SECRET = testConfig.INBOUND_EMAIL_SECRET;
+
+/** A unique, lower-case mailbox/sender address. */
+export function uniqueAddress(prefix = 'mailbox'): string {
+  return `${prefix}-${nextSeq()}@test.local`;
+}
+
+/** A unique RFC 5322 Message-ID for synthetic inbound mail. */
+export function uniqueRfcMessageId(hint = 'ext'): string {
+  return `<${hint}-${nextSeq()}-${Date.now()}@sender.example>`;
+}
+
+/** Creates a mailbox through the API (SHARED unless overridden). */
+export async function createEmailAccountViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateEmailAccountBody> = {},
+): Promise<EmailAccountDto> {
+  const response = await api(ctx.app, 'POST', '/v1/email/accounts', {
+    session,
+    body: { address: uniqueAddress(), ...overrides },
+  });
+  expectStatus(response, 201, 'create email account');
+  return response.json<EmailAccountDto>();
+}
+
+/** Creates an email label through the API. */
+export async function createEmailLabelViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<CreateEmailLabelBody> = {},
+): Promise<EmailLabelDto> {
+  const response = await api(ctx.app, 'POST', '/v1/email/labels', {
+    session,
+    body: { name: `Label ${nextSeq()}`, ...overrides },
+  });
+  expectStatus(response, 201, 'create email label');
+  return response.json<EmailLabelDto>();
+}
+
+/** Composes a DRAFT (new thread, or a reply when threadId is set). */
+export async function composeDraftViaApi(
+  ctx: TestContext,
+  session: Actor,
+  body: Partial<CreateMessageBody> & { accountId: string },
+): Promise<EmailMessageDto> {
+  const n = nextSeq();
+  const response = await api(ctx.app, 'POST', '/v1/email/messages', {
+    session,
+    body: {
+      to: [`recipient-${n}@customer.example`],
+      subject: `Subject ${n}`,
+      bodyText: `Body ${n}`,
+      ...body,
+    },
+  });
+  expectStatus(response, 201, 'compose draft');
+  return response.json<EmailMessageDto>();
+}
+
+/** Sends a draft; returns the thread detail (the message is now QUEUED). */
+export async function sendMessageViaApi(
+  ctx: TestContext,
+  session: Actor,
+  messageId: string,
+): Promise<EmailThreadDetailDto> {
+  const response = await api(ctx.app, 'POST', `/v1/email/messages/${messageId}/send`, { session });
+  expectStatus(response, 200, 'send message');
+  return response.json<EmailThreadDetailDto>();
+}
+
+/** Loose input for the inbound webhook; subject/text default for brevity. */
+export interface InboundEmailInput {
+  to: string;
+  from: string;
+  fromName?: string;
+  cc?: string[];
+  subject?: string;
+  text?: string;
+  html?: string;
+  messageId?: string;
+  inReplyTo?: string;
+  references?: string[];
+  receivedAt?: string;
+}
+
+/**
+ * POSTs to the inbound-ingestion webhook. Secret-authed, not session-authed:
+ * pass null to omit the x-inbound-secret header or a string to override it.
+ * No cookie is sent, so the CSRF origin check does not apply.
+ */
+export async function postInbound(
+  app: FastifyInstance,
+  body: InboundEmailInput,
+  secret: string | null = INBOUND_SECRET,
+): Promise<LightMyRequestResponse> {
+  const headers: Record<string, string> = {};
+  if (secret !== null) headers['x-inbound-secret'] = secret;
+  return app.inject({
+    method: 'POST',
+    url: '/v1/email/inbound',
+    headers,
+    remoteAddress: nextIp(),
+    payload: { subject: 'Inbound subject', text: 'Inbound body text', ...body },
+  });
 }

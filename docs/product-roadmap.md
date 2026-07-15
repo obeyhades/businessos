@@ -2,9 +2,10 @@
 
 Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
 (customers, projects, tasks, comments, attachments, activity, search), Phase 3
-(personnel), Phase 4 (quotes & invoicing), Phase 5 (bookkeeping support) and Phase 6
-(calendar & tasks) are **done** — see [implementation-plan.md](implementation-plan.md).
-**Phase 7 (Email module) is next.** Everything from Phase 7 on is planned, not built.
+(personnel), Phase 4 (quotes & invoicing), Phase 5 (bookkeeping support), Phase 6
+(calendar & tasks) and Phase 7 (email) are **done** — see
+[implementation-plan.md](implementation-plan.md).
+**Phase 8 (Voice notes) is next.** Everything from Phase 8 on is planned, not built.
 Permissions for all of these modules already exist in the reviewed matrix
 (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
@@ -123,14 +124,40 @@ does not keep a fixed _local_ wall-clock time across a daylight-saving transitio
 calendar sync** (Google Calendar / Microsoft 365), which the `calendar.event.*` seam is designed
 to feed.
 
-## Phase 7 — Email module
+## Phase 7 — Email module — **Done**
 
-Definition of done:
+Delivered:
 
-- Sending real (non-transactional) email from the platform with per-org sender identity
-- `email.read`/`email.send` permissions enforced; deliverability (SPF/DKIM) documented
-- Current email pipeline (Mailpit-only transactional mail) upgraded to a production SMTP
-  provider
+- **Shared (team) and personal (owner-only) mailboxes** — one row per (org, address); a
+  personal mailbox and its threads return 404 to non-owners; per-org sender identity via the
+  mailbox address/display name
+- **Threaded conversations**: messages with a direction (`INBOUND`/`OUTBOUND`), a status
+  (`DRAFT`/`QUEUED`/`SENT`/`FAILED`/`RECEIVED`) and RFC 5322 headers
+  (Message-ID/In-Reply-To/References); physical folders `INBOX`/`ARCHIVE`/`TRASH` on the
+  thread with **`SENT`/`DRAFTS` as computed views** (INBOX excludes draft-only threads);
+  star, read/unread, per-org labels and search
+- **Outbound**: compose/reply drafts, then send through the **existing outbox → RabbitMQ →
+  SMTP pipeline** (payload extended with cc/html); the worker marks the message **`SENT` on
+  delivery or `FAILED` on dead-letter** via an `emailMessageId` correlation id
+- **Inbound ingestion webhook** (`POST /v1/email/inbound`) — shared-secret auth (timing-safe),
+  **tenant derived from the destination mailbox**, **idempotent by RFC Message-ID**
+  (partial-unique backstop), **threads strictly by References/In-Reply-To** (never by
+  subject) — the seam provider inbound-parse adapters (SendGrid/Mailgun/Postmark) plug into
+- **Connected-platform flows**: an inbound thread **auto-links to the matching customer**
+  (sender vs customer/contact email) with an `email.received` activity on their timeline;
+  **email → task** creates a Task carrying the thread's customer/project and back-links the
+  thread
+- **Integration seam**: `email.received` / `email.sent` domain events emitted to the outbox
+  (no internal consumer binds them yet)
+- Permissions `email.read` / `email.send` enforced end-to-end (OWNER/ADMIN/MANAGER send,
+  READONLY reads, EMPLOYEE/ACCOUNTANT none)
+
+**Future work:** **attachment upload/download UI** (the `email_attachments` table and DTO
+exist; the demo sends no multi-attachment mail), **real IMAP/OAuth mailbox connect** (this is
+not a full IMAP/SMTP client — outbound uses the existing transport, inbound arrives via the
+webhook), **provider inbound adapters** mapping SendGrid/Mailgun/Postmark payloads onto the
+webhook, and the **production SMTP provider + deliverability (SPF/DKIM)** work, which lands
+with the Phase 9 provider swap behind the same transport interface.
 
 ## Phase 8 — Voice notes
 
