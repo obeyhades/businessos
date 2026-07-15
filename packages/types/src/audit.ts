@@ -111,6 +111,20 @@ export const AUDIT_ACTIONS = [
   'event_attendee.added',
   'event_attendee.removed',
   'event_attendee.responded',
+  // Phase 7
+  'email_account.created',
+  'email_account.updated',
+  'email_account.deleted',
+  'email.composed',
+  'email.sent',
+  'email.send_failed',
+  'email.received',
+  'email_thread.linked',
+  'email_thread.moved',
+  'email_thread.labeled',
+  'email.converted_to_task',
+  'email_label.created',
+  'email_label.deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

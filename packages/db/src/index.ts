@@ -53,6 +53,13 @@ export type {
   EventReminder,
   EventException,
   SentReminder,
+  // Phase 7
+  EmailAccount,
+  EmailThread,
+  EmailMessage,
+  EmailAttachment,
+  EmailLabel,
+  EmailThreadLabel,
 } from '@prisma/client';
 export {
   CustomerStatus,
@@ -85,6 +92,11 @@ export {
   ReminderMethod,
   RecurrenceFreq,
   ExceptionType,
+  // Phase 7
+  EmailAccountType,
+  EmailDirection,
+  EmailMessageStatus,
+  EmailFolder,
 } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {

@@ -45,6 +45,9 @@ export const ACTIVITY_TYPES = [
   'event.scheduled',
   'event.updated',
   'event.cancelled',
+  // Phase 7
+  'email.received',
+  'email.sent',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

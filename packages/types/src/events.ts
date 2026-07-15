@@ -27,14 +27,28 @@ export const emailAttachmentSchema = z.object({
 export type EmailAttachment = z.infer<typeof emailAttachmentSchema>;
 
 export const emailSendPayloadSchema = z.object({
-  to: z.string().email(),
+  /** One address, or a comma-separated list (nodemailer accepts both). */
+  to: z.string().min(1),
+  cc: z.array(z.string()).optional(),
   subject: z.string().min(1),
-  /** Plain-text body. HTML email is a later enhancement. */
+  /** Plain-text body. */
   text: z.string().min(1),
+  /** Optional HTML body (Phase 7 mail module). */
+  html: z.string().optional(),
   /** For correlation in logs/audit without logging the body. */
-  kind: z.enum(['invitation', 'password_reset', 'invoice', 'invoice_reminder', 'event_reminder']),
+  kind: z.enum([
+    'invitation',
+    'password_reset',
+    'invoice',
+    'invoice_reminder',
+    'event_reminder',
+    'email',
+  ]),
   organizationId: z.string().uuid().nullable(),
   attachment: emailAttachmentSchema.optional(),
+  /** Phase 7: when set, the worker marks this EmailMessage SENT/FAILED after
+   *  delivery so the mailbox reflects real send status. */
+  emailMessageId: z.string().uuid().optional(),
 });
 export type EmailSendPayload = z.infer<typeof emailSendPayloadSchema>;
 
@@ -61,6 +75,9 @@ export const domainEventTypes = [
   'calendar.event.created',
   'calendar.event.updated',
   'calendar.event.cancelled',
+  // Phase 7 — email domain facts (integration seam).
+  'email.received',
+  'email.sent',
 ] as const;
 export type DomainEventType = (typeof domainEventTypes)[number];
 

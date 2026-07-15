@@ -2089,7 +2089,20 @@
                               "event.occurrence_cancelled",
                               "event_attendee.added",
                               "event_attendee.removed",
-                              "event_attendee.responded"
+                              "event_attendee.responded",
+                              "email_account.created",
+                              "email_account.updated",
+                              "email_account.deleted",
+                              "email.composed",
+                              "email.sent",
+                              "email.send_failed",
+                              "email.received",
+                              "email_thread.linked",
+                              "email_thread.moved",
+                              "email_thread.labeled",
+                              "email.converted_to_task",
+                              "email_label.created",
+                              "email_label.deleted"
                             ]
                           },
                           "entityType": {
@@ -3043,7 +3056,9 @@
                               "invoice.accounting_drafted",
                               "event.scheduled",
                               "event.updated",
-                              "event.cancelled"
+                              "event.cancelled",
+                              "email.received",
+                              "email.sent"
                             ]
                           },
                           "actor": {
@@ -4087,7 +4102,9 @@
                               "invoice.accounting_drafted",
                               "event.scheduled",
                               "event.updated",
-                              "event.cancelled"
+                              "event.cancelled",
+                              "email.received",
+                              "email.sent"
                             ]
                           },
                           "actor": {
@@ -5203,7 +5220,9 @@
                               "invoice.accounting_drafted",
                               "event.scheduled",
                               "event.updated",
-                              "event.cancelled"
+                              "event.cancelled",
+                              "email.received",
+                              "email.sent"
                             ]
                           },
                           "actor": {
@@ -6695,7 +6714,9 @@
                               "invoice.accounting_drafted",
                               "event.scheduled",
                               "event.updated",
-                              "event.cancelled"
+                              "event.cancelled",
+                              "email.received",
+                              "email.sent"
                             ]
                           },
                           "actor": {
@@ -8277,7 +8298,9 @@
                               "invoice.accounting_drafted",
                               "event.scheduled",
                               "event.updated",
-                              "event.cancelled"
+                              "event.cancelled",
+                              "email.received",
+                              "email.sent"
                             ]
                           },
                           "actor": {
@@ -15352,7 +15375,9 @@
                               "invoice.accounting_drafted",
                               "event.scheduled",
                               "event.updated",
-                              "event.cancelled"
+                              "event.cancelled",
+                              "email.received",
+                              "email.sent"
                             ]
                           },
                           "actor": {
@@ -22357,6 +22382,3047 @@
                   "required": [
                     "userId",
                     "busy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/accounts": {
+      "get": {
+        "tags": [
+          "email"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "address": {
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "SHARED",
+                          "PERSONAL"
+                        ]
+                      },
+                      "ownerId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "provider": {
+                        "type": "string"
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "address",
+                      "displayName",
+                      "type",
+                      "ownerId",
+                      "provider",
+                      "isActive",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "SHARED",
+                      "PERSONAL"
+                    ],
+                    "default": "SHARED"
+                  }
+                },
+                "required": [
+                  "address"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SHARED",
+                        "PERSONAL"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "address",
+                    "displayName",
+                    "type",
+                    "ownerId",
+                    "provider",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/accounts/{accountId}": {
+      "patch": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "accountId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "SHARED",
+                        "PERSONAL"
+                      ]
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "provider": {
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "address",
+                    "displayName",
+                    "type",
+                    "ownerId",
+                    "provider",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "accountId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/email/labels": {
+      "get": {
+        "tags": [
+          "email"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "color": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "color"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$",
+                    "default": "#64748b"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "color"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/labels/{labelId}": {
+      "delete": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "labelId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/email/threads": {
+      "get": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "accountId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INBOX",
+                "SENT",
+                "DRAFTS",
+                "ARCHIVE",
+                "TRASH"
+              ]
+            },
+            "in": "query",
+            "name": "folder",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "labelId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "customerId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "unread",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "starred",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "accountId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "snippet": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "folder": {
+                            "type": "string",
+                            "enum": [
+                              "INBOX",
+                              "ARCHIVE",
+                              "TRASH"
+                            ]
+                          },
+                          "isStarred": {
+                            "type": "boolean"
+                          },
+                          "unread": {
+                            "type": "boolean"
+                          },
+                          "messageCount": {
+                            "type": "integer"
+                          },
+                          "lastMessageAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "customerId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "taskId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "labels": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "color": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "color"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "accountId",
+                          "subject",
+                          "snippet",
+                          "folder",
+                          "isStarred",
+                          "unread",
+                          "messageCount",
+                          "lastMessageAt",
+                          "customerId",
+                          "projectId",
+                          "taskId",
+                          "labels",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "totalItems",
+                    "totalPages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}": {
+      "get": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "threadId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "INBOUND",
+                              "OUTBOUND"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "QUEUED",
+                              "SENT",
+                              "FAILED",
+                              "RECEIVED"
+                            ]
+                          },
+                          "fromAddress": {
+                            "type": "string"
+                          },
+                          "fromName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "toAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "ccAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "bodyText": {
+                            "type": "string"
+                          },
+                          "bodyHtml": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "messageId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "inReplyTo": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "isRead": {
+                            "type": "boolean"
+                          },
+                          "sentAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "receivedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "error": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "fileName": {
+                                  "type": "string"
+                                },
+                                "contentType": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "fileName",
+                                "contentType",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "threadId",
+                          "direction",
+                          "status",
+                          "fromAddress",
+                          "fromName",
+                          "toAddresses",
+                          "ccAddresses",
+                          "subject",
+                          "bodyText",
+                          "bodyHtml",
+                          "messageId",
+                          "inReplyTo",
+                          "isRead",
+                          "sentAt",
+                          "receivedAt",
+                          "error",
+                          "attachments",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt",
+                    "messages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/read": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "read"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "threadId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "INBOUND",
+                              "OUTBOUND"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "QUEUED",
+                              "SENT",
+                              "FAILED",
+                              "RECEIVED"
+                            ]
+                          },
+                          "fromAddress": {
+                            "type": "string"
+                          },
+                          "fromName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "toAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "ccAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "bodyText": {
+                            "type": "string"
+                          },
+                          "bodyHtml": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "messageId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "inReplyTo": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "isRead": {
+                            "type": "boolean"
+                          },
+                          "sentAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "receivedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "error": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "fileName": {
+                                  "type": "string"
+                                },
+                                "contentType": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "fileName",
+                                "contentType",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "threadId",
+                          "direction",
+                          "status",
+                          "fromAddress",
+                          "fromName",
+                          "toAddresses",
+                          "ccAddresses",
+                          "subject",
+                          "bodyText",
+                          "bodyHtml",
+                          "messageId",
+                          "inReplyTo",
+                          "isRead",
+                          "sentAt",
+                          "receivedAt",
+                          "error",
+                          "attachments",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt",
+                    "messages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/star": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "starred": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "starred"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/move": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "folder": {
+                    "type": "string",
+                    "enum": [
+                      "INBOX",
+                      "ARCHIVE",
+                      "TRASH"
+                    ]
+                  }
+                },
+                "required": [
+                  "folder"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/link": {
+      "patch": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/labels": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "labelId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "labelId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/labels/{labelId}": {
+      "delete": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "labelId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/threads/{threadId}/task": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "assigneeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "dueDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "threadId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "TODO",
+                        "IN_PROGRESS",
+                        "BLOCKED",
+                        "DONE",
+                        "CANCELLED"
+                      ]
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": [
+                        "LOW",
+                        "MEDIUM",
+                        "HIGH",
+                        "URGENT"
+                      ]
+                    },
+                    "dueDate": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "completedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "customer": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "project": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "employee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "assignee": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "description",
+                    "status",
+                    "priority",
+                    "dueDate",
+                    "completedAt",
+                    "customer",
+                    "project",
+                    "employee",
+                    "assignee",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/messages": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "threadId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 320,
+                      "format": "email"
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  },
+                  "cc": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 320,
+                      "format": "email"
+                    },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "bodyText": {
+                    "type": "string",
+                    "maxLength": 500000
+                  },
+                  "bodyHtml": {
+                    "type": "string",
+                    "maxLength": 1000000
+                  }
+                },
+                "required": [
+                  "accountId",
+                  "to",
+                  "subject",
+                  "bodyText"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "threadId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "INBOUND",
+                        "OUTBOUND"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "QUEUED",
+                        "SENT",
+                        "FAILED",
+                        "RECEIVED"
+                      ]
+                    },
+                    "fromAddress": {
+                      "type": "string"
+                    },
+                    "fromName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "toAddresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "ccAddresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "bodyText": {
+                      "type": "string"
+                    },
+                    "bodyHtml": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "inReplyTo": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "isRead": {
+                      "type": "boolean"
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "receivedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "fileName": {
+                            "type": "string"
+                          },
+                          "contentType": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "fileName",
+                          "contentType",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "threadId",
+                    "direction",
+                    "status",
+                    "fromAddress",
+                    "fromName",
+                    "toAddresses",
+                    "ccAddresses",
+                    "subject",
+                    "bodyText",
+                    "bodyHtml",
+                    "messageId",
+                    "inReplyTo",
+                    "isRead",
+                    "sentAt",
+                    "receivedAt",
+                    "error",
+                    "attachments",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/messages/{messageId}": {
+      "patch": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 320,
+                      "format": "email"
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  },
+                  "cc": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 320,
+                      "format": "email"
+                    },
+                    "maxItems": 50
+                  },
+                  "subject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "bodyText": {
+                    "type": "string",
+                    "maxLength": 500000
+                  },
+                  "bodyHtml": {
+                    "type": "string",
+                    "maxLength": 1000000,
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "threadId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "INBOUND",
+                        "OUTBOUND"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "QUEUED",
+                        "SENT",
+                        "FAILED",
+                        "RECEIVED"
+                      ]
+                    },
+                    "fromAddress": {
+                      "type": "string"
+                    },
+                    "fromName": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "toAddresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "ccAddresses": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "bodyText": {
+                      "type": "string"
+                    },
+                    "bodyHtml": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "inReplyTo": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "isRead": {
+                      "type": "boolean"
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "receivedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "fileName": {
+                            "type": "string"
+                          },
+                          "contentType": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "fileName",
+                          "contentType",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "threadId",
+                    "direction",
+                    "status",
+                    "fromAddress",
+                    "fromName",
+                    "toAddresses",
+                    "ccAddresses",
+                    "subject",
+                    "bodyText",
+                    "bodyHtml",
+                    "messageId",
+                    "inReplyTo",
+                    "isRead",
+                    "sentAt",
+                    "receivedAt",
+                    "error",
+                    "attachments",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/email/messages/{messageId}/send": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "snippet": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "folder": {
+                      "type": "string",
+                      "enum": [
+                        "INBOX",
+                        "ARCHIVE",
+                        "TRASH"
+                      ]
+                    },
+                    "isStarred": {
+                      "type": "boolean"
+                    },
+                    "unread": {
+                      "type": "boolean"
+                    },
+                    "messageCount": {
+                      "type": "integer"
+                    },
+                    "lastMessageAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "customerId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "threadId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "INBOUND",
+                              "OUTBOUND"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "DRAFT",
+                              "QUEUED",
+                              "SENT",
+                              "FAILED",
+                              "RECEIVED"
+                            ]
+                          },
+                          "fromAddress": {
+                            "type": "string"
+                          },
+                          "fromName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "toAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "ccAddresses": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "bodyText": {
+                            "type": "string"
+                          },
+                          "bodyHtml": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "messageId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "inReplyTo": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "isRead": {
+                            "type": "boolean"
+                          },
+                          "sentAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "receivedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "error": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "fileName": {
+                                  "type": "string"
+                                },
+                                "contentType": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "fileName",
+                                "contentType",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "threadId",
+                          "direction",
+                          "status",
+                          "fromAddress",
+                          "fromName",
+                          "toAddresses",
+                          "ccAddresses",
+                          "subject",
+                          "bodyText",
+                          "bodyHtml",
+                          "messageId",
+                          "inReplyTo",
+                          "isRead",
+                          "sentAt",
+                          "receivedAt",
+                          "error",
+                          "attachments",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "accountId",
+                    "subject",
+                    "snippet",
+                    "folder",
+                    "isStarred",
+                    "unread",
+                    "messageCount",
+                    "lastMessageAt",
+                    "customerId",
+                    "projectId",
+                    "taskId",
+                    "labels",
+                    "createdAt",
+                    "updatedAt",
+                    "messages"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/email/inbound": {
+      "post": {
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email"
+                  },
+                  "from": {
+                    "type": "string",
+                    "maxLength": 320,
+                    "format": "email"
+                  },
+                  "fromName": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "cc": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 320,
+                      "format": "email"
+                    },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 998,
+                    "default": "(no subject)"
+                  },
+                  "text": {
+                    "type": "string",
+                    "maxLength": 1000000,
+                    "default": ""
+                  },
+                  "html": {
+                    "type": "string",
+                    "maxLength": 2000000
+                  },
+                  "messageId": {
+                    "type": "string",
+                    "maxLength": 998
+                  },
+                  "inReplyTo": {
+                    "type": "string",
+                    "maxLength": 998
+                  },
+                  "references": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 998
+                    },
+                    "maxItems": 100,
+                    "default": []
+                  },
+                  "receivedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "to",
+                  "from"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "duplicate",
+                        "unknown_account"
+                      ]
+                    },
+                    "threadId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "threadId",
+                    "messageId"
                   ],
                   "additionalProperties": false
                 }

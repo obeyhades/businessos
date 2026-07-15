@@ -67,6 +67,10 @@ model User {
   organizedEvents  CalendarEvent[] @relation("EventOrganizer")
   eventAttendances EventAttendee[]
 
+  // Phase 7 back-relations
+  ownedEmailAccounts    EmailAccount[] @relation("EmailAccountOwner")
+  composedEmailMessages EmailMessage[] @relation("EmailMessageCreatedBy")
+
   @@map("users")
 }
 
@@ -119,6 +123,12 @@ model Organization {
   // Phase 6 back-relations
   calendars      Calendar[]
   calendarEvents CalendarEvent[]
+
+  // Phase 7 back-relations
+  emailAccounts EmailAccount[]
+  emailThreads  EmailThread[]
+  emailMessages EmailMessage[]
+  emailLabels   EmailLabel[]
 
   @@map("organizations")
 }
@@ -318,6 +328,7 @@ model Customer {
   quotes       Quote[]
   invoices     Invoice[]
   events       CalendarEvent[]
+  emailThreads EmailThread[]
 
   @@index([organizationId, status])
   @@index([organizationId, name])
@@ -363,6 +374,7 @@ model Project {
   attachments  FileAttachment[]
   activities   Activity[]
   events       CalendarEvent[]
+  emailThreads EmailThread[]
 
   @@index([organizationId, status])
   @@index([customerId])
@@ -396,6 +408,7 @@ model Task {
   attachments  FileAttachment[]
   activities   Activity[]
   events       CalendarEvent[]
+  emailThreads EmailThread[]
 
   @@index([organizationId, status])
   @@index([organizationId, assigneeId])
@@ -1355,4 +1368,172 @@ model SentReminder {
   @@unique([reminderId, occurrenceStart])
   @@index([organizationId, eventId])
   @@map("sent_reminders")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7 — Email. Shared/personal mailboxes, threaded conversations, inbound
+// (via a provider webhook seam) and outbound (via the worker email pipeline)
+// messages, folders/labels, attachments, and links into the business context
+// (customer/project/task). NOT a real IMAP client — inbound arrives through the
+// authenticated ingestion endpoint; see docs.
+// ---------------------------------------------------------------------------
+
+enum EmailAccountType {
+  SHARED
+  PERSONAL
+}
+
+enum EmailDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum EmailMessageStatus {
+  DRAFT
+  QUEUED
+  SENT
+  FAILED
+  RECEIVED
+}
+
+enum EmailFolder {
+  INBOX
+  ARCHIVE
+  TRASH
+}
+
+model EmailAccount {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  address        String
+  displayName    String?          @map("display_name")
+  type           EmailAccountType @default(SHARED)
+  ownerId        String?          @map("owner_id") @db.Uuid
+  provider       String           @default("manual")
+  isActive       Boolean          @default(true) @map("is_active")
+  createdById    String?          @map("created_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?          @relation("EmailAccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  threads      EmailThread[]
+  messages     EmailMessage[]
+
+  @@unique([organizationId, address])
+  @@index([organizationId, type])
+  @@map("email_accounts")
+}
+
+model EmailThread {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  accountId      String      @map("account_id") @db.Uuid
+  subject        String
+  snippet        String?
+  folder         EmailFolder @default(INBOX)
+  isStarred      Boolean     @default(false) @map("is_starred")
+  unread         Boolean     @default(false)
+  messageCount   Int         @default(0) @map("message_count")
+  lastMessageAt  DateTime    @map("last_message_at") @db.Timestamptz(6)
+  // Business context (denormalized, mirrors the activity ref chain).
+  customerId     String?     @map("customer_id") @db.Uuid
+  projectId      String?     @map("project_id") @db.Uuid
+  taskId         String?     @map("task_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      EmailAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  customer     Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  project      Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task         Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  messages     EmailMessage[]
+  labels       EmailThreadLabel[]
+
+  @@index([organizationId, accountId, folder, lastMessageAt])
+  @@index([organizationId, customerId])
+  @@map("email_threads")
+}
+
+model EmailMessage {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  threadId       String             @map("thread_id") @db.Uuid
+  accountId      String             @map("account_id") @db.Uuid
+  direction      EmailDirection
+  status         EmailMessageStatus @default(RECEIVED)
+  fromAddress    String             @map("from_address")
+  fromName       String?            @map("from_name")
+  toAddresses    String[]           @map("to_addresses")
+  ccAddresses    String[]           @map("cc_addresses")
+  subject        String
+  bodyText       String             @map("body_text")
+  bodyHtml       String?            @map("body_html")
+  // RFC 5322 threading headers.
+  messageId      String?            @map("message_id")
+  inReplyTo      String?            @map("in_reply_to")
+  references     String[]
+  isRead         Boolean            @default(false) @map("is_read")
+  sentAt         DateTime?          @map("sent_at") @db.Timestamptz(6)
+  receivedAt     DateTime?          @map("received_at") @db.Timestamptz(6)
+  error          String?
+  createdById    String?            @map("created_by_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread       EmailThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  account      EmailAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdBy    User?             @relation("EmailMessageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  attachments  EmailAttachment[]
+
+  @@index([organizationId, threadId, createdAt])
+  @@index([organizationId, messageId])
+  @@index([organizationId, status])
+  @@map("email_messages")
+}
+
+model EmailAttachment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  messageId      String   @map("message_id") @db.Uuid
+  fileName       String   @map("file_name")
+  contentType    String   @map("content_type")
+  size           Int
+  storageKey     String   @unique @map("storage_key")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, messageId])
+  @@map("email_attachments")
+}
+
+model EmailLabel {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  color          String   @default("#64748b")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  threads      EmailThreadLabel[]
+
+  @@unique([organizationId, name])
+  @@map("email_labels")
+}
+
+model EmailThreadLabel {
+  organizationId String @map("organization_id") @db.Uuid
+  threadId       String @map("thread_id") @db.Uuid
+  labelId        String @map("label_id") @db.Uuid
+
+  thread EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  label  EmailLabel  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, labelId])
+  @@index([labelId])
+  @@map("email_thread_labels")
 }

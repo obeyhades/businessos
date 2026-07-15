@@ -63,6 +63,7 @@ export const testConfig: ApiConfig = {
   S3_SECRET_KEY: process.env.S3_SECRET_KEY ?? 'businessos-dev-secret',
   S3_BUCKET: process.env.S3_BUCKET ?? 'businessos',
   S3_REGION: process.env.S3_REGION ?? 'us-east-1',
+  INBOUND_EMAIL_SECRET: 'test-inbound-secret',
 };
 
 export interface TestContext {

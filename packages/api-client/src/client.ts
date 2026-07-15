@@ -32,6 +32,11 @@ import {
   occurrenceDtoSchema,
   agendaItemDtoSchema,
   freeBusyDtoSchema,
+  emailAccountDtoSchema,
+  emailThreadDtoSchema,
+  emailThreadDetailDtoSchema,
+  emailMessageDtoSchema,
+  emailLabelDtoSchema,
   membershipDtoSchema,
   onboardingTemplateDtoSchema,
   organizationDtoSchema,
@@ -118,6 +123,18 @@ import {
   type AddAttendeeBody,
   type AgendaQuery,
   type FreeBusyQuery,
+  type CreateEmailAccountBody,
+  type UpdateEmailAccountBody,
+  type ThreadListQuery,
+  type CreateMessageBody,
+  type UpdateMessageBody,
+  type MoveThreadBody,
+  type StarThreadBody,
+  type ReadThreadBody,
+  type LinkThreadBody,
+  type AddLabelBody,
+  type EmailToTaskBody,
+  type CreateEmailLabelBody,
 } from '@businessos/types';
 
 /** Maps an entity kind to its plural REST path segment. */
@@ -679,6 +696,50 @@ export function createApiClient(options: ApiClientOptions) {
         request('GET', '/v1/agenda', z.array(agendaItemDtoSchema), { query }),
       freeBusy: (query: FreeBusyQuery) =>
         request('GET', '/v1/calendar/free-busy', freeBusyDtoSchema, { query }),
+    },
+    email: {
+      // Mailboxes
+      listAccounts: () => request('GET', '/v1/email/accounts', z.array(emailAccountDtoSchema)),
+      createAccount: (body: CreateEmailAccountBody) =>
+        request('POST', '/v1/email/accounts', emailAccountDtoSchema, { body }),
+      updateAccount: (accountId: string, body: UpdateEmailAccountBody) =>
+        request('PATCH', `/v1/email/accounts/${accountId}`, emailAccountDtoSchema, { body }),
+      removeAccount: (accountId: string) =>
+        request('DELETE', `/v1/email/accounts/${accountId}`, emptySchema),
+      // Labels
+      listLabels: () => request('GET', '/v1/email/labels', z.array(emailLabelDtoSchema)),
+      createLabel: (body: CreateEmailLabelBody) =>
+        request('POST', '/v1/email/labels', emailLabelDtoSchema, { body }),
+      removeLabel: (labelId: string) =>
+        request('DELETE', `/v1/email/labels/${labelId}`, emptySchema),
+      // Threads
+      listThreads: (query?: Partial<ThreadListQuery>) =>
+        request('GET', '/v1/email/threads', paginatedSchema(emailThreadDtoSchema), { query }),
+      getThread: (threadId: string) =>
+        request('GET', `/v1/email/threads/${threadId}`, emailThreadDetailDtoSchema),
+      markRead: (threadId: string, body: ReadThreadBody) =>
+        request('POST', `/v1/email/threads/${threadId}/read`, emailThreadDetailDtoSchema, { body }),
+      star: (threadId: string, body: StarThreadBody) =>
+        request('POST', `/v1/email/threads/${threadId}/star`, emailThreadDtoSchema, { body }),
+      move: (threadId: string, body: MoveThreadBody) =>
+        request('POST', `/v1/email/threads/${threadId}/move`, emailThreadDtoSchema, { body }),
+      link: (threadId: string, body: LinkThreadBody) =>
+        request('PATCH', `/v1/email/threads/${threadId}/link`, emailThreadDtoSchema, { body }),
+      addLabel: (threadId: string, body: AddLabelBody) =>
+        request('POST', `/v1/email/threads/${threadId}/labels`, emailThreadDtoSchema, { body }),
+      removeThreadLabel: (threadId: string, labelId: string) =>
+        request('DELETE', `/v1/email/threads/${threadId}/labels/${labelId}`, emailThreadDtoSchema),
+      toTask: (threadId: string, body: EmailToTaskBody) =>
+        request('POST', `/v1/email/threads/${threadId}/task`, taskDtoSchema, { body }),
+      // Messages (compose / reply / send)
+      compose: (body: CreateMessageBody) =>
+        request('POST', '/v1/email/messages', emailMessageDtoSchema, { body }),
+      updateDraft: (messageId: string, body: UpdateMessageBody) =>
+        request('PATCH', `/v1/email/messages/${messageId}`, emailMessageDtoSchema, { body }),
+      deleteDraft: (messageId: string) =>
+        request('DELETE', `/v1/email/messages/${messageId}`, emptySchema),
+      send: (messageId: string) =>
+        request('POST', `/v1/email/messages/${messageId}/send`, emailThreadDetailDtoSchema),
     },
   };
 }

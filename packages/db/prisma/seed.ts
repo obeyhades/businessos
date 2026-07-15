@@ -131,6 +131,7 @@ async function main(): Promise<void> {
   await seedPhase4(org.id, owner.id);
   await seedPhase5(org.id, owner.id);
   await seedPhase6(org.id, owner.id);
+  await seedPhase7(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
 }
@@ -1072,6 +1073,139 @@ async function seedPhase6(organizationId: string, ownerId: string): Promise<void
 
   console.warn(
     'Seeded a team calendar with 3 events (single, weekly recurring w/ exception, private).',
+  );
+}
+
+/**
+ * Email: a shared info@ mailbox, two labels, and three conversations — an
+ * inbound message from a customer (auto-linked to that customer), a sent reply,
+ * and a draft. All fictional.
+ */
+async function seedPhase7(organizationId: string, ownerId: string): Promise<void> {
+  const already = await prisma.emailAccount.count({ where: { organizationId } });
+  if (already > 0) return;
+
+  const account = await prisma.emailAccount.create({
+    data: {
+      organizationId,
+      address: 'info@demo.businessos.local',
+      displayName: 'Demo Hantverk Support',
+      type: 'SHARED',
+      createdById: ownerId,
+    },
+  });
+  await prisma.emailLabel.createMany({
+    data: [
+      { organizationId, name: 'Sales', color: '#16a34a' },
+      { organizationId, name: 'Support', color: '#2563eb' },
+    ],
+  });
+
+  const customer = await prisma.customer.findFirst({
+    where: { organizationId },
+    select: { id: true, email: true, name: true },
+  });
+  const customerEmail = customer?.email ?? 'kund@example.com';
+  const now = new Date();
+  const hoursAgo = (h: number): Date => new Date(now.getTime() - h * 3_600_000);
+
+  // 1. Inbound conversation from a customer (auto-linked).
+  const inbound = await prisma.emailThread.create({
+    data: {
+      organizationId,
+      accountId: account.id,
+      subject: 'Question about my quote',
+      snippet: 'Hi, could you clarify the delivery time on the quote you sent?',
+      folder: 'INBOX',
+      unread: true,
+      messageCount: 1,
+      lastMessageAt: hoursAgo(3),
+      customerId: customer?.id ?? null,
+    },
+  });
+  await prisma.emailMessage.create({
+    data: {
+      organizationId,
+      threadId: inbound.id,
+      accountId: account.id,
+      direction: 'INBOUND',
+      status: 'RECEIVED',
+      fromAddress: customerEmail,
+      fromName: customer?.name ?? 'Customer',
+      toAddresses: [account.address],
+      subject: 'Question about my quote',
+      bodyText: 'Hi,\n\nCould you clarify the delivery time on the quote you sent? Thanks!',
+      messageId: `<inbound-1@example.com>`,
+      isRead: false,
+      receivedAt: hoursAgo(3),
+    },
+  });
+
+  // 2. A sent conversation.
+  const sent = await prisma.emailThread.create({
+    data: {
+      organizationId,
+      accountId: account.id,
+      subject: 'Welcome to Demo Hantverk',
+      snippet: 'Thanks for reaching out — here is what you need to know.',
+      folder: 'INBOX',
+      unread: false,
+      messageCount: 1,
+      lastMessageAt: hoursAgo(26),
+      customerId: customer?.id ?? null,
+    },
+  });
+  await prisma.emailMessage.create({
+    data: {
+      organizationId,
+      threadId: sent.id,
+      accountId: account.id,
+      direction: 'OUTBOUND',
+      status: 'SENT',
+      fromAddress: account.address,
+      fromName: account.displayName,
+      toAddresses: [customerEmail],
+      subject: 'Welcome to Demo Hantverk',
+      bodyText: 'Thanks for reaching out — here is what you need to know to get started.',
+      messageId: `<sent-1@demo.businessos.local>`,
+      isRead: true,
+      sentAt: hoursAgo(26),
+      createdById: ownerId,
+    },
+  });
+
+  // 3. A draft.
+  const draft = await prisma.emailThread.create({
+    data: {
+      organizationId,
+      accountId: account.id,
+      subject: 'Follow-up on your project',
+      snippet: 'Just checking in on the project timeline…',
+      folder: 'INBOX',
+      unread: false,
+      messageCount: 1,
+      lastMessageAt: hoursAgo(1),
+    },
+  });
+  await prisma.emailMessage.create({
+    data: {
+      organizationId,
+      threadId: draft.id,
+      accountId: account.id,
+      direction: 'OUTBOUND',
+      status: 'DRAFT',
+      fromAddress: account.address,
+      fromName: account.displayName,
+      toAddresses: [customerEmail],
+      subject: 'Follow-up on your project',
+      bodyText: 'Just checking in on the project timeline. Let me know if you have questions.',
+      isRead: true,
+      createdById: ownerId,
+    },
+  });
+
+  console.warn(
+    'Seeded a shared mailbox, 2 labels, and 3 email conversations (inbound, sent, draft).',
   );
 }
 

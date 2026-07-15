@@ -16,4 +16,5 @@ export interface ApiConfig {
   S3_SECRET_KEY: string;
   S3_BUCKET: string;
   S3_REGION: string;
+  INBOUND_EMAIL_SECRET: string;
 }

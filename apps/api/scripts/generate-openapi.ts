@@ -24,6 +24,7 @@ async function main(): Promise<void> {
       S3_SECRET_KEY: 'unused',
       S3_BUCKET: 'unused',
       S3_REGION: 'us-east-1',
+      INBOUND_EMAIL_SECRET: 'unused',
     },
     prisma: createPrismaClient({ databaseUrl: 'postgresql://unused:unused@localhost:5432/unused' }),
     logger: false,

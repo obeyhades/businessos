@@ -32,8 +32,10 @@ export async function sendEmail(
   await transport.sendMail({
     from,
     to: payload.to,
+    cc: payload.cc && payload.cc.length > 0 ? payload.cc : undefined,
     subject: payload.subject,
     text: payload.text,
+    html: payload.html,
     attachments,
   });
 }

@@ -16,6 +16,8 @@ export const env = parseEnv({
   S3_SECRET_KEY: z.string().min(1),
   S3_BUCKET: z.string().min(1),
   S3_REGION: z.string().min(1).default('us-east-1'),
+  /** Shared secret the inbound-email provider webhook must present. */
+  INBOUND_EMAIL_SECRET: z.string().min(1).default('dev-inbound-secret'),
 });
 
 export type ApiEnv = typeof env;

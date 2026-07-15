@@ -30,3 +30,5 @@ export * from './credit-notes.js';
 export * from './accounting.js';
 // Phase 6
 export * from './calendar.js';
+// Phase 7
+export * from './email.js';

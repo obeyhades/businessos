@@ -45,11 +45,13 @@ export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void>
     void (async () => {
       const attempts = Number(message.properties.headers?.['x-attempts'] ?? 0);
       let envelopeId: string | undefined;
+      let emailMessageId: string | undefined;
 
       try {
         const envelope = outboxEnvelopeSchema.parse(JSON.parse(message.content.toString()));
         envelopeId = envelope.id;
         const payload = emailSendPayloadSchema.parse(envelope.payload);
+        emailMessageId = payload.emailMessageId;
 
         const alreadyProcessed = await prisma.processedMessage.findUnique({
           where: { messageId_consumer: { messageId: envelope.id, consumer: CONSUMER_NAME } },
@@ -69,6 +71,16 @@ export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void>
         } catch (error) {
           // Concurrent duplicate — the send already happened, treat as done.
           if (!isUniqueViolation(error)) throw error;
+        }
+
+        // Phase 7: reflect real delivery on the mailbox message.
+        if (emailMessageId) {
+          await prisma.emailMessage
+            .updateMany({
+              where: { id: emailMessageId, status: 'QUEUED' },
+              data: { status: 'SENT' },
+            })
+            .catch((err) => logger.error({ err, emailMessageId }, 'failed to mark email SENT'));
         }
 
         logger.info({ messageId: envelope.id, kind: payload.kind }, 'email sent');
@@ -92,6 +104,17 @@ export async function startEmailConsumer(deps: EmailConsumerDeps): Promise<void>
               },
             })
             .catch((dbError) => logger.error({ err: dbError }, 'failed to record failed job'));
+          if (emailMessageId) {
+            await prisma.emailMessage
+              .updateMany({
+                where: { id: emailMessageId, status: 'QUEUED' },
+                data: {
+                  status: 'FAILED',
+                  error: error instanceof Error ? error.message.slice(0, 500) : String(error),
+                },
+              })
+              .catch((err) => logger.error({ err, emailMessageId }, 'failed to mark email FAILED'));
+          }
           channel.publish(DLX_NAME, EMAIL_QUEUE, message.content, {
             persistent: true,
             headers: { 'x-attempts': nextAttempt },
