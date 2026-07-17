@@ -48,6 +48,9 @@ export const ACTIVITY_TYPES = [
   // Phase 7
   'email.received',
   'email.sent',
+  // Phase 8
+  'recording.added',
+  'recording.transcribed',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

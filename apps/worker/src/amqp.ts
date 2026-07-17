@@ -6,6 +6,7 @@ import {
   EMAIL_QUEUE,
   EMAIL_RETRY_QUEUE,
   EXCHANGE_NAME,
+  TRANSCRIPTION_QUEUE,
 } from '@businessos/types';
 import type { Logger } from 'pino';
 
@@ -59,6 +60,10 @@ export async function assertTopology(channel: AmqpConfirmChannel): Promise<void>
   await channel.assertQueue(ACCOUNTING_QUEUE, { durable: true });
   await channel.bindQueue(ACCOUNTING_QUEUE, EXCHANGE_NAME, 'invoice.finalized');
   await channel.bindQueue(ACCOUNTING_QUEUE, EXCHANGE_NAME, 'payment.registered');
+
+  // Phase 8: async speech-to-text reacts to uploaded recordings.
+  await channel.assertQueue(TRANSCRIPTION_QUEUE, { durable: true });
+  await channel.bindQueue(TRANSCRIPTION_QUEUE, EXCHANGE_NAME, 'recording.uploaded');
 
   await channel.assertQueue(DEAD_LETTER_QUEUE, { durable: true });
   await channel.bindQueue(DEAD_LETTER_QUEUE, DLX_NAME, '#');

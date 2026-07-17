@@ -125,6 +125,15 @@ export const AUDIT_ACTIONS = [
   'email.converted_to_task',
   'email_label.created',
   'email_label.deleted',
+  // Phase 8
+  'recording.created',
+  'recording.updated',
+  'recording.deleted',
+  'recording.transcribed',
+  'recording.transcription_failed',
+  'recording.retranscribe_requested',
+  'recording.converted_to_task',
+  'recording.converted_to_invoice',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

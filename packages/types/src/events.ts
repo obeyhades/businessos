@@ -13,6 +13,8 @@ export const EMAIL_RETRY_QUEUE = 'email.send.retry';
 export const DEAD_LETTER_QUEUE = 'businessos.dead-letter';
 /** Phase 5: draft-voucher generation from invoice/payment domain events. */
 export const ACCOUNTING_QUEUE = 'accounting.draft';
+/** Phase 8: async speech-to-text of uploaded recordings. */
+export const TRANSCRIPTION_QUEUE = 'recording.transcribe';
 
 export const MAX_JOB_ATTEMPTS = 5;
 /** Base delay for retry backoff in ms; actual delay = base * 2^(attempt-1). */
@@ -84,6 +86,8 @@ export const domainEventTypes = [
   // Phase 7 — email domain facts (integration seam).
   'email.received',
   'email.sent',
+  // Phase 8 — a recording's audio is ready to transcribe (worker consumes it).
+  'recording.uploaded',
 ] as const;
 export type DomainEventType = (typeof domainEventTypes)[number];
 

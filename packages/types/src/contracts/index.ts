@@ -32,3 +32,5 @@ export * from './accounting.js';
 export * from './calendar.js';
 // Phase 7
 export * from './email.js';
+// Phase 8
+export * from './recordings.js';

@@ -37,6 +37,7 @@ import {
   emailThreadDetailDtoSchema,
   emailMessageDtoSchema,
   emailLabelDtoSchema,
+  recordingDtoSchema,
   membershipDtoSchema,
   onboardingTemplateDtoSchema,
   organizationDtoSchema,
@@ -135,6 +136,11 @@ import {
   type AddLabelBody,
   type EmailToTaskBody,
   type CreateEmailLabelBody,
+  type RecordingListQuery,
+  type CreateCallLogBody,
+  type UpdateRecordingBody,
+  type RecordingToTaskBody,
+  type RecordingToInvoiceBody,
 } from '@businessos/types';
 
 /** Maps an entity kind to its plural REST path segment. */
@@ -740,6 +746,49 @@ export function createApiClient(options: ApiClientOptions) {
         request('DELETE', `/v1/email/messages/${messageId}`, emptySchema),
       send: (messageId: string) =>
         request('POST', `/v1/email/messages/${messageId}/send`, emailThreadDetailDtoSchema),
+    },
+
+    recordings: {
+      list: (query?: Partial<RecordingListQuery>) =>
+        request('GET', '/v1/recordings', paginatedSchema(recordingDtoSchema), { query }),
+      get: (recordingId: string) =>
+        request('GET', `/v1/recordings/${recordingId}`, recordingDtoSchema),
+      uploadVoiceNote: (
+        file: File,
+        meta: {
+          title: string;
+          durationSeconds?: number;
+          occurredAt?: string;
+          customerId?: string;
+          projectId?: string;
+          taskId?: string;
+        },
+      ) => {
+        const params = new URLSearchParams();
+        params.set('title', meta.title);
+        if (meta.durationSeconds !== undefined) {
+          params.set('durationSeconds', String(meta.durationSeconds));
+        }
+        if (meta.occurredAt) params.set('occurredAt', meta.occurredAt);
+        if (meta.customerId) params.set('customerId', meta.customerId);
+        if (meta.projectId) params.set('projectId', meta.projectId);
+        if (meta.taskId) params.set('taskId', meta.taskId);
+        return upload(`/v1/recordings/voice-notes?${params.toString()}`, file, recordingDtoSchema);
+      },
+      createCallLog: (body: CreateCallLogBody) =>
+        request('POST', '/v1/recordings/call-logs', recordingDtoSchema, { body }),
+      update: (recordingId: string, body: UpdateRecordingBody) =>
+        request('PATCH', `/v1/recordings/${recordingId}`, recordingDtoSchema, { body }),
+      remove: (recordingId: string) =>
+        request('DELETE', `/v1/recordings/${recordingId}`, emptySchema),
+      audioUrl: (recordingId: string) =>
+        request('GET', `/v1/recordings/${recordingId}/audio`, attachmentDownloadDtoSchema),
+      retranscribe: (recordingId: string) =>
+        request('POST', `/v1/recordings/${recordingId}/retranscribe`, recordingDtoSchema),
+      toTask: (recordingId: string, body: RecordingToTaskBody) =>
+        request('POST', `/v1/recordings/${recordingId}/task`, taskDtoSchema, { body }),
+      toInvoice: (recordingId: string, body: RecordingToInvoiceBody) =>
+        request('POST', `/v1/recordings/${recordingId}/invoice`, invoiceDtoSchema, { body }),
     },
   };
 }

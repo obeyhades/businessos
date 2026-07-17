@@ -3,6 +3,8 @@ import { ObjectStorage } from '@businessos/storage';
 import { assertTopology, connectWithRetry } from './amqp.js';
 import { startAccountingConsumer } from './consumers/accounting.js';
 import { startEmailConsumer } from './consumers/email.js';
+import { startTranscriptionConsumer } from './consumers/transcription.js';
+import { StubTranscriber } from './transcription/stub.js';
 import { createMailTransport } from './email/transport.js';
 import { env } from './env.js';
 import { startHealthServer } from './health.js';
@@ -39,6 +41,14 @@ async function main(): Promise<void> {
   const relay = startOutboxRelay(prisma, channel, logger);
   await startEmailConsumer({ prisma, channel, transport, storage, from: env.SMTP_FROM, logger });
   await startAccountingConsumer({ prisma, channel, logger });
+  // Phase 8: a deterministic local stub STT; Phase 9 swaps in a real provider.
+  await startTranscriptionConsumer({
+    prisma,
+    channel,
+    storage,
+    transcriber: new StubTranscriber(),
+    logger,
+  });
   const overdueSweep = startOverdueSweep(prisma, env.OVERDUE_SWEEP_SECONDS, logger);
   const reminderSweep = startReminderSweep(prisma, env.REMINDER_SWEEP_SECONDS, logger);
   const healthServer = startHealthServer(

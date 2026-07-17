@@ -132,6 +132,7 @@ async function main(): Promise<void> {
   await seedPhase5(org.id, owner.id);
   await seedPhase6(org.id, owner.id);
   await seedPhase7(org.id, owner.id);
+  await seedPhase8(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
 }
@@ -1207,6 +1208,109 @@ async function seedPhase7(organizationId: string, ownerId: string): Promise<void
   console.warn(
     'Seeded a shared mailbox, 2 labels, and 3 email conversations (inbound, sent, draft).',
   );
+}
+
+/**
+ * Phase 8 — voice notes and a call log. Audio bytes are NOT seeded (object
+ * storage is populated by real uploads through the API), so seeded voice notes
+ * carry their transcript as the durable artifact and have no downloadable
+ * audio. Upload through the UI to exercise the live transcription pipeline.
+ */
+async function seedPhase8(organizationId: string, ownerId: string): Promise<void> {
+  const already = await prisma.recording.count({ where: { organizationId } });
+  if (already > 0) return;
+
+  const customers = await prisma.customer.findMany({
+    where: { organizationId },
+    select: { id: true, name: true },
+    orderBy: { createdAt: 'asc' },
+    take: 2,
+  });
+  const now = new Date();
+  const hoursAgo = (h: number): Date => new Date(now.getTime() - h * 3_600_000);
+
+  // 1. A transcribed voice note linked to a customer.
+  await prisma.recording.create({
+    data: {
+      organizationId,
+      source: 'VOICE_NOTE',
+      title: 'Site visit notes',
+      status: 'TRANSCRIBED',
+      transcriptStatus: 'COMPLETED',
+      transcriptLanguage: 'en',
+      transcriptText:
+        'Just finished the site visit. They want a revised quote for the balcony railings by Friday.',
+      durationSeconds: 42,
+      occurredAt: hoursAgo(5),
+      customerId: customers[0]?.id ?? null,
+      createdById: ownerId,
+      segments: {
+        create: [
+          {
+            organizationId,
+            startMs: 0,
+            endMs: 20_000,
+            text: 'Just finished the site visit.',
+            sortOrder: 0,
+          },
+          {
+            organizationId,
+            startMs: 20_000,
+            endMs: 42_000,
+            text: 'They want a revised quote for the balcony railings by Friday.',
+            sortOrder: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  // 2. An unlinked transcribed voice note (a personal reminder).
+  await prisma.recording.create({
+    data: {
+      organizationId,
+      source: 'VOICE_NOTE',
+      title: 'Idea for the newsletter',
+      status: 'TRANSCRIBED',
+      transcriptStatus: 'COMPLETED',
+      transcriptLanguage: 'en',
+      transcriptText: 'Write a short piece about the winter maintenance offer for next month.',
+      durationSeconds: 18,
+      occurredAt: hoursAgo(2),
+      createdById: ownerId,
+      segments: {
+        create: [
+          {
+            organizationId,
+            startMs: 0,
+            endMs: 18_000,
+            text: 'Write a short piece about the winter maintenance offer for next month.',
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // 3. A logged inbound call (no audio, no transcription).
+  await prisma.recording.create({
+    data: {
+      organizationId,
+      source: 'CALL',
+      title: 'Call with Berg & Söner',
+      direction: 'INBOUND',
+      fromNumber: '+46 70 123 45 67',
+      status: 'UPLOADED',
+      transcriptStatus: 'NONE',
+      transcriptText: 'Discussed the project timeline; will send an updated schedule this week.',
+      durationSeconds: 180,
+      occurredAt: hoursAgo(1),
+      customerId: customers[1]?.id ?? null,
+      createdById: ownerId,
+    },
+  });
+
+  console.warn('Seeded 2 voice notes (transcribed) and 1 call log.');
 }
 
 main()

@@ -60,6 +60,9 @@ export type {
   EmailAttachment,
   EmailLabel,
   EmailThreadLabel,
+  // Phase 8
+  Recording,
+  TranscriptSegment,
 } from '@prisma/client';
 export {
   CustomerStatus,
@@ -97,6 +100,11 @@ export {
   EmailDirection,
   EmailMessageStatus,
   EmailFolder,
+  // Phase 8
+  RecordingSource,
+  RecordingStatus,
+  CallDirection,
+  TranscriptStatus,
 } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {
