@@ -19,7 +19,7 @@ function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
-type TranscribeOutcome = 'transcribed' | 'failed' | 'missing' | 'no-audio';
+type TranscribeOutcome = 'transcribed' | 'superseded' | 'failed' | 'missing' | 'no-audio';
 
 /**
  * Transcribes one recording. Self-contained error handling: a storage/STT
@@ -78,51 +78,89 @@ async function transcribeRecording(
     return 'failed';
   }
 
-  await prisma.$transaction(async (tx) => {
-    // Rewrite segments so redelivery/re-transcription is idempotent.
-    await tx.transcriptSegment.deleteMany({ where: { recordingId: recording.id } });
-    await tx.recording.update({
-      where: { id: recording.id },
-      data: {
-        status: 'TRANSCRIBED',
-        transcriptStatus: 'COMPLETED',
-        transcriptText: result.text,
-        transcriptLanguage: result.language,
-        transcriptError: null,
-        segments: {
-          create: result.segments.map((s, i) => ({
-            organizationId,
-            startMs: s.startMs,
-            endMs: s.endMs,
-            speaker: s.speaker,
-            text: s.text,
-            sortOrder: i,
-          })),
-        },
-      },
-    });
-    await tx.auditLog.create({
-      data: {
-        organizationId,
-        action: 'recording.transcribed',
-        entityType: 'recording',
-        entityId: recording.id,
-        metadata: { transcriber: transcriber.name, segmentCount: result.segments.length },
-      },
-    });
-    if (recording.customerId || recording.projectId || recording.taskId) {
-      await tx.activity.create({
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Rewrite segments so redelivery/re-transcription is idempotent. The
+      // unique (recordingId, sortOrder) index makes this safe under a
+      // concurrent second run: one writer wins, the other hits P2002 and its
+      // whole transaction rolls back (handled below), so segments never double.
+      await tx.transcriptSegment.deleteMany({ where: { recordingId: recording.id } });
+      await tx.recording.update({
+        where: { id: recording.id },
         data: {
-          organizationId,
-          type: 'recording.transcribed',
-          customerId: recording.customerId,
-          projectId: recording.projectId,
-          taskId: recording.taskId,
-          metadata: { title: recording.title },
+          status: 'TRANSCRIBED',
+          transcriptStatus: 'COMPLETED',
+          transcriptText: result.text,
+          transcriptLanguage: result.language,
+          transcriptError: null,
+          segments: {
+            create: result.segments.map((s, i) => ({
+              organizationId,
+              startMs: s.startMs,
+              endMs: s.endMs,
+              speaker: s.speaker,
+              text: s.text,
+              sortOrder: i,
+            })),
+          },
         },
       });
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          action: 'recording.transcribed',
+          entityType: 'recording',
+          entityId: recording.id,
+          metadata: { transcriber: transcriber.name, segmentCount: result.segments.length },
+        },
+      });
+      if (recording.customerId || recording.projectId || recording.taskId) {
+        await tx.activity.create({
+          data: {
+            organizationId,
+            type: 'recording.transcribed',
+            customerId: recording.customerId,
+            projectId: recording.projectId,
+            taskId: recording.taskId,
+            metadata: { title: recording.title },
+          },
+        });
+      }
+    });
+  } catch (writeErr) {
+    if (isUniqueViolation(writeErr)) {
+      // A concurrent transcription of this same recording already wrote the
+      // segments; that run's result stands. Nothing to undo — treat as done.
+      logger.info({ recordingId: recording.id }, 'transcription superseded by concurrent run');
+      return 'superseded';
     }
-  });
+    // Any other write failure (e.g. a transient DB error at commit) must not
+    // leave the recording stranded at TRANSCRIBING/PENDING — mark it FAILED so
+    // the UI surfaces an error and the user can re-request transcription.
+    await prisma.recording
+      .update({
+        where: { id: recording.id },
+        data: {
+          status: 'FAILED',
+          transcriptStatus: 'FAILED',
+          transcriptError:
+            writeErr instanceof Error ? writeErr.message.slice(0, 500) : String(writeErr),
+        },
+      })
+      .catch((markErr) => logger.error({ err: markErr }, 'failed to mark recording FAILED'));
+    await prisma.auditLog
+      .create({
+        data: {
+          organizationId,
+          action: 'recording.transcription_failed',
+          entityType: 'recording',
+          entityId: recording.id,
+          metadata: { transcriber: transcriber.name, stage: 'persist' },
+        },
+      })
+      .catch((auditErr) => logger.error({ err: auditErr }, 'failed to record transcription audit'));
+    return 'failed';
+  }
   return 'transcribed';
 }
 

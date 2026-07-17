@@ -3,9 +3,10 @@
 Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
 (customers, projects, tasks, comments, attachments, activity, search), Phase 3
 (personnel), Phase 4 (quotes & invoicing), Phase 5 (bookkeeping support), Phase 6
-(calendar & tasks) and Phase 7 (email) are **done** — see
+(calendar & tasks), Phase 7 (email) and Phase 8 (voice notes & telephony) are **done** — see
 [implementation-plan.md](implementation-plan.md).
-**Phase 8 (Voice notes) is next.** Everything from Phase 8 on is planned, not built.
+**Phase 9 (integrations & compliance hardening) is next.** Everything from Phase 9 on is
+planned, not built.
 Permissions for all of these modules already exist in the reviewed matrix
 (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
@@ -159,12 +160,35 @@ webhook), **provider inbound adapters** mapping SendGrid/Mailgun/Postmark payloa
 webhook, and the **production SMTP provider + deliverability (SPF/DKIM)** work, which lands
 with the Phase 9 provider swap behind the same transport interface.
 
-## Phase 8 — Voice notes
+## Phase 8 — Voice notes & telephony — **Done**
 
-Definition of done:
+Delivered:
 
-- Audio recording upload to object storage; async transcription as queued jobs on the
-  existing RabbitMQ topology; `recordings.*` permissions enforced
+- **Two recording kinds**: a **voice note** (uploaded audio, transcribed) and a **call log** (a
+  telephony record with no audio); one `recordings` table with a derived `hasAudio` flag that
+  never exposes the storage key
+- **Audio in object storage** — multipart upload validated server-side by MIME type
+  (`ALLOWED_AUDIO_TYPES`) and size (`MAX_AUDIO_BYTES`, 50 MB), stored through
+  `@businessos/storage` (MinIO/S3), read back only via a **short-lived signed URL**; a call log
+  answers `400 no_audio`
+- **Async transcription** off the request thread — upload writes a `recording.uploaded` outbox
+  message in the same transaction; the worker's `recording.transcribe` consumer transcribes and
+  **rewrites time-coded segments in one transaction** (idempotent), tracking progress in two
+  fields (`status` and `transcriptStatus`) and recording `FAILED` without an infinite retry loop
+- **Pluggable STT seam** — a `Transcriber` interface with a **deterministic local
+  `StubTranscriber`** now (offline, reproducible tests), a real provider at Phase 9 behind the
+  same interface; **re-transcription** enqueues a fresh message and replaces the transcript
+- **Connected-platform flows**: search over title **and** transcript text, filter by
+  source/status/customer; **recording → task** (dual-gated `recordings.manage` + `tasks.manage`)
+  and **recording → DRAFT invoice** (dual-gated `recordings.manage` + `invoices.manage`; a draft
+  for review only, with no bookkeeping/tax claim)
+- Permissions `recordings.read` / `recordings.manage` enforced end-to-end (OWNER/ADMIN/MANAGER
+  manage, EMPLOYEE/READONLY read, ACCOUNTANT none)
+
+**Future work:** a **real STT provider** (Whisper/Deepgram/…) dropped in behind the
+`Transcriber` seam — carrying its own review, since audio is **personal data** and an STT
+vendor is a **subprocessor** needing a DPA — plus real-time telephony / call-recording provider
+integration producing the same `recording.uploaded` event.
 
 ## Phase 9 — Integrations & compliance hardening
 

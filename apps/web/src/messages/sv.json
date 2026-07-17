@@ -82,7 +82,8 @@
     "accountingPeriods": "Räkenskapsår",
     "accountingReports": "Rapporter",
     "calendar": "Kalender",
-    "email": "E-post"
+    "email": "E-post",
+    "recordings": "Röstnoteringar"
   },
   "auth": {
     "login": {
@@ -1448,6 +1449,148 @@
       "create": "Skapa uppgift",
       "created": "Uppgiften skapades",
       "viewTask": "Visa uppgift"
+    }
+  },
+  "recordings": {
+    "title": "Röstnoteringar",
+    "restricted": "Du har inte behörighet att visa röstnoteringar.",
+    "uploadVoiceNote": "Ladda upp röstnotering",
+    "logCall": "Logga samtal",
+    "backToList": "Tillbaka till röstnoteringar",
+    "source": {
+      "VOICE_NOTE": "Röstnotering",
+      "CALL": "Samtal"
+    },
+    "direction": {
+      "INBOUND": "Inkommande",
+      "OUTBOUND": "Utgående"
+    },
+    "status": {
+      "UPLOADED": "Uppladdad",
+      "TRANSCRIBING": "Transkriberar",
+      "TRANSCRIBED": "Transkriberad",
+      "FAILED": "Misslyckades"
+    },
+    "transcriptStatus": {
+      "NONE": "Ingen transkription",
+      "PENDING": "Transkriberar…",
+      "COMPLETED": "Transkriberad",
+      "FAILED": "Transkriberingen misslyckades"
+    },
+    "list": {
+      "searchPlaceholder": "Sök röstnoteringar",
+      "empty": "Inga röstnoteringar ännu.",
+      "emptyFiltered": "Inga röstnoteringar matchar dina filter.",
+      "emptyDescription": "Ladda upp en röstnotering eller logga ett samtal för att komma igång.",
+      "allSources": "Alla källor",
+      "allStatuses": "Alla statusar",
+      "filterSource": "Filtrera på källa",
+      "filterStatus": "Filtrera på status",
+      "columnTitle": "Titel",
+      "columnSource": "Källa",
+      "columnDate": "Datum",
+      "columnDuration": "Längd",
+      "columnTranscript": "Transkription",
+      "columnCustomer": "Kund",
+      "none": "—"
+    },
+    "detail": {
+      "occurredAt": "Datum",
+      "duration": "Längd",
+      "direction": "Riktning",
+      "from": "Från",
+      "to": "Till",
+      "audio": "Ljud",
+      "audioUnavailable": "Ingen ljudfil är kopplad till den här inspelningen.",
+      "transcript": "Transkription",
+      "transcriptPending": "Transkriberar… det kan ta en liten stund.",
+      "transcriptNone": "Ingen transkription finns för den här inspelningen.",
+      "transcriptFailedTitle": "Transkriberingen misslyckades",
+      "retry": "Försök transkribera igen",
+      "retranscribe": "Transkribera om",
+      "retranscribed": "Transkriberingen startades om",
+      "linkedCustomer": "Kund",
+      "linkedProject": "Projekt",
+      "linkedTask": "Uppgift",
+      "speaker": "Talare {speaker}",
+      "invoiceNeedsCustomer": "Koppla en kund till inspelningen för att skapa en faktura.",
+      "notFound": "Inspelningen kunde inte hittas."
+    },
+    "actions": {
+      "edit": "Redigera",
+      "toTask": "Gör till uppgift",
+      "toInvoice": "Gör till faktura",
+      "delete": "Ta bort"
+    },
+    "delete": {
+      "title": "Ta bort inspelning",
+      "description": "Vill du ta bort den här inspelningen? Det går inte att ångra.",
+      "deleted": "Inspelningen togs bort"
+    },
+    "upload": {
+      "title": "Ladda upp röstnotering",
+      "description": "Ladda upp en ljudfil eller spela in en direkt i webbläsaren.",
+      "titleLabel": "Titel",
+      "file": "Ljudfil",
+      "record": "Spela in i webbläsaren",
+      "startRecording": "Starta inspelning",
+      "stopRecording": "Stoppa inspelning",
+      "recording": "Spelar in…",
+      "recorded": "Inspelning klar ({duration})",
+      "rerecord": "Spela in igen",
+      "recordUnavailable": "Inspelning i webbläsaren är inte tillgänglig i den här webbläsaren. Välj en ljudfil i stället.",
+      "micDenied": "Åtkomst till mikrofonen nekades. Välj en ljudfil i stället.",
+      "selectedFile": "Vald: {name}",
+      "noSource": "Välj en fil eller spela in ljud först.",
+      "titleRequired": "Ange en titel.",
+      "occurredAt": "Datum",
+      "submit": "Ladda upp",
+      "uploaded": "Röstnoteringen laddades upp"
+    },
+    "call": {
+      "title": "Logga ett samtal",
+      "description": "Spara ett telefonsamtal som en notering.",
+      "titleLabel": "Titel",
+      "direction": "Riktning",
+      "fromNumber": "Från nummer",
+      "toNumber": "Till nummer",
+      "durationSeconds": "Längd (sekunder)",
+      "occurredAt": "Datum",
+      "notes": "Anteckningar",
+      "titleRequired": "Ange en titel.",
+      "submit": "Logga samtal",
+      "logged": "Samtalet loggades"
+    },
+    "edit": {
+      "title": "Redigera inspelning",
+      "description": "Uppdatera titel, datum och kopplingar.",
+      "titleLabel": "Titel",
+      "occurredAt": "Datum",
+      "titleRequired": "Ange en titel.",
+      "saved": "Inspelningen uppdaterades"
+    },
+    "toTask": {
+      "title": "Gör till uppgift",
+      "description": "Skapa en uppgift från den här inspelningen.",
+      "taskTitle": "Titel",
+      "assignee": "Ansvarig",
+      "unassigned": "Ej tilldelad",
+      "dueDate": "Förfallodatum",
+      "create": "Skapa uppgift",
+      "created": "Uppgiften skapades",
+      "viewTask": "Visa uppgift"
+    },
+    "toInvoice": {
+      "title": "Gör till faktura",
+      "description": "Skapa ett fakturautkast från den här inspelningen.",
+      "noCustomer": "Koppla en kund till inspelningen innan du skapar en faktura.",
+      "descriptionLabel": "Beskrivning",
+      "unitPrice": "Styckpris",
+      "quantity": "Antal",
+      "taxRatePercent": "Moms (%)",
+      "create": "Skapa faktura",
+      "created": "Fakturautkast skapat",
+      "viewInvoice": "Visa faktura"
     }
   }
 }

@@ -82,7 +82,8 @@
     "accountingPeriods": "Fiscal periods",
     "accountingReports": "Reports",
     "calendar": "Calendar",
-    "email": "Mail"
+    "email": "Mail",
+    "recordings": "Voice notes"
   },
   "auth": {
     "login": {
@@ -1448,6 +1449,148 @@
       "create": "Create task",
       "created": "Task created",
       "viewTask": "View task"
+    }
+  },
+  "recordings": {
+    "title": "Voice notes",
+    "restricted": "You do not have permission to view voice notes.",
+    "uploadVoiceNote": "Upload voice note",
+    "logCall": "Log call",
+    "backToList": "Back to voice notes",
+    "source": {
+      "VOICE_NOTE": "Voice note",
+      "CALL": "Call"
+    },
+    "direction": {
+      "INBOUND": "Inbound",
+      "OUTBOUND": "Outbound"
+    },
+    "status": {
+      "UPLOADED": "Uploaded",
+      "TRANSCRIBING": "Transcribing",
+      "TRANSCRIBED": "Transcribed",
+      "FAILED": "Failed"
+    },
+    "transcriptStatus": {
+      "NONE": "No transcript",
+      "PENDING": "Transcribing…",
+      "COMPLETED": "Transcribed",
+      "FAILED": "Transcription failed"
+    },
+    "list": {
+      "searchPlaceholder": "Search voice notes",
+      "empty": "No voice notes yet.",
+      "emptyFiltered": "No voice notes match your filters.",
+      "emptyDescription": "Upload a voice note or log a call to get started.",
+      "allSources": "All sources",
+      "allStatuses": "All statuses",
+      "filterSource": "Filter by source",
+      "filterStatus": "Filter by status",
+      "columnTitle": "Title",
+      "columnSource": "Source",
+      "columnDate": "Date",
+      "columnDuration": "Duration",
+      "columnTranscript": "Transcript",
+      "columnCustomer": "Customer",
+      "none": "—"
+    },
+    "detail": {
+      "occurredAt": "Date",
+      "duration": "Duration",
+      "direction": "Direction",
+      "from": "From",
+      "to": "To",
+      "audio": "Audio",
+      "audioUnavailable": "No audio is attached to this recording.",
+      "transcript": "Transcript",
+      "transcriptPending": "Transcribing… this can take a moment.",
+      "transcriptNone": "No transcript is available for this recording.",
+      "transcriptFailedTitle": "Transcription failed",
+      "retry": "Retry transcription",
+      "retranscribe": "Retranscribe",
+      "retranscribed": "Transcription restarted",
+      "linkedCustomer": "Customer",
+      "linkedProject": "Project",
+      "linkedTask": "Task",
+      "speaker": "Speaker {speaker}",
+      "invoiceNeedsCustomer": "Link a customer to this recording to convert it into an invoice.",
+      "notFound": "This recording could not be found."
+    },
+    "actions": {
+      "edit": "Edit",
+      "toTask": "Convert to task",
+      "toInvoice": "Convert to invoice",
+      "delete": "Delete"
+    },
+    "delete": {
+      "title": "Delete recording",
+      "description": "Delete this recording? This cannot be undone.",
+      "deleted": "Recording deleted"
+    },
+    "upload": {
+      "title": "Upload voice note",
+      "description": "Upload an audio file or record one in your browser.",
+      "titleLabel": "Title",
+      "file": "Audio file",
+      "record": "Record in browser",
+      "startRecording": "Start recording",
+      "stopRecording": "Stop recording",
+      "recording": "Recording…",
+      "recorded": "Recording ready ({duration})",
+      "rerecord": "Record again",
+      "recordUnavailable": "In-browser recording isn't available in this browser. Choose an audio file instead.",
+      "micDenied": "Microphone access was denied. Choose an audio file instead.",
+      "selectedFile": "Selected: {name}",
+      "noSource": "Choose a file or record audio first.",
+      "titleRequired": "Please enter a title.",
+      "occurredAt": "Date",
+      "submit": "Upload",
+      "uploaded": "Voice note uploaded"
+    },
+    "call": {
+      "title": "Log a call",
+      "description": "Save a phone call as a note.",
+      "titleLabel": "Title",
+      "direction": "Direction",
+      "fromNumber": "From number",
+      "toNumber": "To number",
+      "durationSeconds": "Duration (seconds)",
+      "occurredAt": "Date",
+      "notes": "Notes",
+      "titleRequired": "Please enter a title.",
+      "submit": "Log call",
+      "logged": "Call logged"
+    },
+    "edit": {
+      "title": "Edit recording",
+      "description": "Update the title, date and links.",
+      "titleLabel": "Title",
+      "occurredAt": "Date",
+      "titleRequired": "Please enter a title.",
+      "saved": "Recording updated"
+    },
+    "toTask": {
+      "title": "Convert to task",
+      "description": "Create a task from this recording.",
+      "taskTitle": "Title",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "dueDate": "Due date",
+      "create": "Create task",
+      "created": "Task created",
+      "viewTask": "View task"
+    },
+    "toInvoice": {
+      "title": "Convert to invoice",
+      "description": "Create a draft invoice from this recording.",
+      "noCustomer": "Link a customer to this recording before creating an invoice.",
+      "descriptionLabel": "Description",
+      "unitPrice": "Unit price",
+      "quantity": "Quantity",
+      "taxRatePercent": "VAT (%)",
+      "create": "Create invoice",
+      "created": "Draft invoice created",
+      "viewInvoice": "View invoice"
     }
   }
 }

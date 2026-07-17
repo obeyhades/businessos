@@ -754,6 +754,57 @@ Thread ↔ label join table. Carries `organization_id` for consistency.
 - Composite PK `(thread_id, label_id)` — attaching a label is an idempotent upsert
 - Both FKs **Cascade**; index `(label_id)`
 
+## Phase 8 — voice notes & telephony
+
+Added by migration `20260717210840_phase8_recordings`. Two new tables; both carry
+`organization_id` for tenant isolation and cascade-delete with their organization. Audio lives
+in object storage (never in Postgres); transcription is produced asynchronously by the worker
+through a pluggable STT seam (see
+[architecture.md](architecture.md#voice-notes--transcription-phase-8) and
+[ADR-0009](decisions/adr-0009-pluggable-transcription-seam.md)).
+
+Enums:
+
+- `RecordingSource` — `VOICE_NOTE` (default; uploaded audio, transcribed) or `CALL` (a
+  telephony log with no audio)
+- `RecordingStatus` — `UPLOADED` (default) → `TRANSCRIBING` → `TRANSCRIBED` / `FAILED`; the
+  audio-processing lifecycle
+- `CallDirection` — `INBOUND`, `OUTBOUND` (set only on call logs)
+- `TranscriptStatus` — `NONE` (default; a call log has no transcript) or `PENDING` →
+  `COMPLETED` / `FAILED` — tracks the transcript independently of `status`, so a stalled or
+  failed transcription is distinguishable from the recording's own state
+
+### recordings
+
+A voice note or a call log.
+
+- `source` (`RecordingSource`), `title`
+- **Audio** (null for a call log): `storage_key` (**unique**, points at the object in storage —
+  never exposed in the DTO; the DTO carries a derived `hasAudio` instead), `content_type`,
+  `duration_seconds`, `size_bytes`
+- `status` (`RecordingStatus`, default `UPLOADED`)
+- **Call metadata** (source `CALL`): `direction` (`CallDirection`), `from_number`, `to_number`
+- `occurred_at` — when the note/call happened (defaults to now on create); the list sort key
+- **Transcription**: `transcript_status` (`TranscriptStatus`, default `NONE`), `transcript_text`
+  (nullable — for a call log this is seeded from the `notes` field), `transcript_language`
+  (BCP-47), `transcript_error` (the failure message when the worker marks it `FAILED`)
+- **Business context** `customer_id`, `project_id`, `task_id` — all nullable, all FK
+  **SetNull**, mirroring the Phase 2/6/7 denormalized ref chain. `task_id` is back-filled by
+  **recording → task**
+- `created_by_id` (FK to `users`, **SetNull**, `RecordingCreatedBy` relation)
+- Indexes `(organization_id, source, occurred_at)` — the filtered list — plus
+  `(organization_id, customer_id)` and `(organization_id, status)`
+
+### transcript_segments
+
+A time-coded segment of a recording's transcript (the worker rewrites the whole set on each
+transcription, making re-transcription idempotent).
+
+- `recording_id` (**Cascade**), `start_ms`, `end_ms`, `speaker` (nullable diarization label),
+  `text`, `sort_order` (default 0)
+- Carries `organization_id` for tenancy consistency
+- Index `(recording_id, sort_order)` — the ordered read for the detail endpoint
+
 ## Tenancy rule for future tables
 
 Every tenant-owned table added in later phases carries `organization_id` and is queried

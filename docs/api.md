@@ -582,6 +582,52 @@ organization id.
 `unknown_account` / `unknown_thread` / `unknown_customer` / `unknown_project` /
 `unknown_task` / `unknown_label` / `unknown_assignee` (400).
 
+## Phase 8 — voice notes & telephony
+
+All routes are under `/v1/recordings` and require an active organization. Two permissions gate
+the module: **`recordings.read`** (list/search, detail, audio download) and
+**`recordings.manage`** (upload, call-log, update, delete, re-transcribe). OWNER, ADMIN and
+MANAGER hold both; **EMPLOYEE and READONLY hold `recordings.read` only**; ACCOUNTANT has no
+recordings access. The two conversion endpoints are **dual-gated** — creating a task also needs
+`tasks.manage`, creating an invoice also needs `invoices.manage` — so neither permission is a
+back door into the other module (a MANAGER, who lacks `invoices.manage`, gets **403** on
+`→ invoice`).
+
+A recording is one of two kinds (`source`): a **`VOICE_NOTE`** carries uploaded audio and is
+transcribed asynchronously by the worker; a **`CALL`** is a telephony log with no audio and
+nothing to transcribe. The DTO never exposes the storage key — only a derived `hasAudio` flag.
+List responses use the standard pagination envelope (default page size 25, max 100) and **omit
+transcript segments**; only the detail endpoint carries them.
+
+The transcription lifecycle is two parallel fields: `status`
+(`UPLOADED` → `TRANSCRIBING` → `TRANSCRIBED` / `FAILED`) and `transcriptStatus` (`NONE` for a
+call log, else `PENDING` → `COMPLETED` / `FAILED`) — see
+[architecture.md](architecture.md#voice-notes--transcription-phase-8).
+
+| Method | Path                                    | Auth                                | Notes                                                                                                                                                                                                                                     |
+| ------ | --------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/recordings`                        | `recordings.read`                   | paginated; filters `?source=` (`VOICE_NOTE`/`CALL`), `?status=`, `?customerId=`, `?search=` (matches `title` **and** `transcriptText`, case-insensitive); sorted by `occurredAt` desc                                                     |
+| POST   | `/v1/recordings/voice-notes`            | `recordings.manage`                 | **multipart** audio file + query params `title`, `durationSeconds?`, `occurredAt?`, `customerId?`/`projectId?`/`taskId?`; 201 with `status=UPLOADED`, `transcriptStatus=PENDING`, `hasAudio=true`; queues transcription (see below); **400 `no_file` / `unsupported_type` / `file_too_large`** |
+| POST   | `/v1/recordings/call-logs`              | `recordings.manage`                 | 201; body `title`, `direction` (`INBOUND`/`OUTBOUND`), `fromNumber?`, `toNumber?`, `durationSeconds?`, `occurredAt?`, `notes?` (seeds `transcriptText`), links; `source=CALL`, `hasAudio=false`, `transcriptStatus=NONE`                   |
+| GET    | `/v1/recordings/:recordingId`           | `recordings.read`                   | detail **with transcript segments** (ordered by `sortOrder`)                                                                                                                                                                             |
+| PATCH  | `/v1/recordings/:recordingId`           | `recordings.manage`                 | update `title`/`occurredAt` and link/unlink `customerId`/`projectId`/`taskId` (nullable); each id validated in-org (**400 `unknown_customer`/`unknown_project`/`unknown_task`**); an empty body is **400 `validation_error`** ("Nothing to update") |
+| DELETE | `/v1/recordings/:recordingId`           | `recordings.manage`                 | 204; deletes the audio object and cascade-deletes segments                                                                                                                                                                               |
+| GET    | `/v1/recordings/:recordingId/audio`     | `recordings.read`                   | 200 `{ url, expiresInSeconds }` short-lived signed download URL for a voice note; **400 `no_audio`** for a call log                                                                                                                       |
+| POST   | `/v1/recordings/:recordingId/retranscribe` | `recordings.manage`              | 200; resets to `UPLOADED`/`PENDING` and **enqueues a fresh** `recording.uploaded` (new envelope id, so the consumer re-runs and rewrites segments); **400 `no_audio`** for a call log                                                     |
+| POST   | `/v1/recordings/:recordingId/task`      | `recordings.manage` + `tasks.manage`    | 201 **recording → task**: creates a Task (`title` defaults to the recording title, description = a whitespace-collapsed transcript snippet) carrying the recording's `customerId`/`projectId`, back-links `recording.taskId`; body `title?`, `assigneeId?`, `dueDate?`; **400 `unknown_assignee`** |
+| POST   | `/v1/recordings/:recordingId/invoice`   | `recordings.manage` + `invoices.manage` | 201 **recording → DRAFT invoice** for the recording's linked customer (single line: `description?` defaults to the transcript snippet/title, `unitPriceMinor`, `quantity`, `taxRatePercent`); **400 `no_customer`** if no customer is linked |
+
+### Notable recordings error codes
+
+`no_file` / `unsupported_type` / `file_too_large` (400, upload), `no_audio` (400,
+download/retranscribe on a call log), `no_customer` (400, `→ invoice`), `unknown_customer` /
+`unknown_project` / `unknown_task` / `unknown_assignee` (400), `validation_error` (400, empty
+PATCH).
+
+> Nothing in this module performs bookkeeping: `→ invoice` produces an ordinary **DRAFT** for
+> review, and no legal/tax-compliance claim attaches to it (see
+> [legal-review-required.md](legal-review-required.md)).
+
 ## OpenAPI
 
 - `GET /docs/json` serves the OpenAPI document in non-production environments.

@@ -235,3 +235,33 @@ needed. Docs (data-model, api, architecture, security, README, roadmap, legal-re
 updated to match. The money/VAT/numbering machinery is a **technical foundation only** and
 still requires professional review against momslagen/EU VAT and bokföringslagen before real
 use. Phase 5 (Bookkeeping support) is next.
+
+## 14. Status (2026-07-17, Phase 8) — catch-up through Phases 5–8
+
+This entry brings the status log current (the per-phase notes for 5–7 live in
+[product-roadmap.md](product-roadmap.md), the maintained phase tracker). Phase 5 (bookkeeping —
+double-entry ledger with event-driven draft vouchers), Phase 6 (calendar & tasks — server-side
+recurrence, reminders), and Phase 7 (email — shared/personal mailboxes, outbound via the worker
+pipeline, inbound via an authenticated webhook seam) all shipped and are documented there.
+
+**Phase 8 (Voice notes & telephony) is delivered.** The `recordings` API module and one worker
+consumer, backed by two new models — `Recording` and `TranscriptSegment` (migration
+`20260717210840_phase8_recordings`) — and shared zod contracts in `packages/types`. A recording
+is a **voice note** (uploaded audio) or a **call log** (no audio). Audio is validated
+server-side (MIME type + 50 MB cap) and stored through `@businessos/storage`; the DTO exposes a
+derived `hasAudio` and never the storage key, and audio is read back only via a short-lived
+signed URL. **Transcription is asynchronous**: upload writes a `recording.uploaded` outbox
+message in the same transaction, and the worker's `recording.transcribe` consumer transcribes
+through a **pluggable `Transcriber` seam** — a **deterministic `StubTranscriber`** now (offline,
+reproducible tests), a real STT provider at Phase 9 behind the same interface — rewriting
+time-coded segments in one transaction (idempotent), with `status`/`transcriptStatus` tracking
+progress and re-transcription enqueuing a fresh message (see
+[ADR-0009](decisions/adr-0009-pluggable-transcription-seam.md)). Search spans title and
+transcript text; **recording → task** and **recording → DRAFT invoice** are each dual-gated
+(`recordings.manage` + `tasks.manage` / `invoices.manage`) so neither permission is a back door.
+The reviewed permission matrix already carried `recordings.read` / `recordings.manage`, so no
+matrix change was needed. Docs (data-model, api, architecture, roadmap, this plan) and ADR-0009
+are updated to match. The `→ invoice` output is a **DRAFT for review only** — no bookkeeping or
+tax-compliance claim attaches (see [legal-review-required.md](legal-review-required.md)), and a
+real STT provider carries its own review since audio is personal data and the vendor a
+subprocessor. Phase 9 (integrations & compliance hardening) is next.

@@ -17,7 +17,6 @@ import {
 import type { Prisma } from '@businessos/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
 import { errors } from '../../lib/errors.js';
 import { toInvoiceDto } from '../../lib/mappers-billing.js';
 import { toTaskDto } from '../../lib/mappers-domain.js';
@@ -462,6 +461,15 @@ export function registerRecordingRoutes(app: FastifyInstance): void {
         where: { id: request.params.recordingId, organizationId },
       });
       if (!recording) throw errors.notFound('Recording');
+      // Converting sets recording.taskId to the produced task. If a task link
+      // already exists, refuse rather than silently clobber it (mirrors the
+      // quote→invoice already_converted guard). Unlink first to re-convert.
+      if (recording.taskId) {
+        throw errors.conflict(
+          'already_linked_to_task',
+          'This recording is already linked to a task; unlink it before creating a new one',
+        );
+      }
 
       if (body.assigneeId) {
         const member = await app.prisma.organizationMember.findFirst({

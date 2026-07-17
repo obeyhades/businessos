@@ -38,6 +38,7 @@ import type {
   ProductDto,
   ProjectDto,
   QuoteDto,
+  RecordingDto,
   RecurrenceFreq,
   SessionDto,
   TaskDto,
@@ -831,4 +832,96 @@ export async function postInbound(
     remoteAddress: nextIp(),
     payload: { subject: 'Inbound subject', text: 'Inbound body text', ...body },
   });
+}
+
+// --- Phase 8 (voice notes / telephony) factories ---------------------------
+
+/**
+ * Deterministic pseudo-audio bytes. The API validates by the declared MIME type
+ * (not by sniffing the container) and the local stub transcriber hashes the
+ * bytes, so any stable buffer is a valid stand-in for a real recording.
+ */
+export function buildAudio(seed = 'voice'): Buffer {
+  return Buffer.from(`RIFF....WEBMmock-audio-${seed}-${'0'.repeat(64)}`);
+}
+
+export interface VoiceNoteUpload {
+  title?: string;
+  durationSeconds?: number;
+  occurredAt?: string;
+  customerId?: string;
+  projectId?: string;
+  taskId?: string;
+  /** Override the declared MIME type (e.g. to test unsupported_type). */
+  contentType?: string;
+  filename?: string;
+  content?: Buffer;
+}
+
+/**
+ * Uploads a voice note via app.inject with a hand-built multipart body. The
+ * recording route reads the first file part (field name is irrelevant) and its
+ * metadata from query params, mirroring the api-client.
+ */
+export async function uploadVoiceNoteViaApi(
+  app: FastifyInstance,
+  session: Actor,
+  opts: VoiceNoteUpload = {},
+): Promise<LightMyRequestResponse> {
+  const params = new URLSearchParams();
+  params.set('title', opts.title ?? `Voice note ${nextSeq()}`);
+  if (opts.durationSeconds !== undefined) params.set('durationSeconds', String(opts.durationSeconds));
+  if (opts.occurredAt !== undefined) params.set('occurredAt', opts.occurredAt);
+  if (opts.customerId !== undefined) params.set('customerId', opts.customerId);
+  if (opts.projectId !== undefined) params.set('projectId', opts.projectId);
+  if (opts.taskId !== undefined) params.set('taskId', opts.taskId);
+  const { payload, contentType } = buildMultipart({
+    filename: opts.filename ?? 'note.webm',
+    contentType: opts.contentType ?? 'audio/webm',
+    content: opts.content ?? buildAudio(),
+  });
+  return app.inject({
+    method: 'POST',
+    url: `/v1/recordings/voice-notes?${params.toString()}`,
+    headers: { origin: WEB_ORIGIN, 'content-type': contentType },
+    cookies: { [SESSION_COOKIE]: session.cookie },
+    remoteAddress: nextIp(),
+    payload,
+  });
+}
+
+/** Uploads a voice note and asserts 201; returns the created recording. */
+export async function createVoiceNoteViaApi(
+  app: FastifyInstance,
+  session: Actor,
+  opts: VoiceNoteUpload = {},
+): Promise<RecordingDto> {
+  const response = await uploadVoiceNoteViaApi(app, session, opts);
+  expectStatus(response, 201, 'upload voice note');
+  return response.json<RecordingDto>();
+}
+
+/** Creates a call log (no audio) through the API; INBOUND unless overridden. */
+export async function createCallLogViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: Partial<{
+    title: string;
+    direction: 'INBOUND' | 'OUTBOUND';
+    fromNumber: string;
+    toNumber: string;
+    durationSeconds: number;
+    occurredAt: string;
+    notes: string;
+    customerId: string;
+    projectId: string;
+    taskId: string;
+  }> = {},
+): Promise<RecordingDto> {
+  const response = await api(ctx.app, 'POST', '/v1/recordings/call-logs', {
+    session,
+    body: { title: `Call ${nextSeq()}`, direction: 'INBOUND', ...overrides },
+  });
+  expectStatus(response, 201, 'create call log');
+  return response.json<RecordingDto>();
 }

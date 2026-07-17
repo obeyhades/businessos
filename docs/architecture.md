@@ -593,6 +593,92 @@ CRM automations, analytics): a downstream consumer binds its own queue to these 
 on `businessos.events` without the email module knowing about it. See
 [ADR-0008](decisions/adr-0008-inbound-email-webhook-seam.md) for the inbound-seam decision.
 
+## Voice notes & transcription (Phase 8)
+
+Phase 8 adds the `recordings` module (`apps/api/src/modules/recordings/`: `routes.ts`, a
+shared `service.ts` and `mappers.ts`) and one worker consumer. A **recording** is either a
+`VOICE_NOTE` (uploaded audio, transcribed asynchronously) or a `CALL` (a telephony log with no
+audio). Two permissions gate it — `recordings.read` and `recordings.manage` — and the two
+conversion endpoints are additionally gated by the target module's permission (see below).
+
+### Audio object-storage path (Phase 8)
+
+Voice-note audio never touches Postgres. Upload streams the multipart file through the API,
+validates the declared MIME type against `ALLOWED_AUDIO_TYPES` and the size against
+`MAX_AUDIO_BYTES` (50 MB) server-side, and `put`s it into the shared object store
+(`packages/storage`, the same MinIO/S3 seam used by Phase 2 attachments and Phase 4 PDFs) under
+an org-scoped key. The DB row stores only the `storage_key` (and it is **unique**); the DTO
+exposes a derived `hasAudio` flag and **never** the key. Audio is read back only through a
+short-lived **signed URL** (`GET /v1/recordings/:id/audio`) — a call log, having no audio,
+answers `400 no_audio`. The object is written **before** the row's transaction and deleted on a
+failed transaction (and on delete), so a leaked object never outlives a missing row.
+
+### Async transcription pipeline (Phase 8)
+
+Transcription is decoupled from the request through the transactional outbox — the same
+`outbox_messages` → RabbitMQ → consumer pattern as email and accounting. Uploading a voice note
+writes the recording row, its audit/activity rows and a **`recording.uploaded`** outbox message
+in **one transaction**; the relay publishes it to `businessos.events`, where it is bound to the
+**`recording.transcribe`** queue (`TRANSCRIPTION_QUEUE`):
+
+```
+POST /v1/recordings/voice-notes (one tx): Recording UPLOADED / PENDING (+ audio already in storage)
+        + outbox recording.uploaded { recordingId, organizationId, storageKey }
+                     │  worker outbox relay → businessos.events → recording.transcribe queue
+                     ▼
+   transcription consumer (apps/worker/src/consumers/transcription.ts)
+        │  Recording → TRANSCRIBING
+        │  storage.get(audio) → Transcriber.transcribe(...)  ← pluggable STT seam
+        ▼
+   one tx: delete + rewrite segments, Recording → TRANSCRIBED / COMPLETED (+ text, language)
+        │  failure (storage/STT): Recording → FAILED / FAILED (+ transcriptError), message acked
+        ▼
+   processed_messages ledger (idempotent); a hard/parse failure → failed_jobs (acked, no loop)
+```
+
+Key properties:
+
+- **Pluggable `Transcriber` seam.** The consumer depends on a small
+  `Transcriber` interface (`apps/worker/src/transcription/transcriber.ts`). Locally it runs a
+  **deterministic `StubTranscriber`** that derives a stable pseudo-transcript from a hash of the
+  audio bytes — the whole pipeline is exercisable and reproducible offline, with no paid STT
+  provider. Phase 9 swaps in a real provider (Whisper/Deepgram/…) behind the same interface;
+  nothing else changes. See [ADR-0009](decisions/adr-0009-pluggable-transcription-seam.md).
+- **Idempotent at-least-once.** A `processed_messages` row (keyed by envelope id + consumer)
+  suppresses redelivery, and the success write **deletes and rewrites all segments in one
+  transaction**, so even a re-run lands the same result. A storage/STT error flips the
+  recording to `FAILED` and **acks** the message (no infinite retry); the user re-requests via
+  re-transcribe.
+- **Re-transcription** (`POST /v1/recordings/:id/retranscribe`) resets the recording to
+  `UPLOADED`/`PENDING` and enqueues a **fresh** `recording.uploaded` — a new envelope id, so the
+  idempotency ledger does not suppress it, and the segment rewrite replaces the prior transcript.
+- **`status` vs `transcriptStatus`.** The recording's own lifecycle (`UPLOADED` → `TRANSCRIBING`
+  → `TRANSCRIBED`/`FAILED`) and the transcript's (`NONE` / `PENDING` → `COMPLETED`/`FAILED`) are
+  tracked separately, so a call log (`NONE`, no audio) and a failed transcription are each
+  distinguishable states.
+
+### Recording → task / invoice (Phase 8)
+
+Two flows connect a recording to the rest of the platform, each **dual-gated** so a permission
+in one module is never a back door into another:
+
+- **Recording → task** — `POST /v1/recordings/:id/task` (needs `recordings.manage` **and**
+  `tasks.manage`) creates a `Task` whose title defaults to the recording title and whose
+  description is a whitespace-collapsed transcript snippet (`transcriptSnippet`), carrying the
+  recording's `customerId`/`projectId` and back-linking `recording.taskId`.
+- **Recording → DRAFT invoice** — `POST /v1/recordings/:id/invoice` (needs `recordings.manage`
+  **and** `invoices.manage`) creates a **DRAFT** invoice for the recording's linked customer via
+  the shared Phase 4 money/line machinery (`buildDocument`); it refuses with `400 no_customer`
+  when no customer is linked. It produces a draft for review only — **no bookkeeping or
+  tax-compliance claim** attaches (see [legal-review-required.md](legal-review-required.md)).
+
+### Integration seam: `recording.uploaded`
+
+`recording.uploaded` is both the transcription **command** (consumed by the worker) and the
+Phase 8 seam. Because the audio path, tenancy and idempotency are settled behind it, a future
+real-time telephony or call-recording provider integrates by producing the same event (or by
+POSTing audio the same way) without the module changing.
+
 ## Where future modules attach
 
 Each later phase adds a module directory under `apps/api/src/modules/`, tables with
@@ -618,7 +704,10 @@ Each later phase adds a module directory under `apps/api/src/modules/`, tables w
   the existing worker email pipeline (with a SENT/FAILED status callback), inbound arrives
   through the authenticated webhook seam future providers plug into, and `email.received` /
   `email.sent` are emitted for future consumers (see the [Phase 7 section above](#email-phase-7)).
-- **Voice notes (8)** — voice notes store audio in MinIO
-  and process transcriptions as queued jobs.
+- **Voice notes & telephony (8, done)** — voice notes store audio in MinIO and are transcribed
+  asynchronously through the `recording.uploaded` queue by a **pluggable `Transcriber` seam**
+  (a deterministic local stub now, a real STT provider at Phase 9); call logs and
+  recording → task / DRAFT-invoice connect the module to the rest of the platform (see the
+  [Phase 8 section above](#voice-notes--transcription-phase-8)).
 - **Integrations (9)** — outbound webhooks are natural consumers of the existing topic
-  exchange.
+  exchange; the Phase 8 `Transcriber` seam is where a real STT provider drops in.

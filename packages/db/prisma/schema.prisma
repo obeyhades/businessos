@@ -1636,6 +1636,9 @@ model TranscriptSegment {
 
   recording Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
 
-  @@index([recordingId, sortOrder])
+  // Unique (not just indexed): a backstop so a concurrent re-transcription of
+  // the same recording can never persist duplicate segments — the second
+  // writer's transaction fails on this constraint and rolls back.
+  @@unique([recordingId, sortOrder])
   @@map("transcript_segments")
 }
