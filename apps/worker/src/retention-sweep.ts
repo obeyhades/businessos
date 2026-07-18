@@ -24,6 +24,24 @@ export function startRetentionSweep(
     if (running) return;
     running = true;
     try {
+      // Global pass (not policy-gated): a GDPR export is a full-org data dump
+      // with a fixed 7-day download TTL. Once expired, purge the blob and clear
+      // the key so the most sensitive artifact doesn't linger in storage.
+      const expiredExports = await prisma.dataExportJob.findMany({
+        where: { expiresAt: { lt: new Date() }, storageKey: { not: null } },
+        select: { id: true, storageKey: true },
+      });
+      for (const job of expiredExports) {
+        if (!job.storageKey) continue;
+        await storage
+          .delete(job.storageKey)
+          .catch((err) => logger.warn({ err, key: job.storageKey }, 'export purge failed'));
+        await prisma.dataExportJob.update({ where: { id: job.id }, data: { storageKey: null } });
+      }
+      if (expiredExports.length > 0) {
+        logger.info({ count: expiredExports.length }, 'retention: expired exports purged');
+      }
+
       const policies = await prisma.retentionPolicy.findMany();
       for (const policy of policies) {
         const org = policy.organizationId;

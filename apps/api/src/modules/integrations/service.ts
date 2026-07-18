@@ -11,7 +11,7 @@ import {
   type WebhookEndpointWithSecretDto,
 } from '@businessos/types';
 import { signWebhook } from '../../lib/webhook-sign.js';
-import { assertDeliverableUrl, UnsafeUrlError } from '../../lib/url-safety.js';
+import { UnsafeUrlError, safeRequest } from '../../lib/url-safety.js';
 
 /** A high-entropy signing secret shown to the user once. */
 export function generateWebhookSecret(): string {
@@ -80,38 +80,32 @@ export async function sendWebhook(
   payload: unknown,
   allowLocal: boolean,
 ): Promise<WebhookSendResult> {
-  try {
-    await assertDeliverableUrl(url, allowLocal);
-  } catch (err) {
-    return { delivered: false, error: err instanceof UnsafeUrlError ? err.message : 'unsafe_url' };
-  }
-
   const body = JSON.stringify(payload);
   const timestamp = Math.floor(Date.now() / 1000);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        [WEBHOOK_SIGNATURE_HEADER]: signWebhook(secret, body, timestamp),
-        [WEBHOOK_EVENT_HEADER]: eventType,
-        [WEBHOOK_DELIVERY_HEADER]: deliveryId,
-        [WEBHOOK_ENDPOINT_HEADER]: endpointId,
+    const res = await safeRequest(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          [WEBHOOK_SIGNATURE_HEADER]: signWebhook(secret, body, timestamp),
+          [WEBHOOK_EVENT_HEADER]: eventType,
+          [WEBHOOK_DELIVERY_HEADER]: deliveryId,
+          [WEBHOOK_ENDPOINT_HEADER]: endpointId,
+        },
+        body,
+        timeoutMs: WEBHOOK_TIMEOUT_MS,
       },
-      body,
-      signal: controller.signal,
-      redirect: 'manual',
-    });
+      allowLocal,
+    );
     // 2xx is success; everything else (incl. 3xx redirects we won't follow) fails.
     if (res.status >= 200 && res.status < 300) {
       return { delivered: true, responseStatus: res.status };
     }
     return { delivered: false, responseStatus: res.status, error: `HTTP ${res.status}` };
   } catch (err) {
+    if (err instanceof UnsafeUrlError) return { delivered: false, error: err.message };
     return { delivered: false, error: err instanceof Error ? err.message.slice(0, 500) : 'request_failed' };
-  } finally {
-    clearTimeout(timer);
   }
 }

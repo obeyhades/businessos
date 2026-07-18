@@ -628,6 +628,59 @@ PATCH).
 > review, and no legal/tax-compliance claim attaches to it (see
 > [legal-review-required.md](legal-review-required.md)).
 
+## Phase 9 — integrations & compliance
+
+Two modules, both **OWNER/ADMIN-only** (webhook secrets and the full event stream are
+sensitive). Integrations are gated by **`integrations.read`** (list/get endpoints and
+deliveries) and **`integrations.manage`** (create/update/delete, rotate-secret, ping,
+redeliver). Compliance is gated by **`org.update`** (export + retention PUT), **`org.read`**
+(retention GET) and **`org.delete`** (erasure — **OWNER only**; ADMIN gets 403).
+
+### Webhooks
+
+An endpoint subscribes to specific domain event types or to `'*'` (all). The worker fans each
+relayed event out to the org's enabled, subscribed endpoints as a signed POST; failures retry
+with backoff and are hand-redeliverable. See
+[architecture.md](architecture.md#webhook-dispatch-phase-9) and
+[security.md](security.md#webhook-signing--ssrf-phase-9).
+
+The signing header on every delivery is
+**`x-businessos-signature: t=<unixSeconds>,v1=<hex HMAC_SHA256(secret, `${t}.${rawBody}`)>`**,
+alongside `x-businessos-event`, `x-businessos-delivery` and `x-businessos-webhook-id`. The raw
+`secret` (`whsec_…`) is returned **only** on create and rotate-secret; every other response
+carries just a 4-char `secretHint`.
+
+| Method | Path                                                     | Auth                   | Notes                                                                                                                                                                     |
+| ------ | -------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/webhooks`                                           | `integrations.read`    | list endpoints (secretHint only)                                                                                                                                         |
+| POST   | `/v1/webhooks`                                           | `integrations.manage`  | 201; body `url` (http(s); **400 `validation_error`** on other schemes, **400 `unsafe_url`** on a private/loopback host when `WEBHOOK_ALLOW_LOCAL` is off), `description?`, `eventTypes` (≥1; `'*'` = all), `enabled?` — response carries the raw `secret` once |
+| GET    | `/v1/webhooks/:endpointId`                               | `integrations.read`    | detail (secretHint only)                                                                                                                                                 |
+| PATCH  | `/v1/webhooks/:endpointId`                               | `integrations.manage`  | update `url`/`description`/`eventTypes`/`enabled`; empty body → **400 `validation_error`**                                                                               |
+| DELETE | `/v1/webhooks/:endpointId`                               | `integrations.manage`  | 204; cascade-deletes deliveries                                                                                                                                          |
+| POST   | `/v1/webhooks/:endpointId/rotate-secret`                 | `integrations.manage`  | 200; returns a **new** raw `secret`, invalidating the old                                                                                                                |
+| POST   | `/v1/webhooks/:endpointId/ping`                          | `integrations.manage`  | 200 `{ delivered, responseStatus, error }` — sends a synchronous test `ping` delivery (no delivery row created)                                                          |
+| GET    | `/v1/webhooks/:endpointId/deliveries`                    | `integrations.read`    | paginated (default 25, max 100); filter `?status=` (`PENDING`/`SUCCEEDED`/`FAILED`)                                                                                      |
+| POST   | `/v1/webhooks/:endpointId/deliveries/:deliveryId/redeliver` | `integrations.manage` | 200; requeues a delivery (`PENDING`, attempts 0, `nextAttemptAt` = now) for the retry sweep                                                                              |
+
+### Compliance (GDPR)
+
+| Method | Path                                        | Auth         | Notes                                                                                                                                                     |
+| ------ | ------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/v1/organization/export`                   | `org.update` | **202**; creates a `PENDING` export job + enqueues `organization.export_requested` — the worker builds the bundle asynchronously                          |
+| GET    | `/v1/organization/exports`                  | `org.update` | list recent jobs (newest 20)                                                                                                                              |
+| GET    | `/v1/organization/exports/:jobId`           | `org.update` | job detail                                                                                                                                                |
+| GET    | `/v1/organization/exports/:jobId/download`  | `org.update` | 200 `{ url, expiresInSeconds }` signed URL when `COMPLETED`; **400 `export_not_ready`** while pending, **400 `export_expired`** past `expiresAt`          |
+| GET    | `/v1/organization/retention`                | `org.read`   | the four retention windows (null = keep indefinitely)                                                                                                     |
+| PUT    | `/v1/organization/retention`                | `org.update` | replaces the whole policy; omitted fields reset to null; each window 1–3650 days or null (**400 `validation_error`** out of range)                        |
+| DELETE | `/v1/organization`                          | `org.delete` | **OWNER only.** GDPR erasure; body `confirmSlug` must equal the org slug (**400 `confirmation_mismatch`**) → 200 `{ erasedOrganizationId, slug }`; cascade-deletes all org data |
+
+### Notable Phase 9 error codes
+
+`validation_error` (400; bad URL scheme, empty PATCH, out-of-range retention), `unsafe_url`
+(400; SSRF-blocked webhook host in production mode), `export_not_ready` / `export_expired`
+(400; download), `confirmation_mismatch` (400; erasure slug), `404` for a webhook/endpoint/
+delivery/export job not in the caller's organization.
+
 ## OpenAPI
 
 - `GET /docs/json` serves the OpenAPI document in non-production environments.

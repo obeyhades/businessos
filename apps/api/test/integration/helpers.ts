@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createPrismaClient, type PrismaClient } from '@businessos/db';
 import type {
   AccountDto,
@@ -44,6 +45,7 @@ import type {
   TaskDto,
   VoucherDto,
   VoucherLineInput,
+  WebhookEndpointWithSecretDto,
 } from '@businessos/types';
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../../src/app.js';
@@ -926,4 +928,78 @@ export async function createCallLogViaApi(
   });
   expectStatus(response, 201, 'create call log');
   return response.json<RecordingDto>();
+}
+
+// --- Phase 9 (integrations & compliance) factories -------------------------
+
+export interface WebhookOverrides {
+  url?: string;
+  description?: string;
+  eventTypes?: string[];
+  enabled?: boolean;
+}
+
+/**
+ * Creates a webhook endpoint through the API. The create response is the only
+ * time the raw signing `secret` is returned, so the DTO carries it. The default
+ * URL is an https placeholder that passes the shape check without a live
+ * receiver (delivery is never attempted for a create).
+ */
+export async function createWebhookViaApi(
+  ctx: TestContext,
+  session: Actor,
+  overrides: WebhookOverrides = {},
+): Promise<WebhookEndpointWithSecretDto> {
+  const response = await api(ctx.app, 'POST', '/v1/webhooks', {
+    session,
+    body: { url: `https://example.com/hook-${nextSeq()}`, eventTypes: ['*'], ...overrides },
+  });
+  expectStatus(response, 201, 'create webhook endpoint');
+  return response.json<WebhookEndpointWithSecretDto>();
+}
+
+/**
+ * Seeds a webhook delivery row directly via Prisma. The dispatch/retry path runs
+ * only in the worker (which the integration app does not start), so tests that
+ * exercise the delivery *API surface* (list, redeliver) seed a row here rather
+ * than depending on a running worker.
+ */
+export async function seedWebhookDelivery(
+  prisma: PrismaClient,
+  params: {
+    organizationId: string;
+    endpointId: string;
+    eventType?: string;
+    status?: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+    attempts?: number;
+    eventId?: string;
+    responseStatus?: number | null;
+    error?: string | null;
+    deliveredAt?: Date | null;
+    nextAttemptAt?: Date | null;
+  },
+): Promise<string> {
+  const eventId = params.eventId ?? randomUUID();
+  const row = await prisma.webhookDelivery.create({
+    data: {
+      organizationId: params.organizationId,
+      endpointId: params.endpointId,
+      eventId,
+      eventType: params.eventType ?? 'task.completed',
+      payload: {
+        id: eventId,
+        type: params.eventType ?? 'task.completed',
+        payload: { organizationId: params.organizationId },
+        occurredAt: new Date().toISOString(),
+      },
+      status: params.status ?? 'FAILED',
+      attempts: params.attempts ?? 6,
+      responseStatus: params.responseStatus ?? 500,
+      error: params.error ?? 'HTTP 500',
+      deliveredAt: params.deliveredAt ?? null,
+      nextAttemptAt: params.nextAttemptAt ?? null,
+    },
+    select: { id: true },
+  });
+  return row.id;
 }

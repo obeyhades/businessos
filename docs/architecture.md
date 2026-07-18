@@ -679,6 +679,73 @@ Phase 8 seam. Because the audio path, tenancy and idempotency are settled behind
 real-time telephony or call-recording provider integrates by producing the same event (or by
 POSTing audio the same way) without the module changing.
 
+## Integrations & compliance (Phase 9)
+
+Phase 9 turns the topic exchange into a customer-facing product (outbound webhooks) and adds the
+compliance controls a real tenant needs (GDPR export, data retention, right-to-be-forgotten).
+It introduces no new infrastructure — webhooks are just another consumer of `businessos.events`,
+and the export/retention jobs reuse the outbox → worker pipeline.
+
+### Webhook dispatch (Phase 9)
+
+An org registers endpoints (`POST /v1/webhooks`) that subscribe to specific domain events or to
+`'*'`. Delivery is a fan-out off the existing event stream:
+
+1. **Bind to everything.** The worker's `webhook.dispatch` consumer binds `#` on
+   `businessos.events`, so it observes every relayed event. It ignores internal commands
+   (`webhookableEventTypes` excludes `email.send`).
+2. **Per-endpoint delivery rows.** For an event carrying an `organizationId`, the consumer loads
+   that org's **enabled** endpoints whose `event_types` match (`has: type` OR `has: '*'`) and
+   creates one `webhook_deliveries` row per endpoint. The row is unique on
+   `(endpoint_id, event_id)`, so a redelivered event (at-least-once) never double-creates —
+   a unique-violation is swallowed.
+3. **Signed POST.** Each attempt re-checks the URL for SSRF (DNS may have moved since create —
+   see security.md), then POSTs the event envelope as JSON with an HMAC signature header plus
+   `x-businessos-event`, `x-businessos-delivery` and `x-businessos-webhook-id`. Only a `2xx`
+   (redirects are **not** followed) counts as delivered; the request times out after
+   `WEBHOOK_TIMEOUT_MS`.
+4. **Retry sweep.** A failed attempt stays `PENDING` with an exponential-backoff
+   `next_attempt_at`; the `webhook-retry-sweep` re-attempts due rows (and recovers a first
+   attempt stranded by a crash after a grace window). After `WEBHOOK_MAX_ATTEMPTS` the row
+   becomes `FAILED` — terminal, but redeliverable by hand (`POST …/redeliver` resets it to
+   `PENDING`, attempts 0, due now). A synchronous `POST …/ping` sends a test `ping` event inline
+   and returns the delivered/status result without creating a row.
+
+The **secret** is generated on create (`whsec_…`), returned once, and thereafter exposed only as
+a `secretHint`. Rotation issues a new secret and invalidates the old.
+
+### GDPR data-portability export (Phase 9)
+
+`POST /v1/organization/export` writes a `data_export_jobs` row (`PENDING`) and an
+`organization.export_requested` outbox event in one transaction, then returns **202**. The
+worker's `export` consumer builds a single JSON bundle of every org-scoped table, uploads it to
+object storage, and marks the job `COMPLETED` with a `storage_key`, `size_bytes` and a 7-day
+`expires_at`. The bundle **excludes secrets** (webhook signing secrets are selected without the
+`secret` column; password hashes and session tokens live outside the org scope entirely). The
+download route returns a short-lived signed URL only while the job is `COMPLETED` and unexpired
+(`export_not_ready` / `export_expired` otherwise). The consumer is idempotent via the
+`processed_messages` ledger.
+
+### Retention sweep (Phase 9)
+
+`retention_policies` holds four nullable windows (recordings, audit logs, activities, webhook
+deliveries). The worker's `retention-sweep` runs each policy on an interval: for every non-null
+window it deletes rows older than `now - days`. Recording audio objects are purged from storage
+**before** their rows are deleted, so a retention delete never orphans a blob. A null window
+means "retain indefinitely" and is skipped.
+
+### Multi-worker outbox: `SELECT … FOR UPDATE SKIP LOCKED` (Phase 9)
+
+The outbox relay (ADR-0005) previously had no row locking, which pinned the deployment to a
+single worker instance. Phase 9 claims each batch with `SELECT … FOR UPDATE SKIP LOCKED` inside
+the relay transaction and marks rows published **in that same transaction**, so concurrent
+relays never grab the same row and no event is double-published (ADR-0011). The lock is held
+across the broker confirm, so the batch transaction runs with a raised timeout; delivery stays
+at-least-once (a crash after confirm but before mark re-publishes, and consumers remain
+idempotent). This lets the worker scale horizontally — see
+[ADR-0011](decisions/adr-0011-multi-worker-outbox-skip-locked.md) and
+[deployment.md](deployment.md).
+
 ## Where future modules attach
 
 Each later phase adds a module directory under `apps/api/src/modules/`, tables with
@@ -709,5 +776,8 @@ Each later phase adds a module directory under `apps/api/src/modules/`, tables w
   (a deterministic local stub now, a real STT provider at Phase 9); call logs and
   recording → task / DRAFT-invoice connect the module to the rest of the platform (see the
   [Phase 8 section above](#voice-notes--transcription-phase-8)).
-- **Integrations (9)** — outbound webhooks are natural consumers of the existing topic
-  exchange; the Phase 8 `Transcriber` seam is where a real STT provider drops in.
+- **Integrations & compliance (9, done)** — outbound webhooks fan off the existing topic
+  exchange (signed, retried, redeliverable), plus GDPR export, per-org retention sweeps and
+  organization erasure; the outbox relay is now multi-worker safe via `SKIP LOCKED` (see the
+  [Phase 9 section above](#integrations--compliance-phase-9)). This completes the 9-phase plan.
+  The Phase 8 `Transcriber` seam remains where a real STT provider drops in.

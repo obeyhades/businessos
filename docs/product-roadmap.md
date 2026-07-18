@@ -3,11 +3,13 @@
 Phase 0–1 (foundation, auth, organizations, RBAC, audit, dashboard shell), Phase 2
 (customers, projects, tasks, comments, attachments, activity, search), Phase 3
 (personnel), Phase 4 (quotes & invoicing), Phase 5 (bookkeeping support), Phase 6
-(calendar & tasks), Phase 7 (email) and Phase 8 (voice notes & telephony) are **done** — see
+(calendar & tasks), Phase 7 (email), Phase 8 (voice notes & telephony) and Phase 9
+(integrations & compliance hardening) are **done** — see
 [implementation-plan.md](implementation-plan.md).
-**Phase 9 (integrations & compliance hardening) is next.** Everything from Phase 9 on is
-planned, not built.
-Permissions for all of these modules already exist in the reviewed matrix
+**The project is now feature-complete against the 9-phase plan.** Remaining work is the
+per-phase "Future work" items below (real provider swaps, DST-correct recurrence, etc.) and the
+standing legal/compliance reviews — the codebase itself has shipped every planned phase.
+Permissions for all of these modules exist in the reviewed matrix
 (`packages/types/src/permissions.ts`), and each module attaches per the patterns in
 [architecture.md](architecture.md#where-future-modules-attach).
 
@@ -190,14 +192,37 @@ Delivered:
 vendor is a **subprocessor** needing a DPA — plus real-time telephony / call-recording provider
 integration producing the same `recording.uploaded` event.
 
-## Phase 9 — Integrations & compliance hardening
+## Phase 9 — Integrations & compliance hardening — **Done**
 
-Definition of done:
+Delivered:
 
-- External integrations (webhooks as consumers of `businessos.events`; first-party
-  integrations as needed)
-- **Data retention policies enforced**; **organization export and deletion implemented**
-  (GDPR portability/erasure — currently designed-not-implemented)
-- Postgres row-level security re-evaluated (ADR-0004) and a decision recorded
-- Multi-worker outbox via `SELECT … FOR UPDATE SKIP LOCKED` if scale requires (ADR-0005)
-- Custom role editor evaluated (matrix is code-defined today, ADR-0003)
+- **Outbound webhooks** as a first-class integration on `businessos.events`: org-managed
+  endpoints subscribe to specific events or `'*'`, the worker fans each event out as an
+  **HMAC-signed POST** (Stripe-style `t=…,v1=…` header), one **delivery row per (endpoint,
+  event)** (unique → idempotent), with **exponential-backoff retries**, a **retry sweep**,
+  **secret rotation**, a synchronous **ping** test and manual **redelivery**. Permissions
+  `integrations.read` / `integrations.manage` (OWNER/ADMIN only)
+- **SSRF guard** on every tenant-supplied URL (`assertDeliverableUrl` / `isBlockedAddress`,
+  identical in API and worker; re-checked at delivery time), with `WEBHOOK_ALLOW_LOCAL` off in
+  production (see [security.md](security.md#webhook-signing--ssrf-phase-9))
+- **GDPR data-portability export** — async JSON bundle of all org data to object storage via a
+  short-lived signed URL, **secrets excluded** — and **per-org data-retention policies enforced**
+  by a worker retention sweep (recordings / audit logs / activities / webhook deliveries)
+- **Organization erasure** (right-to-be-forgotten) — **OWNER-only**, typed-slug confirmation,
+  cascade-deletes all org data and purges storage objects
+- **Multi-worker outbox** via `SELECT … FOR UPDATE SKIP LOCKED` — the relay is now safe to run
+  on multiple worker instances (no double-publish); supersedes ADR-0005's single-relay note
+  ([ADR-0011](decisions/adr-0011-multi-worker-outbox-skip-locked.md))
+- **Two evaluations recorded**: Postgres row-level security re-evaluated — app-layer tenancy
+  kept as the primary control, RLS documented as future defence-in-depth
+  ([ADR-0010](decisions/adr-0010-postgres-rls-evaluation.md), amending ADR-0004); and a
+  **custom role editor** evaluated — the code-defined matrix is kept, with the requirements for
+  a future editor recorded ([ADR-0012](decisions/adr-0012-custom-role-editor-evaluation.md),
+  amending ADR-0003)
+
+**Compliance caveats unchanged:** bookkeeping/VAT is not legally reviewed, and audio (STT) and
+email remain personal-data processing needing DPO/subprocessor review
+([legal-review-required.md](legal-review-required.md)). Export/erasure/retention are implemented
+controls, not a completed GDPR programme.
+
+**This completes the 9-phase plan — the product is feature-complete against the roadmap.**

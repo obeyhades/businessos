@@ -83,7 +83,9 @@
     "accountingReports": "Reports",
     "calendar": "Calendar",
     "email": "Mail",
-    "recordings": "Voice notes"
+    "recordings": "Voice notes",
+    "webhooks": "Webhooks",
+    "dataPrivacy": "Data & privacy"
   },
   "auth": {
     "login": {
@@ -1591,6 +1593,189 @@
       "create": "Create invoice",
       "created": "Draft invoice created",
       "viewInvoice": "View invoice"
+    }
+  },
+  "integrations": {
+    "title": "Webhooks",
+    "subtitle": "Deliver BusinessOS events to your own HTTPS endpoints.",
+    "restricted": "You do not have permission to view webhooks.",
+    "add": "Add endpoint",
+    "list": {
+      "empty": "No webhook endpoints yet.",
+      "emptyDescription": "Add an endpoint to start receiving event notifications.",
+      "columnUrl": "Endpoint",
+      "columnEvents": "Events",
+      "columnEnabled": "Enabled",
+      "columnSecret": "Secret",
+      "columnCreated": "Created",
+      "allEvents": "All events",
+      "moreEvents": "+{count} more"
+    },
+    "enabledOn": "Enabled",
+    "enabledOff": "Disabled",
+    "toggleAria": "Toggle deliveries for this endpoint",
+    "toggle": {
+      "enabled": "Deliveries enabled.",
+      "disabled": "Deliveries disabled."
+    },
+    "form": {
+      "addTitle": "Add webhook endpoint",
+      "addDescription": "We POST a signed JSON payload to this URL whenever a subscribed event occurs.",
+      "editTitle": "Edit webhook endpoint",
+      "editDescription": "Change the URL, description, events or delivery state.",
+      "url": "Endpoint URL",
+      "urlPlaceholder": "https://example.com/webhooks",
+      "urlHint": "Must be an HTTPS URL that accepts POST requests.",
+      "urlRequired": "Enter an endpoint URL.",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional label to recognise this endpoint",
+      "events": "Events",
+      "enabledLabel": "Deliver events to this endpoint",
+      "submitAdd": "Create endpoint",
+      "submitEdit": "Save changes",
+      "created": "Webhook endpoint created.",
+      "updated": "Webhook endpoint updated."
+    },
+    "events": {
+      "all": "Subscribe to all events",
+      "allHint": "This endpoint receives every event type, including ones added in the future.",
+      "specific": "Choose specific events",
+      "selectAtLeastOne": "Select at least one event.",
+      "selectedCount": "{count} selected"
+    },
+    "secret": {
+      "createdTitle": "Endpoint created",
+      "rotatedTitle": "Secret rotated",
+      "intro": "Copy your signing secret now.",
+      "warning": "This secret is shown only once and cannot be retrieved again. Store it somewhere safe.",
+      "usage": "Use it to verify the x-businessos-signature header on every delivery.",
+      "copy": "Copy secret",
+      "copied": "Secret copied to clipboard.",
+      "done": "Done"
+    },
+    "detail": {
+      "back": "Back to webhooks",
+      "configuration": "Configuration",
+      "url": "Endpoint URL",
+      "description": "Description",
+      "noDescription": "No description",
+      "events": "Subscribed events",
+      "secret": "Secret",
+      "created": "Created",
+      "updated": "Last updated",
+      "signingTitle": "Verifying deliveries",
+      "signingBody": "Every request is signed with HMAC-SHA256. Recompute the signature over the raw request body and compare it with the x-businessos-signature header before trusting a payload."
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "rotate": "Rotate secret",
+      "ping": "Send test event"
+    },
+    "ping": {
+      "delivered": "Test event delivered (HTTP {status}).",
+      "failedStatus": "Endpoint responded with HTTP {status}.",
+      "failedError": "Test delivery failed: {error}",
+      "failed": "Test delivery failed."
+    },
+    "delete": {
+      "title": "Delete endpoint",
+      "description": "Delete this webhook endpoint? Deliveries stop immediately and delivery history is removed. This cannot be undone.",
+      "deleted": "Webhook endpoint deleted."
+    },
+    "rotate": {
+      "title": "Rotate signing secret",
+      "description": "The current secret stops working immediately and a new one is generated. Update your integration as soon as you have copied it.",
+      "confirm": "Rotate secret"
+    },
+    "deliveries": {
+      "title": "Deliveries",
+      "subtitle": "The most recent delivery attempts for this endpoint.",
+      "empty": "No deliveries yet.",
+      "emptyDescription": "Delivery attempts appear here once events are sent.",
+      "columnEvent": "Event",
+      "columnStatus": "Status",
+      "columnAttempts": "Attempts",
+      "columnResponse": "Response",
+      "columnTime": "Last attempt",
+      "columnActions": "Actions",
+      "redeliver": "Redeliver",
+      "redelivered": "Delivery re-queued.",
+      "nextAttempt": "Next attempt {time}",
+      "none": "—",
+      "filterStatus": "Filter by status",
+      "allStatuses": "All statuses"
+    },
+    "status": {
+      "PENDING": "Pending",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed"
+    }
+  },
+  "compliance": {
+    "title": "Data & privacy",
+    "subtitle": "Export your data, control how long it is kept, and erase this organization.",
+    "restricted": "You do not have permission to manage data & privacy settings.",
+    "export": {
+      "title": "Data export",
+      "description": "Generate a downloadable archive of this organization's data for portability (GDPR).",
+      "request": "Request export",
+      "requested": "Export requested. We will prepare your archive.",
+      "processing": "Your export is being prepared. This can take a few minutes.",
+      "ready": "Your export is ready.",
+      "failed": "The last export failed. Please request a new one.",
+      "download": "Download export",
+      "expiresAt": "Download available until {time}",
+      "expired": "This download link has expired. Request a new export.",
+      "recent": "Recent exports",
+      "none": "No exports requested yet.",
+      "columnRequested": "Requested",
+      "columnStatus": "Status",
+      "columnSize": "Size",
+      "columnActions": "Actions",
+      "unknownSize": "—"
+    },
+    "exportStatus": {
+      "PENDING": "Pending",
+      "PROCESSING": "Processing",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed"
+    },
+    "retention": {
+      "title": "Data retention",
+      "description": "Automatically delete data older than the number of days you choose. Leave a field on \"Keep forever\" to retain it indefinitely.",
+      "readOnly": "You can view the retention policy, but only administrators can change it.",
+      "recordings": "Voice notes & recordings",
+      "recordingsHelp": "Recordings and their transcripts.",
+      "auditLogs": "Audit log",
+      "auditLogsHelp": "Security and administrative audit entries.",
+      "activities": "Activity feed",
+      "activitiesHelp": "The activity timeline shown across the app.",
+      "webhookDeliveries": "Webhook deliveries",
+      "webhookDeliveriesHelp": "Delivery attempt history for webhook endpoints.",
+      "days": "Days",
+      "daysUnit": "days",
+      "forever": "Keep forever",
+      "limited": "Delete after…",
+      "invalid": "Enter a whole number of days between 1 and 3650.",
+      "save": "Save retention policy",
+      "saved": "Retention policy saved.",
+      "updatedAt": "Last changed {time}",
+      "neverUpdated": "Using default policy."
+    },
+    "danger": {
+      "title": "Danger zone",
+      "eraseTitle": "Erase this organization",
+      "description": "Permanently delete this organization and everything in it — customers, projects, invoices, recordings, members and all other data. This happens immediately and cannot be undone.",
+      "ownerOnly": "Only the organization owner can erase the organization.",
+      "erase": "Erase organization",
+      "confirmTitle": "Erase {name}?",
+      "confirmDescription": "This permanently deletes the organization and every record it contains. There is no way to recover it.",
+      "typeToConfirm": "Type the organization slug to confirm:",
+      "slugLabel": "Organization slug",
+      "slugMismatch": "The slug does not match.",
+      "confirm": "Permanently erase",
+      "erased": "Organization erased."
     }
   }
 }

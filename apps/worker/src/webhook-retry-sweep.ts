@@ -1,12 +1,15 @@
 import { WEBHOOK_MAX_ATTEMPTS } from '@businessos/types';
 import type { PrismaClient } from '@businessos/db';
 import type { Logger } from 'pino';
-import { attemptDelivery } from './webhook/deliver.js';
+import { finalizeClaimedDelivery } from './webhook/deliver.js';
 
 const BATCH = 50;
 /** A never-attempted PENDING row this old is treated as a crashed inline
  *  attempt and recovered (the grace window avoids racing the live inline send). */
 const STRANDED_GRACE_MS = 2 * 60 * 1000;
+/** When a sweep claims a row, it pushes nextAttemptAt this far out so a slow
+ *  send doesn't get re-picked (by this or another replica) mid-flight. */
+const LEASE_MS = 60 * 1000;
 
 /**
  * Re-attempts webhook deliveries whose backoff has elapsed. Retriable failures
@@ -44,14 +47,30 @@ export function startWebhookRetrySweep(
         take: BATCH,
       });
 
+      let claimed = 0;
       for (const delivery of due) {
+        // Atomic claim across worker replicas: increment attempts only if the
+        // row is still PENDING at the exact attempt count we read. The single
+        // winner proceeds; a racing sweep's updateMany matches 0 rows and skips.
+        const claim = await prisma.webhookDelivery.updateMany({
+          where: { id: delivery.id, status: 'PENDING', attempts: delivery.attempts },
+          data: { attempts: { increment: 1 }, nextAttemptAt: new Date(now.getTime() + LEASE_MS) },
+        });
+        if (claim.count !== 1) continue;
+        claimed += 1;
         try {
-          await attemptDelivery(prisma, delivery.endpoint, delivery, allowLocal);
+          await finalizeClaimedDelivery(
+            prisma,
+            delivery.endpoint,
+            delivery,
+            delivery.attempts + 1,
+            allowLocal,
+          );
         } catch (err) {
           logger.error({ err, deliveryId: delivery.id }, 'webhook retry attempt errored');
         }
       }
-      if (due.length > 0) logger.info({ count: due.length }, 'webhook retry sweep processed');
+      if (claimed > 0) logger.info({ count: claimed }, 'webhook retry sweep processed');
     } catch (err) {
       logger.error({ err }, 'webhook retry sweep failed');
     } finally {

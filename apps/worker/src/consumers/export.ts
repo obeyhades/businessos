@@ -57,6 +57,18 @@ async function buildOrgExport(
     recordings,
     webhookEndpoints,
     auditLogs,
+    fileAttachments,
+    emailAttachments,
+    voucherAttachments,
+    emailLabels,
+    emailThreadLabels,
+    onboardingTemplates,
+    fiscalYears,
+    fiscalPeriods,
+    accountMappings,
+    numberSequences,
+    eventReminders,
+    eventExceptions,
   ] = await prisma.$transaction([
     prisma.organization.findUnique({ where: { id: organizationId } }),
     prisma.organizationMember.findMany({
@@ -99,6 +111,18 @@ async function buildOrgExport(
       },
     }),
     prisma.auditLog.findMany(where),
+    prisma.fileAttachment.findMany(where),
+    prisma.emailAttachment.findMany(where),
+    prisma.voucherAttachment.findMany(where),
+    prisma.emailLabel.findMany(where),
+    prisma.emailThreadLabel.findMany(where),
+    prisma.onboardingTemplate.findMany({ where: { organizationId }, include: { items: true } }),
+    prisma.fiscalYear.findMany(where),
+    prisma.fiscalPeriod.findMany(where),
+    prisma.accountMapping.findMany(where),
+    prisma.numberSequence.findMany(where),
+    prisma.eventReminder.findMany(where),
+    prisma.eventException.findMany(where),
   ]);
 
   return {
@@ -131,6 +155,18 @@ async function buildOrgExport(
     recordings,
     webhookEndpoints,
     auditLogs,
+    fileAttachments,
+    emailAttachments,
+    voucherAttachments,
+    emailLabels,
+    emailThreadLabels,
+    onboardingTemplates,
+    fiscalYears,
+    fiscalPeriods,
+    accountMappings,
+    numberSequences,
+    eventReminders,
+    eventExceptions,
   };
 }
 
@@ -143,17 +179,23 @@ async function generateExport(
   const job = await prisma.dataExportJob.findFirst({ where: { id: jobId, organizationId } });
   if (!job || job.status === 'COMPLETED') return 'skipped';
 
-  await prisma.dataExportJob.update({ where: { id: job.id }, data: { status: 'PROCESSING' } });
+  // Commit the (deterministic) storage key BEFORE uploading, so an org erasure
+  // that races an in-flight export still finds and purges the blob via
+  // collectOrgStorageKeys (which keys off storageKey). The download route gates
+  // on status===COMPLETED, so a PROCESSING row with a key isn't downloadable.
+  const key = `org/${organizationId}/exports/${job.id}.json`;
+  await prisma.dataExportJob.update({
+    where: { id: job.id },
+    data: { status: 'PROCESSING', storageKey: key },
+  });
   try {
     const bundle = await buildOrgExport(prisma, organizationId);
     const body = Buffer.from(JSON.stringify(bundle, jsonReplacer, 2), 'utf8');
-    const key = `org/${organizationId}/exports/${job.id}.json`;
     await storage.put(key, body, 'application/json');
     await prisma.dataExportJob.update({
       where: { id: job.id },
       data: {
         status: 'COMPLETED',
-        storageKey: key,
         sizeBytes: body.byteLength,
         completedAt: new Date(),
         expiresAt: new Date(Date.now() + EXPORT_TTL_DAYS * 24 * 60 * 60 * 1000),
@@ -162,11 +204,15 @@ async function generateExport(
     });
     return 'generated';
   } catch (err) {
+    // Best-effort purge of any partial blob, then clear the key so erasure/
+    // retention don't chase a dead object.
+    await storage.delete(key).catch(() => undefined);
     await prisma.dataExportJob
       .update({
         where: { id: job.id },
         data: {
           status: 'FAILED',
+          storageKey: null,
           error: err instanceof Error ? err.message.slice(0, 500) : String(err),
         },
       })

@@ -83,7 +83,9 @@
     "accountingReports": "Rapporter",
     "calendar": "Kalender",
     "email": "E-post",
-    "recordings": "Röstnoteringar"
+    "recordings": "Röstnoteringar",
+    "webhooks": "Webhooks",
+    "dataPrivacy": "Data & integritet"
   },
   "auth": {
     "login": {
@@ -1591,6 +1593,189 @@
       "create": "Skapa faktura",
       "created": "Fakturautkast skapat",
       "viewInvoice": "Visa faktura"
+    }
+  },
+  "integrations": {
+    "title": "Webhooks",
+    "subtitle": "Skicka händelser från BusinessOS till dina egna HTTPS-endpoints.",
+    "restricted": "Du har inte behörighet att visa webhooks.",
+    "add": "Lägg till endpoint",
+    "list": {
+      "empty": "Inga webhook-endpoints ännu.",
+      "emptyDescription": "Lägg till en endpoint för att börja ta emot händelseaviseringar.",
+      "columnUrl": "Endpoint",
+      "columnEvents": "Händelser",
+      "columnEnabled": "Aktiv",
+      "columnSecret": "Hemlighet",
+      "columnCreated": "Skapad",
+      "allEvents": "Alla händelser",
+      "moreEvents": "+{count} till"
+    },
+    "enabledOn": "Aktiv",
+    "enabledOff": "Inaktiv",
+    "toggleAria": "Slå på eller av leveranser för denna endpoint",
+    "toggle": {
+      "enabled": "Leveranser aktiverade.",
+      "disabled": "Leveranser inaktiverade."
+    },
+    "form": {
+      "addTitle": "Lägg till webhook-endpoint",
+      "addDescription": "Vi skickar en signerad JSON-payload till denna URL varje gång en prenumererad händelse inträffar.",
+      "editTitle": "Redigera webhook-endpoint",
+      "editDescription": "Ändra URL, beskrivning, händelser eller leveransstatus.",
+      "url": "Endpoint-URL",
+      "urlPlaceholder": "https://exempel.se/webhooks",
+      "urlHint": "Måste vara en HTTPS-URL som tar emot POST-anrop.",
+      "urlRequired": "Ange en endpoint-URL.",
+      "description": "Beskrivning",
+      "descriptionPlaceholder": "Valfri etikett för att känna igen denna endpoint",
+      "events": "Händelser",
+      "enabledLabel": "Leverera händelser till denna endpoint",
+      "submitAdd": "Skapa endpoint",
+      "submitEdit": "Spara ändringar",
+      "created": "Webhook-endpoint skapad.",
+      "updated": "Webhook-endpoint uppdaterad."
+    },
+    "events": {
+      "all": "Prenumerera på alla händelser",
+      "allHint": "Denna endpoint tar emot alla händelsetyper, även sådana som läggs till i framtiden.",
+      "specific": "Välj specifika händelser",
+      "selectAtLeastOne": "Välj minst en händelse.",
+      "selectedCount": "{count} valda"
+    },
+    "secret": {
+      "createdTitle": "Endpoint skapad",
+      "rotatedTitle": "Hemlighet roterad",
+      "intro": "Kopiera din signeringshemlighet nu.",
+      "warning": "Denna hemlighet visas bara en gång och kan inte hämtas igen. Förvara den på ett säkert ställe.",
+      "usage": "Använd den för att verifiera huvudet x-businessos-signature vid varje leverans.",
+      "copy": "Kopiera hemlighet",
+      "copied": "Hemligheten kopierad till urklipp.",
+      "done": "Klar"
+    },
+    "detail": {
+      "back": "Tillbaka till webhooks",
+      "configuration": "Konfiguration",
+      "url": "Endpoint-URL",
+      "description": "Beskrivning",
+      "noDescription": "Ingen beskrivning",
+      "events": "Prenumererade händelser",
+      "secret": "Hemlighet",
+      "created": "Skapad",
+      "updated": "Senast ändrad",
+      "signingTitle": "Verifiera leveranser",
+      "signingBody": "Varje anrop signeras med HMAC-SHA256. Beräkna om signaturen över den råa anropskroppen och jämför den med huvudet x-businessos-signature innan du litar på en payload."
+    },
+    "actions": {
+      "edit": "Redigera",
+      "delete": "Ta bort",
+      "rotate": "Rotera hemlighet",
+      "ping": "Skicka testhändelse"
+    },
+    "ping": {
+      "delivered": "Testhändelse levererad (HTTP {status}).",
+      "failedStatus": "Endpointen svarade med HTTP {status}.",
+      "failedError": "Testleveransen misslyckades: {error}",
+      "failed": "Testleveransen misslyckades."
+    },
+    "delete": {
+      "title": "Ta bort endpoint",
+      "description": "Ta bort denna webhook-endpoint? Leveranser stoppas omedelbart och leveranshistoriken tas bort. Detta kan inte ångras.",
+      "deleted": "Webhook-endpoint borttagen."
+    },
+    "rotate": {
+      "title": "Rotera signeringshemlighet",
+      "description": "Den nuvarande hemligheten slutar fungera omedelbart och en ny genereras. Uppdatera din integration så snart du har kopierat den.",
+      "confirm": "Rotera hemlighet"
+    },
+    "deliveries": {
+      "title": "Leveranser",
+      "subtitle": "De senaste leveransförsöken för denna endpoint.",
+      "empty": "Inga leveranser ännu.",
+      "emptyDescription": "Leveransförsök visas här när händelser skickas.",
+      "columnEvent": "Händelse",
+      "columnStatus": "Status",
+      "columnAttempts": "Försök",
+      "columnResponse": "Svar",
+      "columnTime": "Senaste försök",
+      "columnActions": "Åtgärder",
+      "redeliver": "Leverera igen",
+      "redelivered": "Leverans köad på nytt.",
+      "nextAttempt": "Nästa försök {time}",
+      "none": "—",
+      "filterStatus": "Filtrera på status",
+      "allStatuses": "Alla statusar"
+    },
+    "status": {
+      "PENDING": "Väntar",
+      "SUCCEEDED": "Lyckades",
+      "FAILED": "Misslyckades"
+    }
+  },
+  "compliance": {
+    "title": "Data & integritet",
+    "subtitle": "Exportera dina data, styr hur länge de sparas och radera denna organisation.",
+    "restricted": "Du har inte behörighet att hantera inställningar för data & integritet.",
+    "export": {
+      "title": "Dataexport",
+      "description": "Skapa ett nedladdningsbart arkiv med organisationens data för dataportabilitet (GDPR).",
+      "request": "Begär export",
+      "requested": "Export begärd. Vi förbereder ditt arkiv.",
+      "processing": "Din export förbereds. Det kan ta några minuter.",
+      "ready": "Din export är klar.",
+      "failed": "Den senaste exporten misslyckades. Begär en ny.",
+      "download": "Ladda ner export",
+      "expiresAt": "Nedladdning tillgänglig till {time}",
+      "expired": "Nedladdningslänken har gått ut. Begär en ny export.",
+      "recent": "Senaste exporter",
+      "none": "Inga exporter begärda ännu.",
+      "columnRequested": "Begärd",
+      "columnStatus": "Status",
+      "columnSize": "Storlek",
+      "columnActions": "Åtgärder",
+      "unknownSize": "—"
+    },
+    "exportStatus": {
+      "PENDING": "Väntar",
+      "PROCESSING": "Bearbetas",
+      "COMPLETED": "Klar",
+      "FAILED": "Misslyckades"
+    },
+    "retention": {
+      "title": "Datalagring",
+      "description": "Radera automatiskt data som är äldre än det antal dagar du väljer. Lämna ett fält på \"Spara för alltid\" för att behålla det utan tidsgräns.",
+      "readOnly": "Du kan visa lagringspolicyn, men bara administratörer kan ändra den.",
+      "recordings": "Röstnoteringar & inspelningar",
+      "recordingsHelp": "Inspelningar och deras transkriberingar.",
+      "auditLogs": "Aktivitetslogg",
+      "auditLogsHelp": "Säkerhets- och administrationsposter i aktivitetsloggen.",
+      "activities": "Aktivitetsflöde",
+      "activitiesHelp": "Aktivitetstidslinjen som visas i appen.",
+      "webhookDeliveries": "Webhook-leveranser",
+      "webhookDeliveriesHelp": "Historik över leveransförsök för webhook-endpoints.",
+      "days": "Dagar",
+      "daysUnit": "dagar",
+      "forever": "Spara för alltid",
+      "limited": "Radera efter…",
+      "invalid": "Ange ett heltal mellan 1 och 3650 dagar.",
+      "save": "Spara lagringspolicy",
+      "saved": "Lagringspolicy sparad.",
+      "updatedAt": "Senast ändrad {time}",
+      "neverUpdated": "Använder standardpolicy."
+    },
+    "danger": {
+      "title": "Farozon",
+      "eraseTitle": "Radera denna organisation",
+      "description": "Radera permanent denna organisation och allt som finns i den — kunder, projekt, fakturor, inspelningar, medlemmar och alla andra data. Detta sker omedelbart och kan inte ångras.",
+      "ownerOnly": "Bara organisationens ägare kan radera organisationen.",
+      "erase": "Radera organisation",
+      "confirmTitle": "Radera {name}?",
+      "confirmDescription": "Detta raderar permanent organisationen och varje post den innehåller. Det går inte att återställa.",
+      "typeToConfirm": "Skriv organisationens slug för att bekräfta:",
+      "slugLabel": "Organisationens slug",
+      "slugMismatch": "Sluggen matchar inte.",
+      "confirm": "Radera permanent",
+      "erased": "Organisation raderad."
     }
   }
 }

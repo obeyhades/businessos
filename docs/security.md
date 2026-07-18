@@ -373,6 +373,49 @@ secret-authenticated ingestion endpoint**.
 - `INBOUND_EMAIL_SECRET` ships with a development default (`dev-inbound-secret`) and **must
   be set to a real secret in production** and rotated like other credentials (see below).
 
+## Webhook signing & SSRF (Phase 9)
+
+Outbound webhooks let a tenant register an arbitrary URL that our server then POSTs to. That
+creates two distinct risks — a receiver must be able to trust the payload, and a tenant must
+not be able to turn our server into a proxy into our own network.
+
+**Signing (how integrators verify).** Every delivery carries an
+`x-businessos-signature: t=<unixSeconds>,v1=<hex>` header, where
+`hex = HMAC_SHA256(secret, `${t}.${rawBody}`)` (Stripe-style; the scheme, header names and
+constants live in `@businessos/types` so the worker, tests and docs never drift). A receiver
+verifies by:
+
+1. reading `t` and `v1` from the header;
+2. recomputing the HMAC over its own **raw** request body (not a re-serialized copy — key
+   ordering/whitespace must match) with the endpoint's signing secret;
+3. comparing in **constant time**; and
+4. rejecting a `t` outside a tolerance window (`WEBHOOK_SIGNATURE_TOLERANCE_SECONDS`, 5 min) to
+   bound replay.
+
+Deliveries also carry `x-businessos-event`, `x-businessos-delivery` (the delivery id) and
+`x-businessos-webhook-id`. The signing **secret** (`whsec_…`) is high-entropy, shown once on
+create/rotate, and never serialized again — reads expose only a 4-char `secretHint`. Rotation
+invalidates the previous secret immediately.
+
+**SSRF guard (`assertDeliverableUrl` / `isBlockedAddress` in `apps/*/src/lib/url-safety.ts`,
+byte-for-byte identical in the API and worker).** A user-controlled URL is checked before every
+request — at create/update/ping time in the API and **again at delivery time in the worker**,
+because DNS can change between registration and delivery (the classic DNS-rebinding hole). In
+production the guard requires `https`, then rejects the host if it is `localhost`, a
+`.local`/`.internal`/`.localhost` suffix, or resolves (any A/AAAA record) to a non-public
+address: loopback, `10/8`, `172.16/12`, `192.168/16`, `100.64/10` CGNAT, `169.254/16`
+link-local (which covers the `169.254.169.254` cloud-metadata endpoint), `0/8`, multicast, and
+the IPv6 equivalents (`::1`, `fc00::/7`, `fe80::/10`, and IPv4-mapped `::ffff:` addresses).
+Redirects are **not** followed (`redirect: 'manual'`), so a `2xx`→`3xx`→private hop is
+impossible.
+
+**`WEBHOOK_ALLOW_LOCAL` must be off in production.** This flag (default off) relaxes the guard
+to allow `http` and loopback/private hosts so local dev and the integration tests can point a
+webhook at a `127.0.0.1` receiver. With it **on, the SSRF protection is intentionally disabled**
+— it must never be set in any environment reachable from untrusted tenants. The test config
+sets it true precisely because tests run against loopback receivers; the production config
+leaves it false.
+
 ## Secrets and configuration
 
 Environment is validated with zod at startup in every app (`packages/config`);
@@ -402,16 +445,37 @@ Phase 7 adds **`INBOUND_EMAIL_SECRET`** (API, validated at startup; local defaul
 `x-inbound-secret` header. In production it must be a long random value known only to the
 mail provider's webhook configuration, managed and rotated like `S3_SECRET_KEY`.
 
-## Not implemented yet (designed, Phase 9)
+Phase 9 adds **`WEBHOOK_ALLOW_LOCAL`** (boolean, default **false**). It relaxes the outbound
+webhook SSRF guard for local dev/tests (see [Webhook signing & SSRF](#webhook-signing--ssrf-phase-9)
+above) and **must remain false in production** — leaving it true disables SSRF protection.
 
-- **Data retention policies** — retention windows per data category are not enforced
-- **Organization export and deletion** (GDPR portability/erasure) — not implemented
+## Compliance controls (Phase 9)
+
+Phase 9 implements the GDPR-shaped controls previously listed as designed-only:
+
+- **Data-retention policies are enforced.** Per-org windows (recordings, audit logs,
+  activities, webhook deliveries) drive a worker sweep that deletes rows past their age; a null
+  window means "retain indefinitely". Managing the policy needs `org.update` (OWNER/ADMIN).
+- **Organization export** (`POST /v1/organization/export`, `org.update`) produces a JSON
+  data-portability bundle to object storage, served via a short-lived signed URL. The bundle
+  **excludes secrets** (webhook signing secrets, password hashes, session tokens).
+- **Organization erasure** (`DELETE /v1/organization`) is **OWNER-only** (`org.delete`) and
+  guarded by a typed-slug confirmation (`confirmation_mismatch` on a wrong slug). It cascade-
+  deletes every org-scoped table (all 33 FKs are `onDelete: Cascade`), purges the org's storage
+  objects best-effort, and logs the erasure operationally (org id + actor, no personal data) —
+  the org's own audit log is erased with it, by design.
+
+The bookkeeping/VAT and STT/email personal-data caveats are unchanged and remain
+legally unreviewed (see [legal-review-required.md](legal-review-required.md)).
 
 ## Review before production
 
-- **GDPR**: records of processing, DPAs with subprocessors, retention, export/erasure
+- **GDPR**: records of processing, DPAs with subprocessors — export/erasure and retention are
+  now implemented (Phase 9) but the wider programme is not legally reviewed
   (see [legal-review-required.md](legal-review-required.md))
-- **Postgres row-level security**: evaluated and deferred (ADR-0004) — revisit
+- **Postgres row-level security**: re-evaluated in Phase 9 — app-layer tenancy kept as the
+  primary control, RLS documented as a future defence-in-depth option
+  ([ADR-0010](decisions/adr-0010-postgres-rls-evaluation.md), superseding the ADR-0004 note)
 - **Cookie `Secure` flag**: only set when `NODE_ENV=production`; requires TLS termination
 - **`trustProxy`**: currently `false`; must be enabled (and configured correctly) behind a
   reverse proxy, otherwise per-IP rate limits and audit IPs record the proxy address

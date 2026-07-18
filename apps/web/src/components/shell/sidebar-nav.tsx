@@ -20,8 +20,10 @@ import {
   ReceiptText,
   ScrollText,
   Settings,
+  ShieldCheck,
   Users,
   UsersRound,
+  Webhook,
   Wrench,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -52,6 +54,8 @@ interface NavItem {
     | 'accountingReports'
     | 'auditLog'
     | 'settings'
+    | 'webhooks'
+    | 'dataPrivacy'
     | 'failedJobs';
   icon: typeof LayoutDashboard;
   visible: boolean;
@@ -170,6 +174,18 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       labelKey: 'settings',
       icon: Settings,
       visible: can(session, 'org.read'),
+    },
+    {
+      href: '/settings/webhooks',
+      labelKey: 'webhooks',
+      icon: Webhook,
+      visible: can(session, 'integrations.read'),
+    },
+    {
+      href: '/settings/data',
+      labelKey: 'dataPrivacy',
+      icon: ShieldCheck,
+      visible: can(session, 'org.update'),
     },
     {
       href: '/admin/failed-jobs',

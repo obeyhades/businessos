@@ -265,3 +265,49 @@ are updated to match. The `→ invoice` output is a **DRAFT for review only** �
 tax-compliance claim attaches (see [legal-review-required.md](legal-review-required.md)), and a
 real STT provider carries its own review since audio is personal data and the vendor a
 subprocessor. Phase 9 (integrations & compliance hardening) is next.
+
+## 15. Status (2026-07-18, Phase 9) — integrations & compliance, feature-complete
+
+**Phase 9 (Integrations & compliance hardening) is delivered — the project is now
+feature-complete against the 9-phase plan.** Two new API modules (`integrations`, `compliance`),
+four worker jobs, and four new models — `WebhookEndpoint`, `WebhookDelivery`, `DataExportJob`,
+`RetentionPolicy` (migration `20260718194050_phase9_integrations_compliance`) — with shared zod
+contracts, event constants and the signing scheme in `packages/types`.
+
+- **Outbound webhooks.** Org-managed endpoints subscribe to specific domain events or `'*'`. The
+  worker's `webhook.dispatch` consumer binds `#` on `businessos.events` and creates one delivery
+  row per (endpoint, event) — unique, so redelivery is idempotent — then POSTs a JSON envelope
+  with an **HMAC-SHA256 signature** (`x-businessos-signature: t=…,v1=…`, scheme in
+  `@businessos/types`). Failures retry with exponential backoff via `webhook-retry-sweep`; a
+  synchronous `ping`, secret **rotation** and manual **redelivery** round out the surface.
+  Permissions `integrations.read` / `integrations.manage` (OWNER/ADMIN).
+- **SSRF guard.** `assertDeliverableUrl` / `isBlockedAddress` (`apps/*/src/lib/url-safety.ts`,
+  byte-for-byte identical in API and worker) reject loopback/private/link-local/metadata hosts
+  and non-https URLs, re-checked at delivery time. `WEBHOOK_ALLOW_LOCAL` (off in prod) relaxes it
+  for loopback receivers in dev/tests.
+- **GDPR export & retention.** `POST /v1/organization/export` enqueues a job the worker turns
+  into a JSON bundle in object storage (secrets excluded), served by a short-lived signed URL;
+  per-org **retention windows** drive a worker sweep that deletes aged recordings/audit
+  logs/activities/webhook deliveries. `org.update` gates both.
+- **Organization erasure.** `DELETE /v1/organization` — **OWNER-only** (`org.delete`), typed-slug
+  confirmation, cascade-deletes all org data (33 FKs `onDelete: Cascade`) and purges storage.
+- **Multi-worker outbox.** The relay now uses `SELECT … FOR UPDATE SKIP LOCKED` and marks rows in
+  the same transaction, so multiple workers never double-publish (ADR-0011, superseding ADR-0005's
+  single-relay note).
+- **Evaluations recorded.** ADR-0010 (Postgres RLS re-evaluated — app-layer tenancy kept as the
+  primary control, RLS as future defence-in-depth, amending ADR-0004) and ADR-0012 (custom role
+  editor evaluated — code-defined matrix kept, amending ADR-0003).
+
+**Tests.** Integration: `webhooks.test.ts` (16), `compliance.test.ts` (9),
+`tenant.isolation.p9.test.ts` (4), `rbac.p9.test.ts` (5) — the full API integration suite is
+**63 files / 399 tests green**. Unit: `url-safety` and `webhook-sign` in both API and worker
+(the API's `webhook-sign` test additionally asserts the API and worker copies are byte-for-byte
+identical). Docs (api, data-model, architecture, security, roadmap, this plan) and ADRs 0010–0012
+are updated to match.
+
+**Compliance caveats unchanged.** Export/erasure/retention are implemented controls, not a
+finished GDPR programme; bookkeeping/VAT is not legally reviewed; audio (STT) and email remain
+personal-data processing needing DPO/subprocessor review
+([legal-review-required.md](legal-review-required.md)). Remaining work is the per-phase
+"Future work" items in [product-roadmap.md](product-roadmap.md) (real provider swaps,
+DST-correct recurrence, external calendar/mailbox sync) — not new phases.

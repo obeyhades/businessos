@@ -805,6 +805,71 @@ transcription, making re-transcription idempotent).
 - Carries `organization_id` for tenancy consistency
 - Index `(recording_id, sort_order)` — the ordered read for the detail endpoint
 
+## Phase 9 — integrations & compliance
+
+Added by migration `20260718194050_phase9_integrations_compliance`. Four new tables; all carry
+`organization_id` for tenant isolation and cascade-delete with their organization. See
+[architecture.md](architecture.md#integrations--compliance-phase-9) and
+[security.md](security.md#webhook-signing--ssrf-phase-9).
+
+Enums:
+
+- `WebhookDeliveryStatus` — `PENDING` (default; awaiting a first/next attempt) → `SUCCEEDED` /
+  `FAILED` (terminal after the attempt budget is spent; hand-redeliverable)
+- `DataExportStatus` — `PENDING` (default) → `PROCESSING` → `COMPLETED` / `FAILED`
+
+### webhook_endpoints
+
+An org-registered HTTP target that receives signed deliveries for the domain events it
+subscribes to.
+
+- `url` (validated for shape at write time and for SSRF at delivery time — see security.md),
+  `description` (nullable)
+- `secret` — the raw HMAC signing key. Returned **once** on create/rotate; every read DTO
+  exposes only a `secretHint` (last 4 chars), never the column
+- `event_types` (`String[]`) — subscribed domain event types; a single `'*'` entry means "all
+  events". The dispatch consumer matches `has: type` OR `has: '*'`
+- `enabled` (default `true`) — a disabled endpoint is skipped by dispatch and the retry sweep
+- `created_by_id` (FK to `users`, **SetNull**, `WebhookEndpointCreatedBy` relation)
+- Index `(organization_id)`; children cascade
+
+### webhook_deliveries
+
+One attempt-record per `(endpoint, event)`.
+
+- `endpoint_id` (**Cascade**), `event_id` (the outbox envelope id), `event_type`, `payload`
+  (the full event envelope as JSON)
+- `status` (`WebhookDeliveryStatus`, default `PENDING`), `attempts` (default 0),
+  `response_status` (nullable), `error` (nullable)
+- `next_attempt_at` (nullable; set to a backoff instant while retriable, null when terminal),
+  `delivered_at` (nullable; set on success)
+- **Unique `(endpoint_id, event_id)`** — makes dispatch idempotent under at-least-once event
+  delivery (a redelivered event never creates a second row for the same endpoint)
+- Indexes `(status, next_attempt_at)` — the retry-sweep scan — and
+  `(organization_id, endpoint_id, created_at)` — the deliveries list
+
+### data_export_jobs
+
+A GDPR data-portability export. The worker bundles all org-scoped data into a JSON archive in
+object storage; the row tracks progress and the download key.
+
+- `requested_by_id` (FK to `users`, **SetNull**, `DataExportRequestedBy` relation)
+- `status` (`DataExportStatus`, default `PENDING`), `storage_key` (nullable — set on completion),
+  `size_bytes` (nullable), `error` (nullable)
+- `expires_at` (nullable; the archive is served only until then), `completed_at` (nullable)
+- Index `(organization_id, created_at)`
+
+### retention_policies
+
+Per-org data-retention windows. **`organization_id` is the primary key** — at most one policy
+per org (upserted by the PUT route).
+
+- `recordings_days`, `audit_logs_days`, `activities_days`, `webhook_deliveries_days` — all
+  nullable `Int`; **null means "retain indefinitely"**, a positive value (1–3650) is the age in
+  days past which the worker's retention sweep deletes matching rows
+- Recording deletes purge the audio object from storage before the row is removed, so a
+  retention delete never orphans a blob
+
 ## Tenancy rule for future tables
 
 Every tenant-owned table added in later phases carries `organization_id` and is queried
