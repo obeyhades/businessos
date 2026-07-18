@@ -4,7 +4,11 @@ import { assertTopology, connectWithRetry } from './amqp.js';
 import { startAccountingConsumer } from './consumers/accounting.js';
 import { startEmailConsumer } from './consumers/email.js';
 import { startTranscriptionConsumer } from './consumers/transcription.js';
+import { startWebhookConsumer } from './consumers/webhook.js';
+import { startExportConsumer } from './consumers/export.js';
 import { StubTranscriber } from './transcription/stub.js';
+import { startWebhookRetrySweep } from './webhook-retry-sweep.js';
+import { startRetentionSweep } from './retention-sweep.js';
 import { createMailTransport } from './email/transport.js';
 import { env } from './env.js';
 import { startHealthServer } from './health.js';
@@ -49,8 +53,18 @@ async function main(): Promise<void> {
     transcriber: new StubTranscriber(),
     logger,
   });
+  // Phase 9: integrations + compliance.
+  await startWebhookConsumer({ prisma, channel, allowLocal: env.WEBHOOK_ALLOW_LOCAL, logger });
+  await startExportConsumer({ prisma, channel, storage, logger });
   const overdueSweep = startOverdueSweep(prisma, env.OVERDUE_SWEEP_SECONDS, logger);
   const reminderSweep = startReminderSweep(prisma, env.REMINDER_SWEEP_SECONDS, logger);
+  const webhookRetrySweep = startWebhookRetrySweep(
+    prisma,
+    env.WEBHOOK_RETRY_SWEEP_SECONDS,
+    env.WEBHOOK_ALLOW_LOCAL,
+    logger,
+  );
+  const retentionSweep = startRetentionSweep(prisma, storage, env.RETENTION_SWEEP_SECONDS, logger);
   const healthServer = startHealthServer(
     env.WORKER_HEALTH_PORT,
     prisma,
@@ -65,6 +79,8 @@ async function main(): Promise<void> {
     relay.stop();
     overdueSweep.stop();
     reminderSweep.stop();
+    webhookRetrySweep.stop();
+    retentionSweep.stop();
     healthServer.close();
     try {
       await channel.close();

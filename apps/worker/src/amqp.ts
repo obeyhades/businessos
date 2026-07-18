@@ -6,7 +6,9 @@ import {
   EMAIL_QUEUE,
   EMAIL_RETRY_QUEUE,
   EXCHANGE_NAME,
+  EXPORT_QUEUE,
   TRANSCRIPTION_QUEUE,
+  WEBHOOK_DISPATCH_QUEUE,
 } from '@businessos/types';
 import type { Logger } from 'pino';
 
@@ -64,6 +66,12 @@ export async function assertTopology(channel: AmqpConfirmChannel): Promise<void>
   // Phase 8: async speech-to-text reacts to uploaded recordings.
   await channel.assertQueue(TRANSCRIPTION_QUEUE, { durable: true });
   await channel.bindQueue(TRANSCRIPTION_QUEUE, EXCHANGE_NAME, 'recording.uploaded');
+
+  // Phase 9: webhook dispatch listens to EVERY event; export listens for its own.
+  await channel.assertQueue(WEBHOOK_DISPATCH_QUEUE, { durable: true });
+  await channel.bindQueue(WEBHOOK_DISPATCH_QUEUE, EXCHANGE_NAME, '#');
+  await channel.assertQueue(EXPORT_QUEUE, { durable: true });
+  await channel.bindQueue(EXPORT_QUEUE, EXCHANGE_NAME, 'organization.export_requested');
 
   await channel.assertQueue(DEAD_LETTER_QUEUE, { durable: true });
   await channel.bindQueue(DEAD_LETTER_QUEUE, DLX_NAME, '#');

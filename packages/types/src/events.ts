@@ -15,6 +15,10 @@ export const DEAD_LETTER_QUEUE = 'businessos.dead-letter';
 export const ACCOUNTING_QUEUE = 'accounting.draft';
 /** Phase 8: async speech-to-text of uploaded recordings. */
 export const TRANSCRIPTION_QUEUE = 'recording.transcribe';
+/** Phase 9: fan every domain event out to subscribed org webhook endpoints. */
+export const WEBHOOK_DISPATCH_QUEUE = 'webhook.dispatch';
+/** Phase 9: build a GDPR data-portability export archive. */
+export const EXPORT_QUEUE = 'organization.export';
 
 export const MAX_JOB_ATTEMPTS = 5;
 /** Base delay for retry backoff in ms; actual delay = base * 2^(attempt-1). */
@@ -88,6 +92,8 @@ export const domainEventTypes = [
   'email.sent',
   // Phase 8 — a recording's audio is ready to transcribe (worker consumes it).
   'recording.uploaded',
+  // Phase 9 — a GDPR export was requested (the export worker consumes it).
+  'organization.export_requested',
 ] as const;
 export type DomainEventType = (typeof domainEventTypes)[number];
 

@@ -72,6 +72,8 @@ export const testConfig: ApiConfig = {
   S3_BUCKET: process.env.S3_BUCKET ?? 'businessos',
   S3_REGION: process.env.S3_REGION ?? 'us-east-1',
   INBOUND_EMAIL_SECRET: 'test-inbound-secret',
+  // Tests point webhooks at loopback receivers, so allow local delivery.
+  WEBHOOK_ALLOW_LOCAL: true,
 };
 
 export interface TestContext {

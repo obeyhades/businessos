@@ -74,6 +74,10 @@ model User {
   // Phase 8 back-relations
   createdRecordings Recording[] @relation("RecordingCreatedBy")
 
+  // Phase 9 back-relations
+  createdWebhookEndpoints WebhookEndpoint[] @relation("WebhookEndpointCreatedBy")
+  requestedDataExports    DataExportJob[]   @relation("DataExportRequestedBy")
+
   @@map("users")
 }
 
@@ -135,6 +139,12 @@ model Organization {
 
   // Phase 8 back-relations
   recordings Recording[]
+
+  // Phase 9 back-relations
+  webhookEndpoints  WebhookEndpoint[]
+  webhookDeliveries WebhookDelivery[]
+  dataExportJobs    DataExportJob[]
+  retentionPolicy   RetentionPolicy?
 
   @@map("organizations")
 }
@@ -1641,4 +1651,111 @@ model TranscriptSegment {
   // writer's transaction fails on this constraint and rolls back.
   @@unique([recordingId, sortOrder])
   @@map("transcript_segments")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9 — Integrations & compliance hardening
+// ---------------------------------------------------------------------------
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum DataExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// An org-registered HTTP endpoint that receives signed webhook deliveries for
+/// the domain events it subscribes to. `secret` is the raw HMAC signing key —
+/// returned once on create/rotate and never serialized again.
+model WebhookEndpoint {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  url            String
+  description    String?
+  secret         String
+  /// Subscribed domain event types; a single '*' entry means "all events".
+  eventTypes     String[] @map("event_types")
+  enabled        Boolean  @default(true)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?             @relation("WebhookEndpointCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId])
+  @@map("webhook_endpoints")
+}
+
+/// One delivery attempt-record per (endpoint, event). Unique on that pair so the
+/// dispatch consumer is idempotent under at-least-once event delivery; the retry
+/// sweep re-attempts FAILED rows whose nextAttemptAt is due.
+model WebhookDelivery {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  endpointId     String                @map("endpoint_id") @db.Uuid
+  eventId        String                @map("event_id") @db.Uuid
+  eventType      String                @map("event_type")
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  responseStatus Int?                  @map("response_status")
+  error          String?
+  nextAttemptAt  DateTime?             @map("next_attempt_at") @db.Timestamptz(6)
+  deliveredAt    DateTime?             @map("delivered_at") @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  endpoint     WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, eventId])
+  @@index([status, nextAttemptAt])
+  @@index([organizationId, endpointId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+/// A GDPR data-portability export. The worker bundles all org-scoped data into a
+/// JSON archive in object storage; the row tracks progress and the download key.
+model DataExportJob {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  requestedById  String?          @map("requested_by_id") @db.Uuid
+  status         DataExportStatus @default(PENDING)
+  storageKey     String?          @map("storage_key")
+  sizeBytes      Int?             @map("size_bytes")
+  error          String?
+  expiresAt      DateTime?        @map("expires_at") @db.Timestamptz(6)
+  completedAt    DateTime?        @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedBy  User?        @relation("DataExportRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@map("data_export_jobs")
+}
+
+/// Per-org data-retention settings. A null field means "retain indefinitely";
+/// a positive value is the age in days past which the worker sweep deletes rows.
+model RetentionPolicy {
+  organizationId        String   @id @map("organization_id") @db.Uuid
+  recordingsDays        Int?     @map("recordings_days")
+  auditLogsDays         Int?     @map("audit_logs_days")
+  activitiesDays        Int?     @map("activities_days")
+  webhookDeliveriesDays Int?     @map("webhook_deliveries_days")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("retention_policies")
 }

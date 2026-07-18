@@ -34,3 +34,6 @@ export * from './calendar.js';
 export * from './email.js';
 // Phase 8
 export * from './recordings.js';
+// Phase 9
+export * from './webhooks.js';
+export * from './compliance.js';

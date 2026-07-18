@@ -4,6 +4,7 @@
  *
  * Demo credentials are documented in the root README.
  */
+import { randomBytes } from 'node:crypto';
 import argon2 from 'argon2';
 import {
   PrismaClient,
@@ -133,6 +134,7 @@ async function main(): Promise<void> {
   await seedPhase6(org.id, owner.id);
   await seedPhase7(org.id, owner.id);
   await seedPhase8(org.id, owner.id);
+  await seedPhase9(org.id, owner.id);
 
   console.warn(`Seed complete: organization "${org.name}" with ${DEMO_USERS.length} users.`);
 }
@@ -1311,6 +1313,36 @@ async function seedPhase8(organizationId: string, ownerId: string): Promise<void
   });
 
   console.warn('Seeded 2 voice notes (transcribed) and 1 call log.');
+}
+
+/**
+ * Phase 9 — Integrations & compliance. A (disabled) demo webhook endpoint so the
+ * settings UI has something to show, plus a retention policy. The endpoint is
+ * disabled so the dispatcher doesn't try to reach the placeholder URL.
+ */
+async function seedPhase9(organizationId: string, ownerId: string): Promise<void> {
+  const already = await prisma.webhookEndpoint.count({ where: { organizationId } });
+  if (already === 0) {
+    await prisma.webhookEndpoint.create({
+      data: {
+        organizationId,
+        url: 'https://example.com/webhooks/businessos',
+        description: 'Example endpoint (disabled) — point this at your own service.',
+        secret: `whsec_${randomBytes(24).toString('base64url')}`,
+        eventTypes: ['invoice.finalized', 'payment.registered'],
+        enabled: false,
+        createdById: ownerId,
+      },
+    });
+  }
+
+  await prisma.retentionPolicy.upsert({
+    where: { organizationId },
+    create: { organizationId, webhookDeliveriesDays: 90, auditLogsDays: 365 },
+    update: {},
+  });
+
+  console.warn('Seeded a demo webhook endpoint (disabled) and a retention policy.');
 }
 
 main()

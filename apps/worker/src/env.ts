@@ -20,6 +20,15 @@ export const env = parseEnv({
   OVERDUE_SWEEP_SECONDS: z.coerce.number().int().min(30).default(300),
   /** How often to sweep for due event reminders, in seconds. */
   REMINDER_SWEEP_SECONDS: z.coerce.number().int().min(15).default(60),
+  /** How often to retry failed webhook deliveries, in seconds. */
+  WEBHOOK_RETRY_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
+  /** How often to enforce data-retention policies, in seconds. */
+  RETENTION_SWEEP_SECONDS: z.coerce.number().int().min(60).default(3600),
+  /** Dev/test only: allow webhook delivery to http/loopback hosts. */
+  WEBHOOK_ALLOW_LOCAL: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
 });
 
 export type WorkerEnv = typeof env;

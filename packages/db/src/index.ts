@@ -63,6 +63,11 @@ export type {
   // Phase 8
   Recording,
   TranscriptSegment,
+  // Phase 9
+  WebhookEndpoint,
+  WebhookDelivery,
+  DataExportJob,
+  RetentionPolicy,
 } from '@prisma/client';
 export {
   CustomerStatus,
@@ -105,6 +110,9 @@ export {
   RecordingStatus,
   CallDirection,
   TranscriptStatus,
+  // Phase 9
+  WebhookDeliveryStatus,
+  DataExportStatus,
 } from '@prisma/client';
 
 export interface CreatePrismaClientOptions {

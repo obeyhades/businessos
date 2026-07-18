@@ -19,6 +19,12 @@ export const env = parseEnv({
   /** Shared secret the inbound-email provider webhook must present. Required
    *  (no default) so a misconfigured deploy can't accept forged inbound mail. */
   INBOUND_EMAIL_SECRET: z.string().min(16, 'INBOUND_EMAIL_SECRET must be at least 16 characters'),
+  /** Dev/test only: allow webhook URLs to target http/loopback hosts. MUST stay
+   *  false in production or the SSRF guard is defeated. */
+  WEBHOOK_ALLOW_LOCAL: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
 });
 
 export type ApiEnv = typeof env;

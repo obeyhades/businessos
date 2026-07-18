@@ -134,6 +134,17 @@ export const AUDIT_ACTIONS = [
   'recording.retranscribe_requested',
   'recording.converted_to_task',
   'recording.converted_to_invoice',
+  // Phase 9
+  'webhook_endpoint.created',
+  'webhook_endpoint.updated',
+  'webhook_endpoint.deleted',
+  'webhook_endpoint.secret_rotated',
+  'webhook_endpoint.pinged',
+  'webhook_delivery.redelivered',
+  'retention_policy.updated',
+  'organization.export_requested',
+  'organization.export_downloaded',
+  'organization.erased',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

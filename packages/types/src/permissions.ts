@@ -46,6 +46,10 @@ export const PERMISSIONS = [
   // voice notes (Phase 8)
   'recordings.read',
   'recordings.manage',
+  // integrations & compliance (Phase 9) — admin-level; webhook secrets and the
+  // full event stream are sensitive, so these stay with OWNER/ADMIN only.
+  'integrations.read',
+  'integrations.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

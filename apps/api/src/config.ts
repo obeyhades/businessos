@@ -17,4 +17,5 @@ export interface ApiConfig {
   S3_BUCKET: string;
   S3_REGION: string;
   INBOUND_EMAIL_SECRET: string;
+  WEBHOOK_ALLOW_LOCAL: boolean;
 }

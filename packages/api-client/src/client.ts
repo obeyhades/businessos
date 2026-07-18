@@ -38,6 +38,13 @@ import {
   emailMessageDtoSchema,
   emailLabelDtoSchema,
   recordingDtoSchema,
+  webhookEndpointDtoSchema,
+  webhookEndpointWithSecretDtoSchema,
+  webhookDeliveryDtoSchema,
+  webhookPingResultSchema,
+  dataExportJobDtoSchema,
+  retentionPolicyDtoSchema,
+  eraseOrganizationResultSchema,
   membershipDtoSchema,
   onboardingTemplateDtoSchema,
   organizationDtoSchema,
@@ -141,6 +148,11 @@ import {
   type UpdateRecordingBody,
   type RecordingToTaskBody,
   type RecordingToInvoiceBody,
+  type CreateWebhookEndpointBody,
+  type UpdateWebhookEndpointBody,
+  type WebhookDeliveryListQuery,
+  type UpdateRetentionPolicyBody,
+  type EraseOrganizationBody,
 } from '@businessos/types';
 
 /** Maps an entity kind to its plural REST path segment. */
@@ -789,6 +801,56 @@ export function createApiClient(options: ApiClientOptions) {
         request('POST', `/v1/recordings/${recordingId}/task`, taskDtoSchema, { body }),
       toInvoice: (recordingId: string, body: RecordingToInvoiceBody) =>
         request('POST', `/v1/recordings/${recordingId}/invoice`, invoiceDtoSchema, { body }),
+    },
+
+    webhooks: {
+      list: () => request('GET', '/v1/webhooks', z.array(webhookEndpointDtoSchema)),
+      create: (body: CreateWebhookEndpointBody) =>
+        request('POST', '/v1/webhooks', webhookEndpointWithSecretDtoSchema, { body }),
+      get: (endpointId: string) =>
+        request('GET', `/v1/webhooks/${endpointId}`, webhookEndpointDtoSchema),
+      update: (endpointId: string, body: UpdateWebhookEndpointBody) =>
+        request('PATCH', `/v1/webhooks/${endpointId}`, webhookEndpointDtoSchema, { body }),
+      remove: (endpointId: string) =>
+        request('DELETE', `/v1/webhooks/${endpointId}`, emptySchema),
+      rotateSecret: (endpointId: string) =>
+        request(
+          'POST',
+          `/v1/webhooks/${endpointId}/rotate-secret`,
+          webhookEndpointWithSecretDtoSchema,
+        ),
+      ping: (endpointId: string) =>
+        request('POST', `/v1/webhooks/${endpointId}/ping`, webhookPingResultSchema),
+      listDeliveries: (endpointId: string, query?: Partial<WebhookDeliveryListQuery>) =>
+        request(
+          'GET',
+          `/v1/webhooks/${endpointId}/deliveries`,
+          paginatedSchema(webhookDeliveryDtoSchema),
+          { query },
+        ),
+      redeliver: (endpointId: string, deliveryId: string) =>
+        request(
+          'POST',
+          `/v1/webhooks/${endpointId}/deliveries/${deliveryId}/redeliver`,
+          webhookDeliveryDtoSchema,
+        ),
+    },
+
+    compliance: {
+      requestExport: () =>
+        request('POST', '/v1/organization/export', dataExportJobDtoSchema),
+      listExports: () =>
+        request('GET', '/v1/organization/exports', z.array(dataExportJobDtoSchema)),
+      getExport: (jobId: string) =>
+        request('GET', `/v1/organization/exports/${jobId}`, dataExportJobDtoSchema),
+      exportDownloadUrl: (jobId: string) =>
+        request('GET', `/v1/organization/exports/${jobId}/download`, attachmentDownloadDtoSchema),
+      getRetention: () =>
+        request('GET', '/v1/organization/retention', retentionPolicyDtoSchema),
+      updateRetention: (body: UpdateRetentionPolicyBody) =>
+        request('PUT', '/v1/organization/retention', retentionPolicyDtoSchema, { body }),
+      eraseOrganization: (body: EraseOrganizationBody) =>
+        request('DELETE', '/v1/organization', eraseOrganizationResultSchema, { body }),
     },
   };
 }
