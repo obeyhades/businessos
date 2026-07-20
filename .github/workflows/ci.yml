@@ -9,7 +9,7 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -53,7 +53,7 @@ jobs:
       DATABASE_URL_TEST: postgresql://businessos:businessos@localhost:5432/businessos_test
       RABBITMQ_URL: amqp://guest:guest@localhost:5672
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -111,7 +111,7 @@ jobs:
       SMTP_PORT: 1025
       SMTP_FROM: BusinessOS <no-reply@businessos.local>
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10
