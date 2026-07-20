@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
       - uses: actions/setup-node@v4
@@ -54,7 +54,7 @@ jobs:
       RABBITMQ_URL: amqp://guest:guest@localhost:5672
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
       - uses: actions/setup-node@v4
@@ -112,7 +112,7 @@ jobs:
       SMTP_FROM: BusinessOS <no-reply@businessos.local>
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
       - uses: actions/setup-node@v4
