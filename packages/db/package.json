@@ -27,11 +27,11 @@
     "@businessos/tsconfig": "workspace:*",
     "@businessos/types": "workspace:*",
     "@types/node": "^22.10.5",
-    "argon2": "^0.41.1",
+    "argon2": "^0.45.1",
     "dotenv-cli": "^7.4.4",
     "eslint": "^9.18.0",
     "prisma": "^6.2.1",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.1",
     "typescript": "^5.7.3"
   }
 }
